@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VPN Panel</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="app" id="app">
+    <!-- Header -->
+    <header class="header">
+        <div class="header-inner">
+            <a class="logo" href="#/dashboard">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                VPN Panel
+            </a>
+            <button class="btn btn-secondary btn-sm header-logout" id="headerLogoutBtn" style="display:none">Выйти</button>
+            <button class="hamburger" id="hamburgerBtn" aria-label="Меню">
+                <span></span><span></span><span></span>
+            </button>
+            <nav class="nav" id="mainNav">
+                <button class="nav-close" id="navClose">&times;</button>
+            </nav>
+        </div>
+    </header>
+    <!-- Nav overlay (mobile) -->
+    <div class="nav-overlay" id="navOverlay"></div>
+
+    <!-- Toast container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Main content -->
+    <main class="main" id="mainContent"></main>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal" id="modalContent"></div>
+    </div>
+</div>
+
+<script type="module" src="/js/main.js"></script>
+</body>
+</html>

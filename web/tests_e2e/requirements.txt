@@ -1,0 +1,10 @@
+# Python
+playwright>=1.42.0
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
+pytest-playwright>=0.5.0
+asyncpg>=0.29.0
+bcrypt>=4.1.0
+
+# Node.js (для Playwright CLI)
+# @playwright/test>=1.42.0

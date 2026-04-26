@@ -1,0 +1,22 @@
+{
+  "name": "vpn-web-frontend-e2e-tests",
+  "version": "1.0.0",
+  "description": "E2E тесты для VPN Web Frontend с использованием Playwright",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "test:debug": "playwright test --debug",
+    "test:report": "playwright show-report",
+    "test:auth": "playwright test test_auth.py",
+    "test:dashboard": "playwright test test_dashboard.py",
+    "test:tariffs": "playwright test test_tariffs_payments.py",
+    "test:admin": "playwright test test_admin.py",
+    "test:routing": "playwright test test_routing.py",
+    "test:ui-ux": "playwright test test_ui_ux.py",
+    "install:browsers": "playwright install"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.42.0"
+  }
+}
