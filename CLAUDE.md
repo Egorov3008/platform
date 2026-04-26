@@ -72,6 +72,6 @@ cd web && npx playwright test
 
 - [x] Stage 0: Monorepo setup
 - [~] Stage 1a: Backend Foundation — завершён (models/database/services/cache перенесены, lifespan, /readiness)
-- [ ] Stage 1b: API Endpoints (/api/v1/keys, /users, /tariffs, /payments, /admin)
+- [x] Stage 1b: API Endpoints — завершён (/api/v1/keys, /users, /tariffs, /payments, /admin, 26 тестов)
 - [ ] Stage 2: Бот переключается на backend API
 - [ ] Stage 3: Веб переключается на backend API
