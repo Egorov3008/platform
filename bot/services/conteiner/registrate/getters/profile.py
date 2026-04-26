@@ -6,6 +6,7 @@ from dialogs.windows.widgets.keybord.profile.main import UserKeyboardBuilder
 from dialogs.windows.widgets.keybord.profile.welcome import WelcomeKeyboard
 from dialogs.windows.widgets.message.profile.main import UserMessageBuilder
 from dialogs.windows.widgets.message.profile.welcom import WelcomeMessage
+from api.backend_client import BackendAPIClient
 from services.conteiner.protocol import ContainerProtocol
 from services.core.data.service import ServiceDataModel
 from services.core.gift.repositories.checker import CheckerGiftLink
@@ -17,7 +18,7 @@ class ProfileRegistrar(ContainerProtocol):
     def register_dependencies(self, container: Container) -> None:
         def build_user_data_getter():
             return UserDataGetter(
-                model_data=container.resolve(ServiceDataModel),
+                backend_client=container.resolve(BackendAPIClient),
                 checker_link=container.resolve(CheckerGiftLink),
                 checked_user=container.resolve(CheckedUser),
             )
