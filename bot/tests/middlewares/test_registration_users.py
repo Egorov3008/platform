@@ -55,6 +55,46 @@ class TestRegistrationUsersMiddleware:
         assert middleware.check_event_message(event) is True
 
     @pytest.mark.asyncio
+    async def test_registered_user_from_backend(self, middleware, base_data):
+        from api.backend_client import BackendAPIClient, BackendUser
+
+        backend_user = BackendUser(
+            tg_id=123, username="u", first_name="F",
+            balance=0.0, trial=0, server_id=None,
+            is_admin=False, is_blocked=False,
+        )
+        mock_backend = AsyncMock(spec=BackendAPIClient)
+        mock_backend.get_user = AsyncMock(return_value=backend_user)
+        base_data["container"].resolve = MagicMock(return_value=mock_backend)
+
+        handler = AsyncMock()
+        await middleware(handler, MagicMock(), base_data)
+
+        assert base_data["registration_result"]["type"] == "registered_user"
+        mock_backend.get_user.assert_called_once_with(123)
+        handler.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_unregistered_user_no_token_passes_through(self, middleware, base_data):
+        from api.backend_client import BackendAPIClient
+
+        mock_backend = AsyncMock(spec=BackendAPIClient)
+        mock_backend.get_user = AsyncMock(return_value=None)
+        base_data["container"].resolve = MagicMock(return_value=mock_backend)
+
+        from aiogram.types import Update
+        event = MagicMock()
+        event.__class__ = Update
+        event.message = None
+        event.edited_message = None
+
+        handler = AsyncMock()
+        await middleware(handler, event, base_data)
+
+        handler.assert_called_once()
+        assert "registration_result" not in base_data
+
+    @pytest.mark.asyncio
     async def test_check_event_message_without_message(self, middleware):
         from aiogram.types import Update
 

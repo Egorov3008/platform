@@ -40,14 +40,14 @@ class RegistrationUsersMiddleware(BaseMiddleware):
             data["registration_result"] = {"success": True, "type": "registered_user"}
             return await handler(event, data)
 
-        # Fallback: проверяем БД если кеша нет (кеш мог истечь или быть очищен)
+        # Fallback: проверяем backend API если кеша нет (кеш мог истечь или быть очищен)
         try:
-            from services.core.data.service import ServiceDataModel
+            from api.backend_client import BackendAPIClient
 
-            service_model = container.resolve(ServiceDataModel)
-            db_user = await service_model.users.get_data(user_id)
-            if db_user:
-                logger.debug("Пользователь найден в БД (кеш был пуст)", user_id=user_id)
+            backend_client = container.resolve(BackendAPIClient)
+            backend_user = await backend_client.get_user(user_id)
+            if backend_user:
+                logger.debug("Пользователь найден в backend (кеш был пуст)", user_id=user_id)
                 data["registration_result"] = {
                     "success": True,
                     "type": "registered_user",
@@ -55,7 +55,7 @@ class RegistrationUsersMiddleware(BaseMiddleware):
                 return await handler(event, data)
         except Exception as e:
             logger.warning(
-                "Ошибка при проверке пользователя в БД", user_id=user_id, error=str(e)
+                "Ошибка при проверке пользователя в backend", user_id=user_id, error=str(e)
             )
 
         if not self.check_event_message(event):
