@@ -1,3 +1,4 @@
+from .backend_client import BackendClientRegistrar
 from .cache import CacheRegistrar
 from .coreservice import CoreServiceRegistrar
 from .gift import GiftServiceRegistrar
@@ -7,6 +8,7 @@ from .tariff import TariffServiceRegistrar
 from .registration import RegistrationRegistrar
 
 __all__ = [
+    BackendClientRegistrar,
     CacheRegistrar,
     CoreServiceRegistrar,
     GiftServiceRegistrar,

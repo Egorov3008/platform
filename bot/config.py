@@ -55,6 +55,8 @@ ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 ADD_CLIENT_URL = os.getenv("ADD_CLIENT_URL")
 API_URL = os.getenv("API_URL")
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+BOT_SECRET_KEY = os.getenv("BOT_SECRET_KEY", "")
 
 DB_NAME = os.getenv("DB_NAME")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
