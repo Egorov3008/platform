@@ -18,6 +18,7 @@ from dialogs.windows.widgets.message.keys.key_list import KeyListMessage
 from dialogs.windows.widgets.message.keys.key_details import KeyDetailsMessage
 from dialogs.windows.widgets.message.keys.delete_key import DeleteKeyMessage
 from dialogs.windows.widgets.message.keys.error_key import ErrorKeyMessage
+from api.backend_client import BackendAPIClient
 from services.conteiner.protocol import ContainerProtocol
 from services.core.data.service import ServiceDataModel
 from client import XUISession
@@ -34,7 +35,7 @@ class KeysRegistrar(ContainerProtocol):
         container.register(
             KeyListGetter,
             factory=lambda: KeyListGetter(
-                model_data=container.resolve(ServiceDataModel)
+                backend_client=container.resolve(BackendAPIClient)
             ),
             scope=punq.Scope.singleton,
         )
