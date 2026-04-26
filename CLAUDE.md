@@ -71,6 +71,7 @@ cd web && npx playwright test
 ## Текущий статус миграции
 
 - [x] Stage 0: Monorepo setup
-- [ ] Stage 1: Backend API-слой (перенос services/database/models/cache из bot/)
+- [~] Stage 1a: Backend Foundation — завершён (models/database/services/cache перенесены, lifespan, /readiness)
+- [ ] Stage 1b: API Endpoints (/api/v1/keys, /users, /tariffs, /payments, /admin)
 - [ ] Stage 2: Бот переключается на backend API
 - [ ] Stage 3: Веб переключается на backend API
