@@ -1,0 +1,127 @@
+<h2>Админ-панель: статистика</h2>
+<p class="subtitle">Какие метрики выводить на дашборде администратора</p>
+
+<div class="section">
+  <div class="mockup">
+    <div class="mockup-header">📊 /admin/stats — Общие показатели</div>
+    <div class="mockup-body" style="padding:20px">
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:20px">
+        <div style="background:#1e293b;border-radius:8px;padding:14px;text-align:center">
+          <div style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Пользователи</div>
+          <div style="color:#e2e8f0;font-size:24px;font-weight:700">1,234</div>
+          <div style="color:#22c55e;font-size:11px;margin-top:4px">+12 сегодня</div>
+        </div>
+        <div style="background:#1e293b;border-radius:8px;padding:14px;text-align:center">
+          <div style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Активных ключей</div>
+          <div style="color:#e2e8f0;font-size:24px;font-weight:700">856</div>
+          <div style="color:#22c55e;font-size:11px;margin-top:4px">+5 сегодня</div>
+        </div>
+        <div style="background:#1e293b;border-radius:8px;padding:14px;text-align:center">
+          <div style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Выручка (месяц)</div>
+          <div style="color:#e2e8f0;font-size:24px;font-weight:700">₽84,200</div>
+          <div style="color:#22c55e;font-size:11px;margin-top:4px">+₽3,400 сегодня</div>
+        </div>
+        <div style="background:#1e293b;border-radius:8px;padding:14px;text-align:center">
+          <div style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Истекают (24ч)</div>
+          <div style="color:#f87171;font-size:24px;font-weight:700">23</div>
+          <div style="color:#64748b;font-size:11px;margin-top:4px">требуют внимания</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div style="background:#1e293b;border-radius:8px;padding:14px">
+          <div style="color:#94a3b8;font-size:12px;font-weight:600;margin-bottom:10px">Популярные тарифы</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="color:#e2e8f0;font-size:12px">Базовый (30 дней)</span>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="background:#6366f1;height:6px;border-radius:3px;width:80px"></div>
+                <span style="color:#94a3b8;font-size:11px">42%</span>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="color:#e2e8f0;font-size:12px">Стандарт (90 дней)</span>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="background:#6366f1;height:6px;border-radius:3px;width:55px"></div>
+                <span style="color:#94a3b8;font-size:11px">29%</span>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="color:#e2e8f0;font-size:12px">Годовой (365 дней)</span>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="background:#6366f1;height:6px;border-radius:3px;width:35px"></div>
+                <span style="color:#94a3b8;font-size:11px">18%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:#1e293b;border-radius:8px;padding:14px">
+          <div style="color:#94a3b8;font-size:12px;font-weight:600;margin-bottom:10px">Загрузка серверов</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="color:#e2e8f0;font-size:12px">Server 1 (RU)</span>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="background:#22c55e;height:6px;border-radius:3px;width:60px"></div>
+                <span style="color:#94a3b8;font-size:11px">312 ключей</span>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="color:#e2e8f0;font-size:12px">Server 2 (NL)</span>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="background:#f59e0b;height:6px;border-radius:3px;width:90px"></div>
+                <span style="color:#94a3b8;font-size:11px">544 ключей</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="mockup">
+    <div class="mockup-header">👥 /admin/users — Таблица пользователей</div>
+    <div class="mockup-body" style="padding:16px">
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <div class="mock-input" style="flex:1;font-size:12px">🔍 Поиск по tg_id, username, email...</div>
+        <div style="background:#1e293b;border:1px solid #334155;border-radius:6px;padding:6px 12px;color:#94a3b8;font-size:12px">Фильтр ▾</div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr style="border-bottom:1px solid #334155">
+            <th style="text-align:left;padding:8px;color:#64748b">TG ID</th>
+            <th style="text-align:left;padding:8px;color:#64748b">Username</th>
+            <th style="text-align:left;padding:8px;color:#64748b">Email</th>
+            <th style="text-align:left;padding:8px;color:#64748b">Ключей</th>
+            <th style="text-align:left;padding:8px;color:#64748b">Статус</th>
+            <th style="text-align:left;padding:8px;color:#64748b">Действия</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid #1e293b">
+            <td style="padding:8px;color:#94a3b8;font-family:monospace">836250705</td>
+            <td style="padding:8px;color:#e2e8f0">@ivan_vpn</td>
+            <td style="padding:8px;color:#94a3b8">ivan@mail.ru</td>
+            <td style="padding:8px;color:#e2e8f0">2</td>
+            <td style="padding:8px"><span style="background:#14532d;color:#4ade80;padding:2px 8px;border-radius:4px;font-size:11px">активен</span></td>
+            <td style="padding:8px;color:#6366f1;font-size:11px;cursor:pointer">просмотр</td>
+          </tr>
+          <tr style="border-bottom:1px solid #1e293b">
+            <td style="padding:8px;color:#94a3b8;font-family:monospace">123456789</td>
+            <td style="padding:8px;color:#e2e8f0">@petr_k</td>
+            <td style="padding:8px;color:#64748b">—</td>
+            <td style="padding:8px;color:#e2e8f0">1</td>
+            <td style="padding:8px"><span style="background:#4c0519;color:#f87171;padding:2px 8px;border-radius:4px;font-size:11px">заблокирован</span></td>
+            <td style="padding:8px;color:#6366f1;font-size:11px;cursor:pointer">просмотр</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:16px">Нужна ли ещё какая-то статистика или управление?</p>

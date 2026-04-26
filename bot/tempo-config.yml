@@ -1,0 +1,86 @@
+# Tempo configuration for bot_3xui
+# Documentation: https://grafana.com/docs/tempo/latest/configuration/
+
+server:
+  http_listen_port: 3200
+  log_level: info
+
+# Распределённая трассировка
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: localhost:4317
+        http:
+          endpoint: localhost:4318
+    jaeger:
+      protocols:
+        grpc:
+          endpoint: localhost:14250
+        thrift_http:
+          endpoint: localhost:14268
+    zipkin:
+      endpoint: localhost:9411
+
+# Хранение трассировок
+storage:
+  trace:
+    backend: local
+    wal:
+      path: /tmp/tempo/wal
+      enabled: true
+    local:
+      path: /tmp/tempo/blocks
+    pool:
+      max_workers: 100
+      queue_depth: 10000
+
+# Ингерстия трассировок
+ingester:
+  max_block_duration: 5m
+  max_block_bytes: 1073741824  # 1GB
+  max_traces_per_user: 10000
+  trace_idle_period: 10s
+
+# Compactor для сжатия данных
+compactor:
+  compaction:
+    block_retention: 48h  # Хранение трассировок
+    compacted_block_retention: 10m
+
+# Querier для запросов
+querier:
+  max_concurrent_queries: 20
+  query_timeout: 30s
+
+# Поиск трассировок
+search:
+  enabled: true
+  max_duration: 48h
+  max_results: 1000
+
+# Метрики
+metrics_generator:
+  registry:
+    external_labels:
+      source: tempo
+      cluster: bot_3xui
+  storage:
+    path: /tmp/tempo/generator/wal
+    remote_write:
+      - url: http://localhost:9090/api/v1/write
+        send_exemplars: true
+
+# Overrides для лимитов
+overrides:
+  defaults:
+    ingestion:
+      rate_limit: 10000
+      burst_size: 20000
+    max_traces_per_user: 10000
+    search:
+      enabled: true
+
+analytics:
+  reporting_enabled: false

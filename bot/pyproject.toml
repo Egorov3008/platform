@@ -1,0 +1,16 @@
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+
+[tool.mypy]
+ignore_missing_imports = true
+explicit_package_bases = true
+no_implicit_optional = false
+check_untyped_defs = false
+disable_error_code = ["assignment", "arg-type", "return-value", "operator", "attr-defined", "union-attr", "truthy-function", "list-item", "name-defined", "misc", "var-annotated", "override", "index", "call-arg", "func-returns-value"]
+
+[dependency-groups]
+dev = [
+    "reportlab>=4.4.10",
+]
+

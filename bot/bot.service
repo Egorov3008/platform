@@ -1,0 +1,36 @@
+[Unit]
+Description=Bot 3xui VPN
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=tds_admin
+Group=tds_admin
+WorkingDirectory=/home/tds_admin/Bot_3xui_vpn
+Environment="PATH=/home/tds_admin/Bot_3xui_vpn/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+ExecStart=/home/tds_admin/Bot_3xui_vpn/venv/bin/python3 main.py
+Restart=on-failure
+RestartSec=10
+RestartSteps=5
+RestartMaxDelay=60
+
+# Таймауты для защиты от зависаний
+TimeoutStartSec=60
+TimeoutStopSec=30
+WatchdogSec=120
+
+# Ограничения ресурсов
+MemoryLimit=1G
+MemoryHigh=800M
+
+# Уведомление systemd о состоянии
+NotifyAccess=all
+
+# Логирование stdout/stderr в journal
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bot_3xui_vpn
+
+[Install]
+WantedBy=multi-user.target

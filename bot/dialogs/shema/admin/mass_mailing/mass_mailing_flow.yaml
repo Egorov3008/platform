@@ -1,0 +1,38 @@
+dialog: mass_mailing_flow
+windows:
+  - state: AdminMassMailing.receiving_message
+    text: |
+      ✉️ Введите сообщение для рассылки:
+    input:
+      type: text
+      id: text
+      type_factory: str
+      on_success: getters.on_click.admin_click.on_click_confirmation_of_sending
+    buttons:
+      - !include ../partials/buttons/back.yaml
+    context: { back_state: AdminManager.main }
+
+  - state: AdminMassMailing.confirmation
+    text: |
+      📬 Вы уверены, что хотите отправить сообщение:
+
+      <i>{text}</i>?
+    buttons:
+      - type: radio
+        checked_text: "✅ {item.emoji} {item.title}"
+        unchecked_text: "{item.emoji} {item.title}"
+        id: pin_message
+        item_id_getter: "lambda x: x.id"
+        items: statuses
+        on_click: getters.on_click.admin_click.on_click_change_status
+      - type: button
+        text: "🔄 Изменить сообщение"
+        id: edit
+        on_click: "lambda c, b, m: m.switch_to(AdminMassMailing.receiving_message)"
+      - type: button
+        text: "✅ Подтвердить отправку"
+        id: confirm_send
+        on_click: getters.on_click.admin_click.on_click_mass_mailing
+      - !include ../partials/buttons/back.yaml
+    getter: getters.admin_getter.getter_confirmation_of_sending
+    context: { back_state: AdminManager.main }

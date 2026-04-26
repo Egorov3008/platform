@@ -1,0 +1,135 @@
+# Promtail configuration for bot_3xui
+# Documentation: https://grafana.com/docs/loki/latest/clients/promtail/configuration/
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  log_level: info
+
+positions:
+  filename: /tmp/positions.yaml
+
+# Loki endpoints
+clients:
+  - url: http://localhost:3100/loki/api/v1/push
+    timeout: 10s
+    batch_size: 1048576  # 1MB
+    batch_wait: 10s
+
+# Scrape configuration
+scrape_configs:
+  # Application logs (INFO+)
+  - job_name: bot_3xui_application
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: bot_3xui
+          service: vpn-bot
+          level: application
+          __path__: /home/claude/bot_3xui/logs/*.log
+    
+    # Pipeline для парсинга логов
+    pipeline_stages:
+      # Парсинг формата лога
+      - regex:
+          expression: '^(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) \| (?P<level>\w+ +) \| (?P<logger>.+):(?P<function>.+):(?P<line>\d+) \| (?P<message>.+) \| (?P<extra>\{.+\})$'
+      
+      # Извлечение полей из extra
+      - json:
+          expressions:
+            trace_id: trace_id
+            service: service
+            user_id: user_id
+            email: email
+            error_type: error_type
+          source: extra
+      
+      # Добавление меток для Loki
+      - labels:
+          level:
+          logger:
+          trace_id:
+          service:
+      
+      # Форматирование timestamp
+      - timestamp:
+          format: '2006-01-02 15:04:05'
+          source: timestamp
+
+  # Error logs (ERROR+)
+  - job_name: bot_3xui_errors
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: bot_3xui
+          service: vpn-bot
+          level: error
+          __path__: /home/claude/bot_3xui/logs_error/*.log
+    
+    pipeline_stages:
+      - regex:
+          expression: '^(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) \| (?P<level>\w+ +) \| (?P<logger>.+):(?P<function>.+):(?P<line>\d+) \| (?P<message>.+) \| (?P<extra>\{.+\})$'
+      
+      - json:
+          expressions:
+            trace_id: trace_id
+            service: service
+            user_id: user_id
+            email: email
+            error_type: error_type
+          source: extra
+      
+      - labels:
+          level:
+          logger:
+          trace_id:
+          service:
+          error_type:
+      
+      - timestamp:
+          format: '2006-01-02 15:04:05'
+          source: timestamp
+
+  # JSON logs (production)
+  - job_name: bot_3xui_json
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: bot_3xui
+          service: vpn-bot
+          format: json
+          __path__: /home/claude/bot_3xui/logs/*.json.log
+    
+    pipeline_stages:
+      # Парсинг JSON
+      - json:
+          expressions:
+            level: level
+            message: message
+            trace_id: trace_id
+            service: service
+            user_id: user_id
+            email: email
+            error_type: error_type
+            function: function
+            name: name
+      
+      - labels:
+          level:
+          service:
+          trace_id:
+          error_type:
+
+# Rate limiting для защиты от спама
+rate_limit:
+  rate: 1000
+  burst: 2000
+
+# Retry configuration
+retry_config:
+  max_retries: 5
+  max_backoff: 5m
+  min_backoff: 100ms

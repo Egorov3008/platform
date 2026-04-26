@@ -1,0 +1,86 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+backup/.gitkeep
+
+# Virtual environments
+venv/
+env/
+.env/
+.venv/
+.cache/
+.tests/
+   # Игнорировать временные файлы PyCharm
+
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+build/
+dist/
+diagrams/
+venv/
+__pycache__/
+extract_docs.py
+
+
+
+
+
+# IDE specific files
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Logs and databases
+/logs
+/logs_error
+*.log
+*.sqlite3
+*.db
+*.zip
+
+
+# Sensitive configuration files
+
+
+
+# Backup files
+*.bak
+*.swp
+*~
+
+# Specific project files
+vpn_users.db
+database.db
+bot_old.py
+bot_old_2.py
+backup_pg.sh
+
+
+
+# Miscellaneous
+.DS_Store
+Thumbs.db
+
+
+nginx.conf
+scripts
+
+.idea
+.venv
+.csv
+.env
+.clinerules-architect
+.clinerules-ask
+.clinerules-code
+.clinerules-debug
+.clinerules-test

@@ -1,0 +1,69 @@
+<h2>Архитектура бэкенда</h2>
+<p class="subtitle">Монолитный FastAPI — отдельный репозиторий, общая БД с ботом</p>
+
+<div class="section">
+  <div class="mockup">
+    <div class="mockup-header">Общая схема системы</div>
+    <div class="mockup-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;padding:16px">
+
+        <div style="background:#1e293b;border:1px solid #334155;border-radius:8px;padding:16px;text-align:center">
+          <div style="font-size:24px;margin-bottom:8px">🤖</div>
+          <div style="color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:1px">Существующий</div>
+          <div style="color:#e2e8f0;font-weight:600;margin:4px 0">Telegram Bot</div>
+          <div style="color:#64748b;font-size:12px">aiogram + asyncpg</div>
+        </div>
+
+        <div style="background:#0f172a;border:2px solid #6366f1;border-radius:8px;padding:16px;text-align:center;box-shadow:0 0 20px rgba(99,102,241,0.2)">
+          <div style="font-size:24px;margin-bottom:8px">⚡</div>
+          <div style="color:#818cf8;font-size:11px;text-transform:uppercase;letter-spacing:1px">Новый</div>
+          <div style="color:#e2e8f0;font-weight:600;margin:4px 0">FastAPI Backend</div>
+          <div style="color:#64748b;font-size:12px">asyncpg · JWT · Pydantic v2</div>
+        </div>
+
+        <div style="background:#1e293b;border:1px solid #334155;border-radius:8px;padding:16px;text-align:center">
+          <div style="font-size:24px;margin-bottom:8px">🌐</div>
+          <div style="color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:1px">Внешний</div>
+          <div style="color:#e2e8f0;font-weight:600;margin:4px 0">3x-UI API</div>
+          <div style="color:#64748b;font-size:12px">Управление ключами</div>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:center;gap:32px;padding:8px 16px">
+        <div style="color:#475569;font-size:12px;text-align:center">↕ общая БД</div>
+        <div style="color:#475569;font-size:12px;text-align:center">↕ магические ссылки</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:8px 16px 16px">
+        <div style="background:#1e293b;border:1px solid #334155;border-radius:8px;padding:16px;text-align:center">
+          <div style="font-size:20px;margin-bottom:6px">🐘</div>
+          <div style="color:#e2e8f0;font-weight:600">PostgreSQL</div>
+          <div style="color:#64748b;font-size:12px">Общая для бота и бэкенда</div>
+        </div>
+        <div style="background:#1e293b;border:1px solid #334155;border-radius:8px;padding:16px;text-align:center">
+          <div style="font-size:20px;margin-bottom:6px">💳</div>
+          <div style="color:#e2e8f0;font-weight:600">YooKassa</div>
+          <div style="color:#64748b;font-size:12px">Та же интеграция что в боте</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Структура проекта</h3>
+  <div style="background:#0f172a;border:1px solid #1e293b;border-radius:8px;padding:20px;font-family:monospace;font-size:13px;line-height:1.8;color:#94a3b8">
+    <span style="color:#6366f1">vpn-web-backend/</span><br>
+    ├── <span style="color:#818cf8">app/</span><br>
+    │   ├── <span style="color:#94a3b8">api/</span>          <span style="color:#475569"># роуты: auth, keys, tariffs, admin, payments</span><br>
+    │   ├── <span style="color:#94a3b8">services/</span>     <span style="color:#475569"># переиспользуем из бота: KeysService, UserService...</span><br>
+    │   ├── <span style="color:#94a3b8">schemas/</span>      <span style="color:#475569"># Pydantic v2 модели запросов/ответов</span><br>
+    │   ├── <span style="color:#94a3b8">core/</span>         <span style="color:#475569"># config, database pool, JWT, dependencies</span><br>
+    │   └── <span style="color:#94a3b8">main.py</span><br>
+    ├── <span style="color:#94a3b8">database/</span>         <span style="color:#475569"># symlink или git submodule из бота</span><br>
+    ├── <span style="color:#94a3b8">tests/</span><br>
+    └── <span style="color:#94a3b8">docker-compose.yml</span>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:16px">Выглядит правильно? Подтверди или укажи что изменить.</p>

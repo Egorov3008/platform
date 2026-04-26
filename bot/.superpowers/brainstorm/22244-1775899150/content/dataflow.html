@@ -1,0 +1,118 @@
+<h2>Ключевые потоки данных</h2>
+<p class="subtitle">Как работают два главных сценария: вход через Telegram и покупка ключа</p>
+
+<div class="section">
+  <div class="mockup">
+    <div class="mockup-header">🔐 Поток: Вход через Telegram (Magic Link)</div>
+    <div class="mockup-body" style="padding:20px">
+      <div style="display:flex;flex-direction:column;gap:8px">
+
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="background:#6366f1;color:white;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">1</div>
+          <div style="background:#1e293b;border-radius:8px;padding:10px 14px;flex:1">
+            <span style="color:#94a3b8;font-size:12px">Браузер → </span>
+            <span style="color:#e2e8f0;font-family:monospace;font-size:12px">POST /auth/telegram/request</span>
+            <span style="color:#64748b;font-size:12px"> (tg_id или username)</span>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="background:#6366f1;color:white;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">2</div>
+          <div style="background:#1e293b;border-radius:8px;padding:10px 14px;flex:1">
+            <span style="color:#94a3b8;font-size:12px">Бэкенд генерирует </span>
+            <span style="color:#818cf8;font-family:monospace;font-size:12px">one-time token</span>
+            <span style="color:#64748b;font-size:12px"> → сохраняет в БД (TTL: 10 мин)</span>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="background:#6366f1;color:white;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">3</div>
+          <div style="background:#1e293b;border-radius:8px;padding:10px 14px;flex:1">
+            <span style="color:#94a3b8;font-size:12px">Бэкенд → Telegram Bot API → шлёт юзеру: </span>
+            <span style="color:#818cf8;font-family:monospace;font-size:12px">https://web.app/auth?token=xxx</span>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="background:#6366f1;color:white;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">4</div>
+          <div style="background:#1e293b;border-radius:8px;padding:10px 14px;flex:1">
+            <span style="color:#94a3b8;font-size:12px">Юзер кликает ссылку → браузер: </span>
+            <span style="color:#e2e8f0;font-family:monospace;font-size:12px">POST /auth/telegram/verify</span>
+            <span style="color:#64748b;font-size:12px"> {token}</span>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="background:#22c55e;color:white;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">✓</div>
+          <div style="background:#14532d;border:1px solid #166534;border-radius:8px;padding:10px 14px;flex:1">
+            <span style="color:#4ade80;font-size:12px">Бэкенд возвращает </span>
+            <span style="color:#86efac;font-family:monospace;font-size:12px">access_token + refresh_token</span>
+            <span style="color:#4ade80;font-size:12px"> → пользователь авторизован</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="mockup">
+    <div class="mockup-header">💳 Поток: Покупка ключа</div>
+    <div class="mockup-body" style="padding:20px">
+      <div style="display:flex;flex-direction:column;gap:8px">
+
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="background:#f59e0b;color:#0f172a;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">1</div>
+          <div style="background:#1e293b;border-radius:8px;padding:10px 14px;flex:1">
+            <span style="color:#94a3b8;font-size:12px">Браузер → </span>
+            <span style="color:#e2e8f0;font-family:monospace;font-size:12px">POST /payments/create</span>
+            <span style="color:#64748b;font-size:12px"> {tariff_id}</span>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="background:#f59e0b;color:#0f172a;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">2</div>
+          <div style="background:#1e293b;border-radius:8px;padding:10px 14px;flex:1">
+            <span style="color:#94a3b8;font-size:12px">Бэкенд создаёт платёж в YooKassa → получает </span>
+            <span style="color:#fbbf24;font-family:monospace;font-size:12px">payment_url</span>
+            <span style="color:#64748b;font-size:12px"> → сохраняет в БД pending</span>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="background:#f59e0b;color:#0f172a;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">3</div>
+          <div style="background:#1e293b;border-radius:8px;padding:10px 14px;flex:1">
+            <span style="color:#94a3b8;font-size:12px">Юзер платит на странице YooKassa</span>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="background:#f59e0b;color:#0f172a;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">4</div>
+          <div style="background:#1e293b;border-radius:8px;padding:10px 14px;flex:1">
+            <span style="color:#94a3b8;font-size:12px">YooKassa → </span>
+            <span style="color:#e2e8f0;font-family:monospace;font-size:12px">POST /payments/webhook</span>
+            <span style="color:#64748b;font-size:12px"> (статус succeeded)</span>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="background:#f59e0b;color:#0f172a;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">5</div>
+          <div style="background:#1e293b;border-radius:8px;padding:10px 14px;flex:1">
+            <span style="color:#94a3b8;font-size:12px">Бэкенд → 3x-UI API: создаёт клиента → получает ключ → сохраняет в БД</span>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="background:#22c55e;color:white;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">✓</div>
+          <div style="background:#14532d;border:1px solid #166534;border-radius:8px;padding:10px 14px;flex:1">
+            <span style="color:#4ade80;font-size:12px">Ключ появляется в личном кабинете пользователя</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:16px">Потоки выглядят правильно?</p>

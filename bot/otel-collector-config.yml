@@ -1,0 +1,136 @@
+# OpenTelemetry Collector configuration for bot_3xui
+# Documentation: https://opentelemetry.io/docs/collector/configuration/
+
+# Receivers - источники данных
+receivers:
+  # OTLP receiver для трассировки
+  otlp:
+    protocols:
+      grpc:
+        endpoint: localhost:4317
+      http:
+        endpoint: localhost:4318
+  
+  # Jaeger receiver
+  jaeger:
+    protocols:
+      grpc:
+        endpoint: localhost:14250
+      thrift_http:
+        endpoint: localhost:14268
+  
+  # Zipkin receiver
+  zipkin:
+    endpoint: localhost:9411
+
+# Processors - обработка данных
+processors:
+  # Батчинг для оптимизации
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+    send_batch_max_size: 2048
+  
+  # Memory limiter для защиты от переполнения
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 1000
+    spike_limit_mib: 200
+  
+  # Resource processor для добавления метаданных
+  resource:
+    attributes:
+      - key: service.name
+        value: bot_3xui
+        action: upsert
+      - key: service.version
+        value: "3.0"
+        action: upsert
+      - key: deployment.environment
+        value: production
+        action: upsert
+  
+  # Атрибуты для трассировки
+  attributes:
+    actions:
+      - key: environment
+        value: production
+        action: upsert
+
+# Exporters - экспорт данных
+exporters:
+  # Экспорт в Grafana Tempo (трассировка)
+  otlp/tempo:
+    endpoint: localhost:4317
+    tls:
+      insecure: true
+  
+  # Экспорт в Jaeger
+  jaeger:
+    endpoint: localhost:14250
+    tls:
+      insecure: true
+  
+  # Экспорт в Zipkin
+  zipkin:
+    endpoint: http://localhost:9411/api/v2/spans
+  
+  # Экспорт в Prometheus (метрики)
+  prometheus:
+    endpoint: localhost:8889
+    namespace: bot_3xui
+  
+  # Экспорт в Loki (логи)
+  loki:
+    endpoint: http://localhost:3100/loki/api/v1/push
+    labels:
+      resource:
+        service.name: true
+        service.version: true
+        deployment.environment: true
+  
+  # Debug exporter для отладки
+  debug:
+    verbosity: detailed
+    sampling_initial: 1
+    sampling_thereafter: 100
+
+# Connectors - соединение пайплайнов
+connectors:
+  # Span metrics для метрик трассировки
+  spanmetrics:
+    histogram:
+      unit: ms
+    dimensions:
+      - name: http.method
+      - name: http.status_code
+      - name: service.name
+      - name: span.kind
+
+# Service configuration
+service:
+  # Включение telemetry для мониторинга самого collector
+  telemetry:
+    logs:
+      level: info
+    metrics:
+      address: localhost:8888
+  
+  # Пайплайны для трассировки
+  pipelines:
+    traces:
+      receivers: [otlp, jaeger, zipkin]
+      processors: [memory_limiter, batch, resource, attributes]
+      exporters: [otlp/tempo, jaeger, zipkin, spanmetrics, debug]
+    
+    # Пайплайны для метрик
+    metrics:
+      receivers: [otlp, spanmetrics]
+      processors: [memory_limiter, batch, resource]
+      exporters: [prometheus, debug]
+    
+    # Пайплайны для логов
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [loki, debug]

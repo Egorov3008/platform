@@ -1,0 +1,183 @@
+<h2>API Роуты</h2>
+<p class="subtitle">REST API — FastAPI, JWT авторизация, prefix /api/v1</p>
+
+<div class="section">
+  <div class="mockup">
+    <div class="mockup-header">🔐 Auth — /api/v1/auth</div>
+    <div class="mockup-body" style="padding:16px">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="border-bottom:1px solid #334155">
+            <th style="text-align:left;padding:8px;color:#64748b;width:80px">Метод</th>
+            <th style="text-align:left;padding:8px;color:#64748b">Путь</th>
+            <th style="text-align:left;padding:8px;color:#64748b">Описание</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid #1e293b">
+            <td style="padding:8px"><span style="background:#166534;color:#4ade80;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">POST</span></td>
+            <td style="padding:8px;color:#e2e8f0;font-family:monospace">/register</td>
+            <td style="padding:8px;color:#94a3b8">Регистрация email + пароль</td>
+          </tr>
+          <tr style="border-bottom:1px solid #1e293b">
+            <td style="padding:8px"><span style="background:#166534;color:#4ade80;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">POST</span></td>
+            <td style="padding:8px;color:#e2e8f0;font-family:monospace">/login</td>
+            <td style="padding:8px;color:#94a3b8">Вход email + пароль → JWT</td>
+          </tr>
+          <tr style="border-bottom:1px solid #1e293b">
+            <td style="padding:8px"><span style="background:#166534;color:#4ade80;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">POST</span></td>
+            <td style="padding:8px;color:#e2e8f0;font-family:monospace">/telegram/request</td>
+            <td style="padding:8px;color:#94a3b8">Запрос magic link — бот шлёт ссылку в TG</td>
+          </tr>
+          <tr style="border-bottom:1px solid #1e293b">
+            <td style="padding:8px"><span style="background:#166534;color:#4ade80;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">POST</span></td>
+            <td style="padding:8px;color:#e2e8f0;font-family:monospace">/telegram/verify</td>
+            <td style="padding:8px;color:#94a3b8">Верификация токена из ссылки → JWT</td>
+          </tr>
+          <tr>
+            <td style="padding:8px"><span style="background:#166534;color:#4ade80;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">POST</span></td>
+            <td style="padding:8px;color:#e2e8f0;font-family:monospace">/refresh</td>
+            <td style="padding:8px;color:#94a3b8">Обновление access token</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="mockup">
+    <div class="mockup-header">🔑 Ключи — /api/v1/keys</div>
+    <div class="mockup-body" style="padding:16px">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="border-bottom:1px solid #334155">
+            <th style="text-align:left;padding:8px;color:#64748b;width:80px">Метод</th>
+            <th style="text-align:left;padding:8px;color:#64748b">Путь</th>
+            <th style="text-align:left;padding:8px;color:#64748b">Описание</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid #1e293b">
+            <td style="padding:8px"><span style="background:#1e3a5f;color:#60a5fa;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">GET</span></td>
+            <td style="padding:8px;color:#e2e8f0;font-family:monospace">/</td>
+            <td style="padding:8px;color:#94a3b8">Список ключей текущего пользователя</td>
+          </tr>
+          <tr style="border-bottom:1px solid #1e293b">
+            <td style="padding:8px"><span style="background:#166534;color:#4ade80;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">POST</span></td>
+            <td style="padding:8px;color:#e2e8f0;font-family:monospace">/</td>
+            <td style="padding:8px;color:#94a3b8">Создать ключ (тариф → 3x-UI → БД)</td>
+          </tr>
+          <tr style="border-bottom:1px solid #1e293b">
+            <td style="padding:8px"><span style="background:#1e3a5f;color:#60a5fa;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">GET</span></td>
+            <td style="padding:8px;color:#e2e8f0;font-family:monospace">/{key_id}</td>
+            <td style="padding:8px;color:#94a3b8">Детали ключа + статистика трафика</td>
+          </tr>
+          <tr style="border-bottom:1px solid #1e293b">
+            <td style="padding:8px"><span style="background:#7c2d12;color:#fb923c;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">POST</span></td>
+            <td style="padding:8px;color:#e2e8f0;font-family:monospace">/{key_id}/renew</td>
+            <td style="padding:8px;color:#94a3b8">Продлить ключ (новый тариф + оплата)</td>
+          </tr>
+          <tr>
+            <td style="padding:8px"><span style="background:#4c0519;color:#f87171;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">DELETE</span></td>
+            <td style="padding:8px;color:#e2e8f0;font-family:monospace">/{key_id}</td>
+            <td style="padding:8px;color:#94a3b8">Удалить ключ из 3x-UI и БД</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="mockup">
+    <div class="mockup-header">📦 Тарифы — /api/v1/tariffs</div>
+    <div class="mockup-body" style="padding:16px">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <tbody>
+          <tr style="border-bottom:1px solid #1e293b">
+            <td style="padding:8px"><span style="background:#1e3a5f;color:#60a5fa;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">GET</span></td>
+            <td style="padding:8px;color:#e2e8f0;font-family:monospace">/</td>
+            <td style="padding:8px;color:#94a3b8">Список доступных тарифов (публичный)</td>
+          </tr>
+          <tr>
+            <td style="padding:8px"><span style="background:#1e3a5f;color:#60a5fa;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">GET</span></td>
+            <td style="padding:8px;color:#e2e8f0;font-family:monospace">/{tariff_id}</td>
+            <td style="padding:8px;color:#94a3b8">Детали тарифа</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="mockup">
+    <div class="mockup-header">💳 Платежи — /api/v1/payments</div>
+    <div class="mockup-body" style="padding:16px">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <tbody>
+          <tr style="border-bottom:1px solid #1e293b">
+            <td style="padding:8px"><span style="background:#166534;color:#4ade80;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">POST</span></td>
+            <td style="padding:8px;color:#e2e8f0;font-family:monospace">/create</td>
+            <td style="padding:8px;color:#94a3b8">Создать платёж YooKassa → ссылка оплаты</td>
+          </tr>
+          <tr>
+            <td style="padding:8px"><span style="background:#166534;color:#4ade80;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">POST</span></td>
+            <td style="padding:8px;color:#e2e8f0;font-family:monospace">/webhook</td>
+            <td style="padding:8px;color:#94a3b8">Webhook от YooKassa → создание ключа</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="mockup">
+    <div class="mockup-header">👑 Админ — /api/v1/admin (только is_admin)</div>
+    <div class="mockup-body" style="padding:16px">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <tbody>
+          <tr style="border-bottom:1px solid #1e293b">
+            <td style="padding:8px"><span style="background:#1e3a5f;color:#60a5fa;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">GET</span></td>
+            <td style="padding:8px;color:#e2e8f0;font-family:monospace">/stats</td>
+            <td style="padding:8px;color:#94a3b8">Общая статистика: юзеры, ключи, выручка</td>
+          </tr>
+          <tr style="border-bottom:1px solid #1e293b">
+            <td style="padding:8px"><span style="background:#1e3a5f;color:#60a5fa;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">GET</span></td>
+            <td style="padding:8px;color:#e2e8f0;font-family:monospace">/users</td>
+            <td style="padding:8px;color:#94a3b8">Список пользователей с фильтрами</td>
+          </tr>
+          <tr style="border-bottom:1px solid #1e293b">
+            <td style="padding:8px"><span style="background:#1e3a5f;color:#60a5fa;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">GET</span></td>
+            <td style="padding:8px;color:#e2e8f0;font-family:monospace">/users/{tg_id}</td>
+            <td style="padding:8px;color:#94a3b8">Профиль пользователя + его ключи</td>
+          </tr>
+          <tr style="border-bottom:1px solid #1e293b">
+            <td style="padding:8px"><span style="background:#7c2d12;color:#fb923c;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">PATCH</span></td>
+            <td style="padding:8px;color:#e2e8f0;font-family:monospace">/users/{tg_id}</td>
+            <td style="padding:8px;color:#94a3b8">Блокировка / разблокировка / смена тарифа</td>
+          </tr>
+          <tr style="border-bottom:1px solid #1e293b">
+            <td style="padding:8px"><span style="background:#1e3a5f;color:#60a5fa;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">GET</span></td>
+            <td style="padding:8px;color:#e2e8f0;font-family:monospace">/keys</td>
+            <td style="padding:8px;color:#94a3b8">Все ключи системы с фильтрами</td>
+          </tr>
+          <tr style="border-bottom:1px solid #1e293b">
+            <td style="padding:8px"><span style="background:#166534;color:#4ade80;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">POST</span></td>
+            <td style="padding:8px;color:#e2e8f0;font-family:monospace">/keys</td>
+            <td style="padding:8px;color:#94a3b8">Создать ключ вручную для пользователя</td>
+          </tr>
+          <tr>
+            <td style="padding:8px"><span style="background:#4c0519;color:#f87171;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">DELETE</span></td>
+            <td style="padding:8px;color:#e2e8f0;font-family:monospace">/keys/{key_id}</td>
+            <td style="padding:8px;color:#94a3b8">Принудительное удаление ключа</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:16px">Всё нужное есть? Чего не хватает?</p>

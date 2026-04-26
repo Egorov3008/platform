@@ -1,0 +1,40 @@
+<h2>Стратегия работы с базой данных</h2>
+<p class="subtitle">Веб-бэкенд и Telegram-бот будут сосуществовать — как они делят данные?</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Общая БД (прямой доступ)</h3>
+      <p>Бот и веб-бэкенд работают с одной PostgreSQL. Веб-бэкенд использует те же репозитории.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Плюсы</h4><ul><li>Просто — нет дублирования логики</li><li>Данные всегда актуальны</li><li>Быстрый старт</li></ul></div>
+        <div class="cons"><h4>Минусы</h4><ul><li>Нужна осторожность при миграциях</li><li>Конкуренция за соединения</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Веб-бэкенд вызывает API бота</h3>
+      <p>Бот — источник истины. Веб-бэкенд делает HTTP-запросы к внутреннему API бота для любых изменений.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Плюсы</h4><ul><li>Вся бизнес-логика в одном месте</li><li>Бот контролирует все операции</li></ul></div>
+        <div class="cons"><h4>Минусы</h4><ul><li>Нужно писать внутренний API в боте</li><li>Больше сетевых вызовов</li><li>Сложнее в отладке</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Отдельная БД + синхронизация</h3>
+      <p>Веб-бэкенд имеет свою схему. Данные синхронизируются через события или периодически.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Плюсы</h4><ul><li>Полная независимость</li><li>Можно оптимизировать схему под web</li></ul></div>
+        <div class="cons"><h4>Минусы</h4><ul><li>Сложность синхронизации</li><li>Риск рассинхронизации данных</li><li>Избыточно для MVP</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>

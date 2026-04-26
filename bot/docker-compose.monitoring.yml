@@ -1,0 +1,83 @@
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    network_mode: host
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./alerts.yml:/etc/prometheus/alerts.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.listen-address=:9092'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    network_mode: host
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SERVER_HTTP_PORT=3001
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana-dashboard.json:/etc/grafana/provisioning/dashboards/dashboard.json
+    restart: unless-stopped
+
+  # Loki - агрегатор логов
+  loki:
+    image: grafana/loki:latest
+    network_mode: host
+    volumes:
+      - ./loki-config.yml:/etc/loki/config.yml
+      - loki_data:/loki
+    command: -config.file=/etc/loki/config.yml
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+
+  # Promtail - сборщик логов
+  promtail:
+    image: grafana/promtail:latest
+    network_mode: host
+    volumes:
+      - ./logs:/var/log/bot_3xui/logs:ro
+      - ./logs_error:/var/log/bot_3xui/logs_error:ro
+      - ./promtail-config.yml:/etc/promtail/config.yml
+      - promtail_positions:/tmp/positions
+    command: -config.file=/etc/promtail/config.yml
+    restart: unless-stopped
+    depends_on:
+      - loki
+
+  # Tempo - распределённая трассировка
+  tempo:
+    image: grafana/tempo:latest
+    network_mode: host
+    volumes:
+      - ./tempo-config.yml:/etc/tempo/config.yml
+      - tempo_data:/tmp/tempo
+    command: -config.file=/etc/tempo/config.yml
+    restart: unless-stopped
+    depends_on:
+      - loki
+
+  # OpenTelemetry Collector
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    network_mode: host
+    volumes:
+      - ./otel-collector-config.yml:/etc/otelcol/config.yml
+    command: --config=/etc/otelcol/config.yml
+    restart: unless-stopped
+    depends_on:
+      - tempo
+      - loki
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+  promtail_positions:
+  tempo_data:

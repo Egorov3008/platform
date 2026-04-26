@@ -1,0 +1,64 @@
+dialog: adminpanel_flow
+windows:
+  - state: AdminManager.main
+    text: |
+      🤖 Панель администратора
+    buttons:
+      - type: column
+        buttons:
+          - type: switch_to
+            text: "📊 Статистика пользователей"
+            state: AdminManager.static_user
+          - type: start
+            text: "👥 Поиск"
+            state: AdminSearchManagementSG.main
+          - type: start
+            text: "📢 Массовая рассылка"
+            state: AdminMassMailing.receiving_message
+          - type: button
+            text: "🔄 Синхронизация панели и БД"
+            id: synchronization
+            on_click: getters.on_click.admin_click.click_sync_cache
+          - type: switch_to
+            text: "Тест_ключ"
+            state: AdminManager.input_url
+          - type: start
+            text: "Назад"
+            state: MainMenu.main
+    getter: getters.admin_getter.show_admin_menu
+
+  - state: AdminManager.static_user
+    text: "{STATS_MSG}"
+    buttons:
+      - !include ../partials/buttons/update.yaml
+      - type: button
+        text: "🕹 Управление пользователями"
+        on_click: getters.on_click.admin_click.on_click_all_keys
+      - type: button
+        text: "📥 Выгрузить оплаты в CSV"
+        on_click: getters.on_click.admin_click.on_click_export_csv_handler
+      - type: button
+        text: "🔑 Ключи 24h"
+        on_click: getters.on_click.admin_click.on_click_24h_keys
+      - type: button
+        text: "⚡ Просроченные ключи"
+        on_click: getters.on_click.admin_click.on_click_expired_keys
+      - type: switch_to
+        text: "Удалить старые ключи"
+        state: AdminManager.confirmation_deletion_keys
+      - type: switch_to
+        text: "Назад"
+        state: AdminManager.main
+    getter: getters.admin_getter.getter_user_stats_menu
+    context: { current_state: AdminManager.static_user }
+
+  - state: AdminManager.confirmation_deletion_keys
+    text: "Для удаления подходит {old_keys} ключей"
+    buttons:
+      - type: button
+        text: "Удалить"
+        id: delete_keys
+        on_click: getters.workers.delete_expired_keys_fast
+      - !include ../partials/buttons/back.yaml
+    getter: getters.admin_getter.getter_confirmation_deletion_keys
+    context: { back_state: AdminManager.main }

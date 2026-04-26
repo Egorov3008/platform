@@ -1,0 +1,43 @@
+dialog: search_dialog_flow
+windows:
+  - state: AdminSearchManagementSG.main
+    text: |
+      Выберете метод поиска 📌
+    buttons:
+      - type: column
+        buttons:
+          - type: switch_to
+            text: "Поиск пользователя по id 🆔"
+            state: AdminSearchManagementSG.search_tg_id
+          - type: switch_to
+            text: "Поиск ключа по email 📨"
+            state: AdminSearchManagementSG.search_email
+          - type: back
+            text: "Назад"
+    context: { back_state: AdminManager.main }
+
+  - state: AdminSearchManagementSG.search_tg_id
+    text: |
+      Введите tg_id:
+    input:
+      type: text
+      id: tg_id
+      type_factory: int
+      on_success: getters.on_click.user_managment.on_click_search_tg_id
+      on_error: error_tg_id
+    buttons:
+      - !include ../partials/buttons/back.yaml
+    context: { back_state: AdminManager.main }
+
+  - state: AdminSearchManagementSG.search_email
+    text: |
+      Введите email
+    input:
+      type: text
+      id: email
+      type_factory: str
+      on_success: getters.on_click.user_managment.on_click_search_email
+      on_error: error_email
+    buttons:
+      - !include ../partials/buttons/back.yaml
+    context: { back_state: AdminManager.main }

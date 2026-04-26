@@ -1,0 +1,117 @@
+groups:
+  - name: logging_alerts
+    interval: 30s
+    rules:
+      # Высокий уровень ошибок (ERROR + CRITICAL)
+      - alert: HighErrorRate
+        expr: sum(rate(log_errors_total[5m])) > 10
+        for: 2m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "🚨 Высокий уровень ошибок в логах"
+          description: "Более 10 ошибок в минуту последние 2 минуты\nТекущее значение: {{ $value }} ошибок/мин"
+          runbook_url: "https://github.com/your-repo/bot_3xui/wiki/Runbook-HighErrorRate"
+
+      # Критические ошибки (CRITICAL)
+      - alert: CriticalErrorsDetected
+        expr: sum(rate(log_critical_total[1m])) > 0
+        for: 1m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "⛔ Обнаружены критические ошибки"
+          description: "Критическая ошибка в приложении\nВсего за последнюю минуту: {{ $value }}"
+
+      # Ошибки базы данных
+      - alert: DatabaseErrors
+        expr: sum(rate(database_errors_total[5m])) > 5
+        for: 3m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "⚠️ Ошибки базы данных"
+          description: "Более 5 ошибок БД в минуту последние 3 минуты\nТекущее значение: {{ $value }} ошибок/мин"
+
+      # Ошибки XUI API
+      - alert: XuiApiErrors
+        expr: sum(rate(xui_api_errors_total[5m])) > 10
+        for: 2m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "⚠️ Ошибки XUI API"
+          description: "Более 10 ошибок XUI API в минуту последние 2 минуты\nТекущее значение: {{ $value }} ошибок/мин"
+
+      # Ошибки платежей
+      - alert: PaymentErrors
+        expr: sum(rate(payment_errors_total[5m])) > 3
+        for: 2m
+        labels:
+          severity: critical
+          team: billing
+        annotations:
+          summary: "💳 Ошибки платежной системы"
+          description: "Более 3 ошибок платежей в минуту последние 2 минуты\nТекущее значение: {{ $value }} ошибок/мин"
+
+      # Ошибки вебхуков
+      - alert: WebhookErrors
+        expr: sum(rate(webhook_errors_total[5m])) > 5
+        for: 2m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "🔗 Ошибки вебхуков"
+          description: "Более 5 ошибок вебхуков в минуту последние 2 минуты\nТекущее значение: {{ $value }} ошибок/мин"
+
+      # Медленные запросы БД
+      - alert: SlowDatabaseQueries
+        expr: sum(rate(slow_queries_total[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "🐌 Медленные запросы к базе данных"
+          description: "Более 5 медленных запросов (>1 сек) в минуту последние 5 минут\nТекущее значение: {{ $value }} запросов/мин"
+
+  - name: system_alerts
+    interval: 30s
+    rules:
+      # Высокое использование памяти
+      - alert: HighMemoryUsage
+        expr: process_resident_memory_bytes / 1024 / 1024 > 500
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "📊 Высокое использование памяти"
+          description: "Приложение использует более 500 MB памяти\nТекущее значение: {{ $value | humanize }} MB"
+
+      # Бот недоступен
+      - alert: BotDown
+        expr: up{job="vpn-bot"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "🤖 Бот недоступен"
+          description: "Бот не отвечает более 1 минуты"
+
+      # Ошибки хендлеров
+      - alert: HandlerErrors
+        expr: sum(rate(handler_errors_total[5m])) > 10
+        for: 2m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "❌ Ошибки обработчиков бота"
+          description: "Более 10 ошибок хендлеров в минуту последние 2 минуты\nТекущее значение: {{ $value }} ошибок/мин"
