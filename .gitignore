@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Env
+.env
+*.env
+!.env.example
+!**/.env.example
+
+# Logs
+logs/
+logs_error/
+*.log
+*.csv
+
+# Docker
+*.pid
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (для playwright в web/)
+node_modules/
+test-results/
+playwright-report/
