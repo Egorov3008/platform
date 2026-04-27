@@ -74,4 +74,4 @@ cd web && npx playwright test
 - [~] Stage 1a: Backend Foundation — завершён (models/database/services/cache перенесены, lifespan, /readiness)
 - [x] Stage 1b: API Endpoints — завершён (/api/v1/keys, /users, /tariffs, /payments, /admin, 26 тестов)
 - [x] Stage 2: Бот переключается на backend API — завершён (BackendAPIClient, RegistrationMiddleware, KeyListGetter, UserDataGetter)
-- [ ] Stage 3: Веб переключается на backend API
+- [x] Stage 3: Веб переключается на backend API — завершён (WebBackendClient, httpx integration, removed bot.py, migrated keys/tariffs/payments)
