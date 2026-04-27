@@ -3,6 +3,7 @@ from typing import List, Optional
 
 import httpx
 
+from app.schemas.auth import RegisterFromInviteRequest, RegisterFromInviteResponse
 from logger import logger
 
 
@@ -125,3 +126,32 @@ class BackendAPIClient:
         except Exception as e:
             logger.error("BackendAPIClient.get_user_keys failed", tg_id=tg_id, error=str(e))
             return []
+
+    async def register_from_invite(
+        self, request: RegisterFromInviteRequest
+    ) -> RegisterFromInviteResponse:
+        """Register new user from web invite.
+
+        Args:
+            request: RegisterFromInviteRequest with user data and invite token
+
+        Returns:
+            RegisterFromInviteResponse with generated login code
+
+        Raises:
+            httpx.HTTPStatusError: If the request fails
+        """
+        try:
+            r = await self._client.post(
+                "/api/v1/auth/register-from-invite",
+                json=request.model_dump(),
+            )
+            r.raise_for_status()
+            return RegisterFromInviteResponse(**r.json())
+        except Exception as e:
+            logger.error(
+                "BackendAPIClient.register_from_invite failed",
+                tg_id=request.tg_id,
+                error=str(e),
+            )
+            raise
