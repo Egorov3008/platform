@@ -57,6 +57,7 @@ ADD_CLIENT_URL = os.getenv("ADD_CLIENT_URL")
 API_URL = os.getenv("API_URL")
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 BOT_SECRET_KEY = os.getenv("BOT_SECRET_KEY", "")
+INVITE_TOKEN = os.getenv("INVITE_TOKEN", "changeme")
 
 DB_NAME = os.getenv("DB_NAME")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
