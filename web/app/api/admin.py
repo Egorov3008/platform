@@ -1,19 +1,19 @@
 """Административные эндпоинты для управления пользователями и ключами.
 
 Предоставляет API для просмотра статистики (dashboard-метрики),
-CRUD-операций над пользователями и принудительного удаления ключей.
+CRUD-операций над пользователями и операций с ключами через backend API.
 Все маршруты защищены зависимостью require_admin.
 """
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException, status
 from typing import Optional
 import asyncpg
-from app.core.dependencies import get_conn, require_admin
+from app.api.backend_client import WebBackendClient
+from app.core.dependencies import get_conn, require_admin, get_backend_client
 from app.core.database import get_pool
 from app.core.logging import get_logger
 from app.schemas.admin import UserPatchRequest, AdminCreateKeyRequest
 from app.services import admin as admin_service
-from app.services.keys import create_key
 from app.services.dashboard_metrics import DashboardMetricsService
 
 router = APIRouter()
@@ -77,28 +77,42 @@ async def patch_user(
 async def list_keys(
     limit: int = Query(50, le=100),
     offset: int = Query(0),
-    conn: asyncpg.Connection = Depends(get_conn),
+    backend: WebBackendClient = Depends(get_backend_client),
     _: dict = Depends(require_admin),
 ):
-    logger.debug("Получение списка ключей: limit=%d, offset=%d", limit, offset)
-    return await admin_service.get_all_keys(conn, limit, offset)
+    logger.debug("Получение списка ключей через backend: limit=%d, offset=%d", limit, offset)
+    try:
+        keys = await backend.list_keys()
+        return keys[offset:offset+limit]
+    except Exception as e:
+        logger.error("Failed to list keys from backend: %s", str(e))
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Backend error")
 
 
 @router.post("/keys")
 async def admin_create_key(
     body: AdminCreateKeyRequest,
-    conn: asyncpg.Connection = Depends(get_conn),
+    backend: WebBackendClient = Depends(get_backend_client),
     _: dict = Depends(require_admin),
 ):
     logger.info("Админ создаёт ключ для tg_id=%d, tariff_id=%d", body.tg_id, body.tariff_id)
-    return await create_key(conn, body.tg_id, body.tariff_id)
+    try:
+        key_data = await backend.create_key(body.tariff_id)
+        return key_data
+    except Exception as e:
+        logger.error("Failed to create key via backend: %s", str(e))
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Backend error")
 
 
-@router.delete("/keys/{client_id}", status_code=204)
+@router.delete("/keys/{email:path}", status_code=204)
 async def admin_delete_key(
-    client_id: str,
-    conn: asyncpg.Connection = Depends(get_conn),
+    email: str,
+    backend: WebBackendClient = Depends(get_backend_client),
     _: dict = Depends(require_admin),
 ):
-    logger.info("Админ удаляет ключ client_id=%s", client_id)
-    await admin_service.admin_force_delete_key(conn, client_id)
+    logger.info("Админ удаляет ключ email=%s", email)
+    try:
+        await backend.delete_key(email)
+    except Exception as e:
+        logger.error("Failed to delete key via backend: %s", str(e))
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Backend error")

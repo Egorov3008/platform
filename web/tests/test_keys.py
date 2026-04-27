@@ -1,15 +1,16 @@
 """Тесты эндпоинтов управления ключами.
 
-Проверяют авторизацию, обработку пустого списка ключей для пользователей
-без tg_id и корректность кодов ошибок при удалении.
+Проверяют авторизацию, обработку ключей через backend API.
+Мокируют WebBackendClient для тестирования функциональности.
 """
 
 import pytest
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 from httpx import AsyncClient, ASGITransport
 from app.main import app
-from app.core.dependencies import get_conn, get_current_user
+from app.core.dependencies import get_current_user, get_backend_client
 from app.core.security import create_access_token
+from app.api.backend_client import WebBackendClient
 
 
 def make_auth_token(tg_id=None):
@@ -18,37 +19,145 @@ def make_auth_token(tg_id=None):
 
 @pytest.fixture
 async def client():
-    mock_conn = AsyncMock()
-    mock_conn.fetch = AsyncMock(return_value=[])
-    mock_conn.fetchrow = AsyncMock(return_value=None)
+    """Test client with mocked backend."""
+    mock_backend = AsyncMock(spec=WebBackendClient)
 
-    async def override_get_conn():
-        yield mock_conn
+    async def override_get_backend_client(request=None, current_user=None):
+        return mock_backend
 
-    app.dependency_overrides[get_conn] = override_get_conn
+    app.dependency_overrides[get_backend_client] = override_get_backend_client
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        # Store mock_backend on client for access in tests
+        c.mock_backend = mock_backend
         yield c
     app.dependency_overrides.clear()
 
 
 @pytest.mark.asyncio
-async def test_list_keys_empty(client):
-    # User without tg_id gets empty list
+async def test_list_keys_requires_tg_id(client):
+    # User without tg_id => 403
     client.cookies.set("access_token", make_auth_token(tg_id=None))
     resp = await client.get("/api/v1/keys/")
+    assert resp.status_code == 403
+    assert "Telegram account required" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_list_keys_with_tg_id(client):
+    # User with tg_id => calls backend
+    client.mock_backend.list_keys = AsyncMock(return_value=[
+        {
+            "client_id": "test-id",
+            "email": "test@example.com",
+            "key": "http://sub.example.com/sub/test",
+            "expiry_time": 1234567890,
+            "tariff_id": 1,
+            "name_tariff": "Basic",
+            "amount": 0,
+            "period": 30,
+            "used_traffic": 0,
+            "total_gb": 10,
+        }
+    ])
+    client.cookies.set("access_token", make_auth_token(tg_id=123))
+    resp = await client.get("/api/v1/keys/")
     assert resp.status_code == 200
-    assert resp.json() == []
+    data = resp.json()
+    assert len(data) == 1
+    assert data[0]["email"] == "test@example.com"
+    client.mock_backend.list_keys.assert_called_once()
 
 
 @pytest.mark.asyncio
 async def test_list_keys_unauthorized(client):
+    # No auth token => 401
     resp = await client.get("/api/v1/keys/")
     assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
-async def test_delete_key_not_found(client):
-    # User without tg_id => 403 (requires telegram account)
+async def test_delete_key_requires_tg_id(client):
+    # User without tg_id => 403
     client.cookies.set("access_token", make_auth_token(tg_id=None))
-    resp = await client.delete("/api/v1/keys/nonexistent-uuid")
+    resp = await client.delete("/api/v1/keys/test@example.com")
     assert resp.status_code == 403
+    assert "Telegram account required" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_delete_key_with_tg_id(client):
+    # User with tg_id => calls backend.delete_key
+    client.mock_backend.delete_key = AsyncMock(return_value=None)
+    client.cookies.set("access_token", make_auth_token(tg_id=123))
+    resp = await client.delete("/api/v1/keys/test@example.com")
+    assert resp.status_code == 204
+    client.mock_backend.delete_key.assert_called_once_with("test@example.com")
+
+
+@pytest.mark.asyncio
+async def test_get_key_with_tg_id(client):
+    # User with tg_id => calls backend.get_key
+    client.mock_backend.get_key = AsyncMock(return_value={
+        "client_id": "test-id",
+        "email": "test@example.com",
+        "key": "http://sub.example.com/sub/test",
+        "expiry_time": 1234567890,
+        "tariff_id": 1,
+        "name_tariff": "Basic",
+        "amount": 0,
+        "period": 30,
+        "used_traffic": 0,
+        "total_gb": 10,
+    })
+    client.cookies.set("access_token", make_auth_token(tg_id=123))
+    resp = await client.get("/api/v1/keys/test@example.com")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["email"] == "test@example.com"
+    client.mock_backend.get_key.assert_called_once_with("test@example.com")
+
+
+@pytest.mark.asyncio
+async def test_create_key_with_tg_id(client):
+    # User with tg_id => calls backend.create_key
+    client.mock_backend.create_key = AsyncMock(return_value={
+        "client_id": "new-id",
+        "email": "new@example.com",
+        "key": "http://sub.example.com/sub/new",
+        "expiry_time": 1234567890,
+        "tariff_id": 1,
+        "name_tariff": "Basic",
+        "amount": 0,
+        "period": 30,
+        "used_traffic": 0,
+        "total_gb": 10,
+    })
+    client.cookies.set("access_token", make_auth_token(tg_id=123))
+    resp = await client.post("/api/v1/keys/", json={"tariff_id": 1})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["email"] == "new@example.com"
+    client.mock_backend.create_key.assert_called_once_with(1)
+
+
+@pytest.mark.asyncio
+async def test_renew_key_with_tg_id(client):
+    # User with tg_id => calls backend.renew_key
+    client.mock_backend.renew_key = AsyncMock(return_value={
+        "client_id": "test-id",
+        "email": "test@example.com",
+        "key": "http://sub.example.com/sub/test",
+        "expiry_time": 1234567890,
+        "tariff_id": 1,
+        "name_tariff": "Basic",
+        "amount": 0,
+        "period": 30,
+        "used_traffic": 0,
+        "total_gb": 10,
+    })
+    client.cookies.set("access_token", make_auth_token(tg_id=123))
+    resp = await client.post("/api/v1/keys/test@example.com/renew", json={"tariff_id": 1})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["email"] == "test@example.com"
+    client.mock_backend.renew_key.assert_called_once_with("test@example.com", 1, months=1)
