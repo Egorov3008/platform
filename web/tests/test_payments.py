@@ -1,27 +1,41 @@
-"""Тесты эндпоинтов платежей (YooKassa).
+"""Тесты эндпоинтов платежей (backend API).
 
-Проверяют требование авторизации для создания платежа и обработку
-некорректного webhook-запроса.
+Проверяют требование авторизации для создания платежа и webhook-обработку.
 """
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 from httpx import AsyncClient, ASGITransport
 from app.main import app
-from app.core.dependencies import get_conn
+from app.core.dependencies import get_backend_client
+from app.api.backend_client import WebBackendClient
 
 
-async def mock_get_conn():
-    """Mock DB connection — yields a MagicMock so no real pool needed."""
-    conn = MagicMock()
-    conn.fetchrow = AsyncMock(return_value=None)
-    conn.execute = AsyncMock(return_value=None)
-    yield conn
+async def mock_get_backend_client(request=None, current_user=None):
+    """Mock backend client — returns MagicMock with async methods."""
+    client = MagicMock(spec=WebBackendClient)
+    client.get_payment_history = AsyncMock(return_value=[])
+    client.create_payment = AsyncMock(return_value={
+        "payment_id": "test_payment_id",
+        "confirmation_url": "https://payment.example.com",
+        "amount": 100.0,
+    })
+    client.create_renewal_payment = AsyncMock(return_value={
+        "payment_id": "test_renewal_id",
+        "confirmation_url": "https://payment.example.com",
+        "amount": 100.0,
+    })
+    client.get_payment_status = AsyncMock(return_value={
+        "payment_id": "test_payment_id",
+        "status": "pending",
+        "processed": False,
+    })
+    return client
 
 
 @pytest.fixture(autouse=True)
 def override_deps():
-    app.dependency_overrides[get_conn] = mock_get_conn
+    app.dependency_overrides[get_backend_client] = mock_get_backend_client
     yield
     app.dependency_overrides.clear()
 
@@ -40,11 +54,8 @@ async def test_create_payment_unauthorized(client):
 
 
 @pytest.mark.asyncio
-async def test_webhook_invalid_json(client):
-    resp = await client.post(
-        "/api/v1/payments/webhook",
-        content=b"not-json",
-        headers={"content-type": "application/octet-stream"},
-    )
-    # Either 400 (invalid JSON) or 422 (unprocessable) is acceptable
-    assert resp.status_code in (400, 422)
+async def test_webhook_ok(client):
+    # Webhook accepts any payload and returns 200
+    resp = await client.post("/api/v1/payments/webhook", json={"test": "data"})
+    assert resp.status_code == 200
+    assert resp.json() == {"status": "ok"}
