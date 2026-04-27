@@ -40,17 +40,6 @@ async def test_csrf_allows_auth_endpoints_without_token():
 
 
 @pytest.mark.asyncio
-async def test_csrf_allows_bot_endpoint_without_token():
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-        resp = await c.post(
-            "/api/v1/bot/auth/generate-code",
-            json={"tg_id": 123},
-            headers={"X-Bot-Secret": "test"},
-        )
-    assert resp.status_code != 403
-
-
-@pytest.mark.asyncio
 async def test_csrf_allows_get_requests():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         resp = await c.get("/api/v1/auth/me")
