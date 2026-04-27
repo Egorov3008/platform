@@ -1,3 +1,4 @@
+import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -37,6 +38,9 @@ class Settings(BaseSettings):
 
     # Tariffs visibility
     available_rates: list[int] = []  # Тарифы для обычных пользователей (пустой список = все тарифы)
+
+    # Backend API configuration
+    backend_url: str = os.getenv("BACKEND_URL", "http://localhost:8000")
 
 
 settings = Settings()
