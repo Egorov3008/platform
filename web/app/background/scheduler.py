@@ -8,8 +8,6 @@
 import asyncpg
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.core.logging import get_logger
-from app.repositories.keys import KeysRepo
-from app.repositories.users import UsersRepo
 
 logger = get_logger(__name__)
 

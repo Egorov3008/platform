@@ -3,7 +3,6 @@ import asyncpg
 from fastapi import HTTPException, status
 from app.repositories.web_users import WebUsersRepo
 from app.repositories.login_codes import LoginCodesRepo
-from app.repositories.users import UsersRepo
 from app.core.security import hash_password, create_access_token, create_refresh_token, decode_token
 from app.core.config import settings
 from app.core.logging import get_logger
@@ -12,7 +11,6 @@ logger = get_logger(__name__)
 
 web_users_repo = WebUsersRepo()
 login_codes_repo = LoginCodesRepo()
-users_repo = UsersRepo()
 
 
 def _is_admin(tg_id: int | None) -> bool:
