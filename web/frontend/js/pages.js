@@ -36,10 +36,16 @@ export const Pages = {
 
     async login(container) {
         let botUsername = '';
+        let inviteToken = '';
         try {
             const cfg = await API.get('/auth/config');
             botUsername = cfg.telegram_bot_username || '';
+            inviteToken = cfg.invite_token || '';
         } catch (_) {}
+
+        const botLink = inviteToken
+            ? `https://t.me/${_esc(botUsername)}?start=${_esc(inviteToken)}`
+            : `https://t.me/${_esc(botUsername)}`;
 
         container.innerHTML = `
         <div class="auth-container">
@@ -49,7 +55,7 @@ export const Pages = {
                 ${botUsername ? `
                 <div class="text-center mb-16">
                     <p style="color: var(--text-secondary); margin-bottom: 12px; font-size: 0.9rem;">Нет аккаунта? Перейдите в бот и создайте его</p>
-                    <a href="https://t.me/${_esc(botUsername)}" target="_blank" rel="noopener" class="btn btn-primary">Перейти в Telegram бот</a>
+                    <a href="${botLink}" target="_blank" rel="noopener" class="btn btn-primary">Перейти в Telegram бот</a>
                 </div>
                 ` : ''}
                 <form id="loginForm">

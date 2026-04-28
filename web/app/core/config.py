@@ -42,5 +42,8 @@ class Settings(BaseSettings):
     # Backend API configuration
     backend_url: str = os.getenv("BACKEND_URL", "http://localhost:8000")
 
+    # Invite token for registration
+    invite_token: str = "changeme"
+
 
 settings = Settings()
