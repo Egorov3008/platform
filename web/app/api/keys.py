@@ -29,13 +29,18 @@ async def list_keys(
     backend: WebBackendClient = Depends(get_backend_client),
     current_user: dict = Depends(get_current_user),
 ):
-    _require_tg_id(current_user)
-    logger.debug("Fetching user keys from backend")
+    tg_id = _require_tg_id(current_user)
+    logger.debug("GET /keys: запрос списка ключей", extra={"tg_id": tg_id})
     try:
         keys = await backend.list_keys()
+        logger.debug("GET /keys: успешно получено ключей", extra={"count": len(keys), "tg_id": tg_id})
         return [KeyResponse(**k) for k in keys]
     except Exception as e:
-        logger.error("Failed to list keys from backend: %s", str(e))
+        logger.error(
+            "GET /keys: ошибка при получении списка ключей",
+            extra={"error": str(e), "tg_id": tg_id, "error_type": type(e).__name__},
+            exc_info=True
+        )
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Backend error")
 
 
@@ -46,12 +51,17 @@ async def create_key(
     current_user: dict = Depends(get_current_user),
 ):
     tg_id = _require_tg_id(current_user)
-    logger.info("Creating key via backend: tariff_id=%d", body.tariff_id)
+    logger.info("POST /keys: создание ключа", extra={"tg_id": tg_id, "tariff_id": body.tariff_id})
     try:
         key_data = await backend.create_key(body.tariff_id)
+        logger.info("POST /keys: ключ успешно создан", extra={"tg_id": tg_id, "email": key_data.get("email")})
         return KeyResponse(**key_data)
     except Exception as e:
-        logger.error("Failed to create key via backend: %s", str(e))
+        logger.error(
+            "POST /keys: ошибка при создании ключа",
+            extra={"error": str(e), "tg_id": tg_id, "tariff_id": body.tariff_id, "error_type": type(e).__name__},
+            exc_info=True
+        )
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Backend error")
 
 
@@ -61,13 +71,18 @@ async def get_key(
     backend: WebBackendClient = Depends(get_backend_client),
     current_user: dict = Depends(get_current_user),
 ):
-    _require_tg_id(current_user)
-    logger.debug("Fetching key for email=%s", email)
+    tg_id = _require_tg_id(current_user)
+    logger.debug("GET /keys/{email}: получение ключа", extra={"tg_id": tg_id, "email": email})
     try:
         key_data = await backend.get_key(email)
+        logger.debug("GET /keys/{email}: ключ успешно получен", extra={"tg_id": tg_id, "email": email})
         return KeyResponse(**key_data)
     except Exception as e:
-        logger.error("Failed to get key from backend: %s", str(e))
+        logger.error(
+            "GET /keys/{email}: ошибка при получении ключа",
+            extra={"error": str(e), "tg_id": tg_id, "email": email, "error_type": type(e).__name__},
+            exc_info=True
+        )
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Backend error")
 
 
@@ -79,12 +94,17 @@ async def renew_key(
     current_user: dict = Depends(get_current_user),
 ):
     tg_id = _require_tg_id(current_user)
-    logger.info("Renewing key via backend: email=%s, tariff_id=%d, tg_id=%d", email, body.tariff_id, tg_id)
+    logger.info("POST /keys/{email}/renew: продление ключа", extra={"tg_id": tg_id, "email": email, "tariff_id": body.tariff_id})
     try:
         key_data = await backend.renew_key(email, tg_id, body.tariff_id, months=1)
+        logger.info("POST /keys/{email}/renew: ключ успешно продлён", extra={"tg_id": tg_id, "email": email})
         return KeyResponse(**key_data)
     except Exception as e:
-        logger.error("Failed to renew key via backend: %s", str(e))
+        logger.error(
+            "POST /keys/{email}/renew: ошибка при продлении ключа",
+            extra={"error": str(e), "tg_id": tg_id, "email": email, "error_type": type(e).__name__},
+            exc_info=True
+        )
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Backend error")
 
 
@@ -95,9 +115,14 @@ async def delete_key(
     current_user: dict = Depends(get_current_user),
 ):
     tg_id = _require_tg_id(current_user)
-    logger.info("Deleting key via backend: email=%s", email)
+    logger.info("DELETE /keys/{email}: удаление ключа", extra={"tg_id": tg_id, "email": email})
     try:
         await backend.delete_key(email)
+        logger.info("DELETE /keys/{email}: ключ успешно удалён", extra={"tg_id": tg_id, "email": email})
     except Exception as e:
-        logger.error("Failed to delete key via backend: %s", str(e))
+        logger.error(
+            "DELETE /keys/{email}: ошибка при удалении ключа",
+            extra={"error": str(e), "tg_id": tg_id, "email": email, "error_type": type(e).__name__},
+            exc_info=True
+        )
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Backend error")
