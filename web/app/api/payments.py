@@ -31,7 +31,8 @@ async def list_payments(
     try:
         payments = await backend.get_payment_history()
         logger.debug("GET /payments: успешно получено платежей", extra={"count": len(payments), "tg_id": tg_id})
-        return [PaymentHistoryItem(**p) for p in payments]
+        items = [PaymentHistoryItem(**p) for p in payments]
+        return sorted(items, key=lambda x: x.created_at, reverse=True)
     except Exception as e:
         logger.error("GET /payments: ошибка при получении истории", extra={"error": str(e), "tg_id": tg_id})
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Backend error")
