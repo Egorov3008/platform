@@ -75,11 +75,10 @@ async def sync_data_from_db(pool: asyncpg.Pool):
 
             logger.info(
                 "[Background] Синхронизация завершена",
-                users=users_count,
-                keys=keys_count,
+                extra={"users": users_count, "keys": keys_count},
             )
     except Exception as e:
-        logger.error("[Background] Ошибка при синхронизации данных", error=str(e))
+        logger.error("[Background] Ошибка при синхронизации данных", extra={"error": str(e)})
 
 
 async def send_expiry_notifications(pool: asyncpg.Pool):
@@ -109,7 +108,7 @@ async def send_expiry_notifications(pool: asyncpg.Pool):
             if keys:
                 logger.info(
                     "[Background] Найдено ключей для уведомления",
-                    count=len(keys),
+                    extra={"count": len(keys)},
                 )
                 # TODO: Отправить уведомления через Telegram bot
                 # Пример: await telegram_bot.send_message(tg_id, "Ваш ключ заканчивается...")
@@ -119,4 +118,4 @@ async def send_expiry_notifications(pool: asyncpg.Pool):
 
         logger.info("[Background] Цикл уведомлений завершен")
     except Exception as e:
-        logger.error("[Background] Ошибка при отправке уведомлений", error=str(e))
+        logger.error("[Background] Ошибка при отправке уведомлений", extra={"error": str(e)})
