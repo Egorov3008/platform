@@ -4,6 +4,7 @@
 Webhook-обработка остаётся на уровне web для получения уведомлений от YooKassa.
 """
 
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from app.core.dependencies import get_current_user, get_backend_client
 from app.core.config import settings
@@ -31,8 +32,15 @@ async def list_payments(
     try:
         payments = await backend.get_payment_history()
         logger.debug("GET /payments: успешно получено платежей", extra={"count": len(payments), "tg_id": tg_id})
-        items = [PaymentHistoryItem(**p) for p in payments]
-        return sorted(items, key=lambda x: x.created_at, reverse=True)
+        items = []
+        for i, p in enumerate(payments):
+            try:
+                item = PaymentHistoryItem(**p)
+                items.append(item)
+            except Exception as e:
+                logger.error(f"GET /payments: ошибка при создании item {i}", extra={"payment": p, "error": str(e)})
+                raise
+        return sorted(items, key=lambda x: x.created_at or datetime.min, reverse=True)
     except Exception as e:
         logger.error("GET /payments: ошибка при получении истории", extra={"error": str(e), "tg_id": tg_id})
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Backend error")

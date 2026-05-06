@@ -32,7 +32,7 @@ class PaymentHistoryItem(BaseModel):
     amount: float
     status: str
     payment_type: Optional[str] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
 
 class PaymentStatusResponse(BaseModel):
