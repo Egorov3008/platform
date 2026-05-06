@@ -512,7 +512,16 @@ export const Pages = {
                         <th style="padding:10px;text-align:left"></th>
                     </tr></thead><tbody>`;
                 payments.forEach(p => {
-                    const date = new Date(p.created_at).toLocaleDateString('ru-RU');
+                    const date = p.created_at
+                        ? new Date(p.created_at).toLocaleString('ru-RU', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: false
+                        })
+                        : '—';
                     const opLabel = (p.payment_type || '').startsWith('web_renew') ? 'Продление' : 'Новый ключ';
                     const stClass = statusClasses[p.status] || '';
                     const stLabel = statusLabels[p.status] || p.status;
