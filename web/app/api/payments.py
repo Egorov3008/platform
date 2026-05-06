@@ -4,7 +4,7 @@
 Webhook-обработка остаётся на уровне web для получения уведомлений от YooKassa.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from app.core.dependencies import get_current_user, get_backend_client
 from app.core.config import settings
@@ -38,11 +38,19 @@ async def list_payments(
                 item = PaymentHistoryItem(**p)
                 items.append(item)
             except Exception as e:
-                logger.error(f"GET /payments: ошибка при создании item {i}", extra={"payment": p, "error": str(e)})
+                logger.error(
+                    f"GET /payments: ошибка при создании item {i}",
+                    extra={"payment": p, "error": str(e), "index": i},
+                    exc_info=True
+                )
                 raise
-        return sorted(items, key=lambda x: x.created_at or datetime.min, reverse=True)
+        return sorted(items, key=lambda x: x.created_at or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
     except Exception as e:
-        logger.error("GET /payments: ошибка при получении истории", extra={"error": str(e), "tg_id": tg_id})
+        logger.error(
+            "GET /payments: ошибка при получении истории платежей",
+            extra={"error": str(e), "tg_id": tg_id, "error_type": type(e).__name__},
+            exc_info=True
+        )
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Backend error")
 
 
@@ -59,14 +67,18 @@ async def create_payment(
     logger.debug("POST /payments/create: запрос", extra={"tg_id": tg_id, "tariff_id": body.tariff_id, "months": body.number_of_months})
     try:
         payment_data = await backend.create_payment(body.tariff_id, months=body.number_of_months)
-        logger.debug("POST /payments/create: ответ от backend", extra={"payment_id": payment_data["payment_id"], "amount": payment_data["amount"]})
+        logger.debug("POST /payments/create: успешное создание платежа", extra={"payment_id": payment_data["payment_id"], "amount": payment_data.get("amount")})
         return PaymentResponse(
             payment_id=payment_data["payment_id"],
             payment_url=payment_data["confirmation_url"],
             amount=payment_data["amount"],
         )
     except Exception as e:
-        logger.error("POST /payments/create: ошибка при создании платежа", extra={"error": str(e), "tg_id": tg_id})
+        logger.error(
+            "POST /payments/create: ошибка при создании платежа",
+            extra={"error": str(e), "tg_id": tg_id, "tariff_id": body.tariff_id, "error_type": type(e).__name__},
+            exc_info=True
+        )
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Backend error")
 
 
@@ -87,14 +99,18 @@ async def create_renewal_payment(
             tariff_id=body.tariff_id,
             months=body.number_of_months
         )
-        logger.debug("POST /payments/renew: ответ от backend", extra={"payment_id": payment_data["payment_id"], "amount": payment_data["amount"]})
+        logger.debug("POST /payments/renew: успешное создание платежа продления", extra={"payment_id": payment_data["payment_id"], "amount": payment_data.get("amount")})
         return PaymentResponse(
             payment_id=payment_data["payment_id"],
             payment_url=payment_data["confirmation_url"],
             amount=payment_data["amount"],
         )
     except Exception as e:
-        logger.error("POST /payments/renew: ошибка при создании платежа продления", extra={"error": str(e), "tg_id": tg_id})
+        logger.error(
+            "POST /payments/renew: ошибка при создании платежа продления",
+            extra={"error": str(e), "tg_id": tg_id, "email": body.client_id, "error_type": type(e).__name__},
+            exc_info=True
+        )
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Backend error")
 
 
@@ -124,14 +140,18 @@ async def check_payment_status(
         payment_status = await backend.get_payment_status(payment_id)
         status_val = payment_status.get("status", "")
         processed = status_val not in ["pending", "processing"]
-        logger.debug("GET /payments/{payment_id}/status: ответ от backend", extra={"payment_id": payment_id, "status": status_val, "processed": processed})
+        logger.debug("GET /payments/{payment_id}/status: успешно получен статус платежа", extra={"payment_id": payment_id, "status": status_val, "processed": processed})
         return PaymentStatusResponse(
             payment_id=payment_status["payment_id"],
             status=status_val,
             processed=processed,
         )
     except Exception as e:
-        logger.error("GET /payments/{payment_id}/status: ошибка при проверке статуса", extra={"error": str(e), "payment_id": payment_id, "tg_id": tg_id})
+        logger.error(
+            "GET /payments/{payment_id}/status: ошибка при проверке статуса платежа",
+            extra={"error": str(e), "payment_id": payment_id, "tg_id": tg_id, "error_type": type(e).__name__},
+            exc_info=True
+        )
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Backend error")
 
 
