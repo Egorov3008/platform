@@ -44,7 +44,7 @@ async def list_payments(
                     exc_info=True
                 )
                 raise
-        return sorted(items, key=lambda x: x.created_at or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+        return sorted(items, key=lambda x: x.created_at or datetime.min, reverse=True)
     except Exception as e:
         logger.error(
             "GET /payments: ошибка при получении истории платежей",
