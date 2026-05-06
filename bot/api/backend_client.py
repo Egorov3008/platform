@@ -3,7 +3,7 @@ from typing import List, Optional
 
 import httpx
 
-from app.schemas.auth import RegisterFromInviteRequest, RegisterFromInviteResponse
+from api.schemas import RegisterFromInviteRequest, RegisterFromInviteResponse
 from logger import logger
 
 
@@ -126,6 +126,75 @@ class BackendAPIClient:
         except Exception as e:
             logger.error("BackendAPIClient.get_user_keys failed", tg_id=tg_id, error=str(e))
             return []
+
+    async def get_key_details(self, email: str) -> Optional[dict]:
+        try:
+            r = await self._client.get(f"/api/v1/keys/{email}")
+            if r.status_code == 404:
+                return None
+            r.raise_for_status()
+            return r.json()
+        except Exception as e:
+            logger.error("BackendAPIClient.get_key_details failed", email=email, error=str(e))
+            return None
+
+    async def delete_key(self, email: str, tg_id: int) -> bool:
+        """Returns True on success (204), False on any error."""
+        try:
+            r = await self._client.delete(
+                f"/api/v1/keys/{email}",
+                params={"tg_id": tg_id},
+            )
+            r.raise_for_status()
+            return True
+        except Exception as e:
+            logger.error("BackendAPIClient.delete_key failed", email=email, tg_id=tg_id, error=str(e))
+            return False
+
+    async def create_payment(
+        self,
+        tg_id: int,
+        tariff_id: int,
+        operation: str,
+        number_of_months: int = 1,
+        email: Optional[str] = None,
+        customer_email: Optional[str] = None,
+        amount: Optional[float] = None,
+    ) -> Optional[dict]:
+        """Returns {"payment_id": ..., "confirmation_url": ..., "amount": ...} or None."""
+        try:
+            r = await self._client.post(
+                "/api/v1/payments/create",
+                json={
+                    "tg_id": tg_id,
+                    "tariff_id": tariff_id,
+                    "operation": operation,
+                    "number_of_months": number_of_months,
+                    "email": email,
+                    "customer_email": customer_email,
+                    "amount": amount,
+                },
+            )
+            r.raise_for_status()
+            return r.json()
+        except Exception as e:
+            logger.error("BackendAPIClient.create_payment failed", tg_id=tg_id, error=str(e))
+            return None
+
+    async def get_payment_status(self, payment_id: str, tg_id: int) -> Optional[str]:
+        """Returns status string ("pending"/"succeeded"/"canceled") or None if not found."""
+        try:
+            r = await self._client.get(
+                f"/api/v1/payments/{payment_id}/status",
+                params={"tg_id": tg_id},
+            )
+            if r.status_code == 404:
+                return None
+            r.raise_for_status()
+            return r.json().get("status")
+        except Exception as e:
+            logger.error("BackendAPIClient.get_payment_status failed", payment_id=payment_id, error=str(e))
+            return None
 
     async def register_from_invite(
         self, request: RegisterFromInviteRequest

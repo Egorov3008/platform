@@ -7,13 +7,11 @@ CRUD-операций над пользователями и операций с
 
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from typing import Optional
-import asyncpg
 from app.api.backend_client import WebBackendClient
-from app.core.dependencies import get_conn, require_admin, get_backend_client
+from app.core.dependencies import require_admin, get_backend_client
 from app.core.database import get_pool
 from app.core.logging import get_logger
 from app.schemas.admin import UserPatchRequest, AdminCreateKeyRequest
-from app.services import admin as admin_service
 from app.services.dashboard_metrics import DashboardMetricsService
 
 router = APIRouter()
@@ -45,32 +43,53 @@ async def list_users(
     limit: int = Query(50, le=100),
     offset: int = Query(0),
     search: Optional[str] = Query(None),
-    conn: asyncpg.Connection = Depends(get_conn),
+    backend: WebBackendClient = Depends(get_backend_client),
     _: dict = Depends(require_admin),
 ):
     logger.debug("Получение списка пользователей: limit=%d, offset=%d, search=%s", limit, offset, search)
-    return await admin_service.get_users(conn, limit, offset, search)
+    try:
+        users = await backend.list_admin_users()
+        if search:
+            search_lower = search.lower()
+            users = [
+                u for u in users
+                if search_lower in str(u.get("tg_id", ""))
+                or search_lower in (u.get("username") or "").lower()
+                or search_lower in (u.get("first_name") or "").lower()
+            ]
+        return users[offset:offset + limit]
+    except Exception as e:
+        logger.error("Failed to list users from backend: %s", str(e))
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Backend error")
 
 
 @router.get("/users/{tg_id}")
 async def get_user(
     tg_id: int,
-    conn: asyncpg.Connection = Depends(get_conn),
+    backend: WebBackendClient = Depends(get_backend_client),
     _: dict = Depends(require_admin),
 ):
     logger.debug("Получение пользователя tg_id=%d", tg_id)
-    return await admin_service.get_user(conn, tg_id)
+    try:
+        return await backend.get_user(tg_id)
+    except Exception as e:
+        logger.error("Failed to get user tg_id=%d from backend: %s", tg_id, str(e))
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Backend error")
 
 
 @router.patch("/users/{tg_id}")
 async def patch_user(
     tg_id: int,
     body: UserPatchRequest,
-    conn: asyncpg.Connection = Depends(get_conn),
+    backend: WebBackendClient = Depends(get_backend_client),
     _: dict = Depends(require_admin),
 ):
-    logger.info("Обновление пользователя tg_id=%d: is_blocked=%s, is_admin=%s", tg_id, body.is_blocked, body.is_admin)
-    return await admin_service.patch_user(conn, tg_id, body.is_blocked, body.is_admin)
+    logger.info("Обновление пользователя tg_id=%d: is_blocked=%s", tg_id, body.is_blocked)
+    try:
+        return await backend.patch_admin_user(tg_id, body.is_blocked)
+    except Exception as e:
+        logger.error("Failed to patch user tg_id=%d via backend: %s", tg_id, str(e))
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Backend error")
 
 
 @router.get("/keys")

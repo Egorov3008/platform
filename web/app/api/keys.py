@@ -79,10 +79,9 @@ async def renew_key(
     current_user: dict = Depends(get_current_user),
 ):
     tg_id = _require_tg_id(current_user)
-    logger.info("Renewing key via backend: email=%s, tariff_id=%d", email, body.tariff_id)
+    logger.info("Renewing key via backend: email=%s, tariff_id=%d, tg_id=%d", email, body.tariff_id, tg_id)
     try:
-        # Note: months parameter defaults to 1; could be extended via RenewKeyRequest if needed
-        key_data = await backend.renew_key(email, body.tariff_id, months=1)
+        key_data = await backend.renew_key(email, tg_id, body.tariff_id, months=1)
         return KeyResponse(**key_data)
     except Exception as e:
         logger.error("Failed to renew key via backend: %s", str(e))

@@ -1,7 +1,7 @@
-import { Auth } from './auth.js';
-import { Router } from './router.js';
-import { Modal } from './modal.js';
-import { Admin } from './admin.js';
+import { Auth } from './auth.js?v=2';
+import { Router } from './router.js?v=2';
+import { Modal } from './modal.js?v=2';
+import { Admin } from './admin.js?v=2';
 
 document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('hamburgerBtn').addEventListener('click', () => Router.openMenu());

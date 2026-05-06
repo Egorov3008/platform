@@ -1,9 +1,13 @@
 import os
+from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+# Locate .env in project root
+_env_file = Path(__file__).parent.parent.parent.parent / ".env"
+
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=str(_env_file), extra="ignore")
 
     database_url: str
     secret_key: str
@@ -34,13 +38,14 @@ class Settings(BaseSettings):
     default_trial_tariff_id: int = 10  # Тариф для пробного периода (обычно с amount=0)
     default_server_id: int = 2  # Default server ID for new users
     referral_bonus_percent: float = 0.10  # 10% бонус реферера (доля от суммы платежа)
-    volume_discount_percent: float = 0.03  # 3% скидка за многомесячную подписку (2-6 месяцев)
+    discounts: int = 3  # 3% скидка за многомесячную подписку (2-6 месяцев)
 
     # Tariffs visibility
     available_rates: list[int] = []  # Тарифы для обычных пользователей (пустой список = все тарифы)
 
     # Backend API configuration
     backend_url: str = os.getenv("BACKEND_URL", "http://localhost:8000")
+    admin_api_key: str = ""
 
     # Invite token for registration
     invite_token: str = "changeme"

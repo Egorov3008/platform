@@ -30,7 +30,7 @@ export const Router = {
     },
 
     async handle() {
-        const { Pages } = await import('./pages.js');
+        const { Pages } = await import('./pages.js?v=2');
 
         const hash = window.location.hash || '#/login';
         Logger.group('Router', 'handle: ' + hash);

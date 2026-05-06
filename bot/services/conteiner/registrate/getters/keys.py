@@ -1,4 +1,3 @@
-import asyncpg
 import punq
 from punq import Container
 
@@ -21,7 +20,6 @@ from dialogs.windows.widgets.message.keys.error_key import ErrorKeyMessage
 from api.backend_client import BackendAPIClient
 from services.conteiner.protocol import ContainerProtocol
 from services.core.data.service import ServiceDataModel
-from client import XUISession
 
 
 class KeysRegistrar(ContainerProtocol):
@@ -41,7 +39,9 @@ class KeysRegistrar(ContainerProtocol):
         )
         container.register(
             KeyDetailsGetter,
-            factory=lambda: KeyDetailsGetter(),
+            factory=lambda: KeyDetailsGetter(
+                backend_client=container.resolve(BackendAPIClient)
+            ),
             scope=punq.Scope.singleton,
         )
         container.register(
@@ -69,16 +69,15 @@ class KeysRegistrar(ContainerProtocol):
         container.register(
             KeyDetailsKeyboard,
             factory=lambda: KeyDetailsKeyboard(
-                model_data=container.resolve(ServiceDataModel)
+                model_data=container.resolve(ServiceDataModel),
+                backend_client=container.resolve(BackendAPIClient),
             ),
             scope=punq.Scope.singleton,
         )
         container.register(
             DeleteKeyKeyboard,
             factory=lambda: DeleteKeyKeyboard(
-                model_data=container.resolve(ServiceDataModel),
-                xui_session=container.resolve(XUISession),
-                pool=container.resolve(asyncpg.Pool),
+                backend_client=container.resolve(BackendAPIClient),
             ),
             scope=punq.Scope.singleton,
         )

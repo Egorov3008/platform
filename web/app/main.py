@@ -1,8 +1,9 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 import httpx
 from app.core.database import create_pool, close_pool, get_pool
 from app.core.logging import setup_logging, get_logger
@@ -10,6 +11,14 @@ from app.core.csrf import CSRFMiddleware
 from app.api import auth, keys, tariffs, payments, admin
 from app.core.config import settings
 from app.core.dependencies import set_backend_http_client
+
+
+class NoCacheJSMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        if request.url.path.endswith('.js'):
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        return response
 
 setup_logging(
     log_level=settings.log_level,
@@ -27,7 +36,7 @@ async def lifespan(app: FastAPI):
     logger.info("Запуск приложения VPN Web Backend")
 
     # Initialize backend HTTP client
-    backend_client = httpx.AsyncClient(base_url=settings.backend_url, timeout=30.0)
+    backend_client = httpx.AsyncClient(base_url=settings.backend_url, timeout=30.0, follow_redirects=True)
     set_backend_http_client(backend_client)
     logger.info(f"Backend HTTP client initialized: {settings.backend_url}")
 
@@ -47,6 +56,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="VPN Web Backend", version="1.0.0", lifespan=lifespan)
 
+app.add_middleware(NoCacheJSMiddleware)
 app.add_middleware(CSRFMiddleware)
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])

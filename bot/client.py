@@ -239,6 +239,15 @@ class XUISession:
                 time.monotonic() - t0
             )
 
+    async def _get_client_or_none(self, email: str):
+        """get_by_email бросает ValueError когда email не найден ни в одном inbound — нормализуем к None."""
+        try:
+            return await self.xui.client.get_by_email(email)
+        except ValueError as e:
+            if "Inbound Not Found For Email" in str(e):
+                return None
+            raise
+
     async def extend_client_key(
         self,
         key_details: Key,
@@ -249,7 +258,7 @@ class XUISession:
         try:
             await self.ensure_auth()
 
-            client = await self.xui.client.get_by_email(key_details.email)
+            client = await self._get_client_or_none(key_details.email)
             if not client or not client.id:
                 logger.warning("Клиент не найден", email=key_details.email)
                 return False
@@ -303,10 +312,10 @@ class XUISession:
         try:
             await self.ensure_auth()
 
-            client = await self.xui.client.get_by_email(email)
+            client = await self._get_client_or_none(email)
             if not client:
-                logger.warning("Клиент не найден", email=email)
-                return False
+                logger.warning("Клиент не найден в панели, считаем удалённым", email=email)
+                return True
 
             await self.xui.client.delete(inbound_id, client_id)
             logger.info("Клиент удалён", email=email)
@@ -361,7 +370,7 @@ class XUISession:
         xui_api_calls_total.labels(method="get_traffic").inc()
         try:
             await self.ensure_auth()
-            client = await self.xui.client.get_by_email(email)
+            client = await self._get_client_or_none(email)
             return client.total_gb if client else None
 
         except Exception as e:

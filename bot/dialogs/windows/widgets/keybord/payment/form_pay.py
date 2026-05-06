@@ -5,10 +5,9 @@ from aiogram_dialog import StartMode, DialogManager
 from aiogram_dialog.widgets.kbd import Keyboard, Column, Url, Button, Start
 from aiogram_dialog.widgets.text import Const, Format
 
+from api.backend_client import BackendAPIClient
 from config import SUPPORT_CHAT_URL
 from dialogs.windows.base import KeyboardBuilder
-from services.core.payment.router import PaymentRouter
-from services.core.data.service import ServiceDataModel
 from states import MainMenu
 from logger import logger
 
@@ -16,11 +15,8 @@ from logger import logger
 class PaymentFormKeyboard(KeyboardBuilder):
     """Билдер для формирования клавиатуры при оплате"""
 
-    def __init__(
-        self, payment_processor: PaymentRouter, model_service: ServiceDataModel
-    ):
-        self.payment_processor = payment_processor
-        self.model_service = model_service
+    def __init__(self, backend_client: BackendAPIClient):
+        self.backend_client = backend_client
 
     def build(self) -> Keyboard:
         return Column(
@@ -46,74 +42,53 @@ class PaymentFormKeyboard(KeyboardBuilder):
         dialog_manager: DialogManager,
         **kwargs,
     ) -> None:
-        """Проверяет статус платежа"""
-        # payment_id получается из dialog_data
+        tg_id = callback.from_user.id
         payment_id = dialog_manager.dialog_data.get("payment_id")
 
         if not payment_id:
             await callback.answer("⚠️ Платеж не найден", show_alert=True)
             return
 
-        # Проверка на уже обработанный платеж в dialog_data
         if dialog_manager.dialog_data.get("payment_processed"):
             await callback.answer("✅ Платеж уже обработан. Ключ активирован.", show_alert=True)
             return
 
-        # Проверка на блокировку повторного нажатия (processing lock)
         processing_key = f"payment_processing_{payment_id}"
         try:
-            is_processing = await dialog_manager.middleware_data.get("cache", {}).get(processing_key)
+            cache = dialog_manager.middleware_data.get("cache", {})
+            is_processing = await cache.get(processing_key)
             if is_processing:
                 await callback.answer("⏳ Платеж обрабатывается. Пожалуйста, подождите...", show_alert=False)
                 return
-            # Устанавливаем lock на 30 секунд
-            await dialog_manager.middleware_data.get("cache", {}).set(processing_key, "1", expire=30)
+            await cache.set(processing_key, "1", expire=30)
         except Exception:
-            # Если кеш недоступен, продолжаем без lock
             pass
 
         try:
-            # Сначала проверяем реальный статус в YooKassa
-            from payments.pay_config import YooKassService
-            yookassa_service = YooKassService()
-
-            status = await yookassa_service._get_status(payment_id)
+            status = await self.backend_client.get_payment_status(payment_id, tg_id)
 
             if status == "succeeded":
-                # Платеж успешен - обрабатываем
-                await self.payment_processor.route(payment_id)
                 dialog_manager.dialog_data["payment_processed"] = True
                 await callback.answer("✅ Оплата подтверждена! Ключ активирован.", show_alert=True)
-            elif status == "pending":
+            elif status in ("pending", "waiting_for_capture"):
                 await callback.answer("⏳ Платеж еще обрабатывается. Пожалуйста, подождите.", show_alert=False)
-            elif status == "waiting_for_capture":
-                await callback.answer("⏳ Платеж ожидает подтверждения. Обрабатываем...", show_alert=False)
-                # Пробуем обработать
-                await self.payment_processor.route(payment_id)
-                dialog_manager.dialog_data["payment_processed"] = True
             elif status == "canceled":
                 await callback.answer("❌ Платеж отменен. Создайте новый.", show_alert=True)
             else:
-                # Статус неизвестен или ошибка - пробуем обработать
-                await self.payment_processor.route(payment_id)
-                dialog_manager.dialog_data["payment_processed"] = True
-                await callback.answer("✅ Статус платежа проверен", show_alert=False)
+                await callback.answer("⚠️ Платеж не найден. Обратитесь в поддержку.", show_alert=True)
 
-        except ValueError as e:
-            # Платеж не найден в БД
-            await callback.answer(f"⚠️ {str(e)}", show_alert=True)
         except Exception as e:
             logger.error(
-                f"Ошибка при проверке платежа: {e}",
+                "Ошибка при проверке платежа",
                 payment_id=payment_id,
+                error=str(e),
                 exc_info=True,
             )
             await callback.answer(
                 "❌ Ошибка при проверке платежа. Обратитесь в поддержку.",
-                show_alert=True
+                show_alert=True,
             )
         finally:
-            # Снимаем lock после обработки
             try:
                 await dialog_manager.middleware_data.get("cache", {}).delete(processing_key)
             except Exception:

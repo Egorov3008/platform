@@ -70,6 +70,7 @@ async def get_backend_client(
         http_client=http_client,
         tg_id=tg_id,
         bot_secret=settings.bot_secret_key,
+        admin_api_key=settings.admin_api_key,
     )
 
 
@@ -85,4 +86,5 @@ async def get_backend_client_no_auth(
         http_client=http_client,
         tg_id=None,
         bot_secret=settings.bot_secret_key,
+        admin_api_key=settings.admin_api_key,
     )

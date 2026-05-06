@@ -79,6 +79,7 @@ class KeyModel:
 
         return {
             "error": False,
+            "not_error": True,
             "keys": self.key.key,
             "tariff_name": tariff_name,
             "used_traffic": self.used_traffic_gb,

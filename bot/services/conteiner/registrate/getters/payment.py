@@ -14,7 +14,7 @@ from dialogs.windows.widgets.message.payment.form_pay import InstructionsPayment
 from dialogs.windows.widgets.message.payment.setting_pay import (
     SettingsPayment as SettingsPaymentMessage,
 )
-from payments.pay_config import YooKassService
+from api.backend_client import BackendAPIClient
 from services.cache import CacheService
 from services.conteiner.protocol import ContainerProtocol
 from services.core.price.service import PriceService
@@ -31,9 +31,6 @@ from services.core.referral.link_generator import ReferralLinkGenerator
 
 class PaymentRegistrar(ContainerProtocol):
     def register_dependencies(self, container: Container) -> None:
-        def build_yookassa_service():
-            return YooKassService()
-
         def build_settings_payment():
             return SettingsPayment(
                 price_service=container.resolve(PriceService),
@@ -42,9 +39,7 @@ class PaymentRegistrar(ContainerProtocol):
 
         def build_form_payment_getter():
             return FormPaymentGetter(
-                service=container.resolve(YooKassService),
-                model_service=container.resolve(ServiceDataModel),
-                conn=container.resolve(asyncpg.Pool),
+                backend_client=container.resolve(BackendAPIClient),
             )
 
         def build_tariff_select_builder():
@@ -92,8 +87,7 @@ class PaymentRegistrar(ContainerProtocol):
 
         def builder_payment_form_keybord():
             return PaymentFormKeyboard(
-                payment_processor=container.resolve(PaymentRouter),
-                model_service=container.resolve(ServiceDataModel),
+                backend_client=container.resolve(BackendAPIClient),
             )
 
         # Регистрируем PaymentProcessor первым, чтобы сервисы могли его использовать
@@ -116,9 +110,6 @@ class PaymentRegistrar(ContainerProtocol):
         )
 
         # Регистрируем остальное
-        container.register(
-            YooKassService, factory=build_yookassa_service, scope=punq.Scope.singleton
-        )
         container.register(
             ReferralBonusService,
             factory=build_bonus_service,

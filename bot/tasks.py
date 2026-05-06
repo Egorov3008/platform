@@ -205,10 +205,6 @@ class BackgroundTaskManager:
             self.start_notification_bot(container, bot),
             name="notification_bot",
         )
-        self.tasks["webhook"] = asyncio.create_task(
-            self.run_webhook_server(),
-            name="webhook_server",
-        )
         logger.info("Все фоновые задачи запущены")
 
     async def stop_all_tasks(self) -> None:

@@ -29,6 +29,132 @@ const _pluralize = function(n, one, few, many) {
     return many;
 };
 
+const _calcPrice = function(amountPerMonth, months, discountPct) {
+    const base = amountPerMonth * months;
+    const hasDiscount = months >= 2 && discountPct > 0;
+    const total = hasDiscount ? Math.round(base * (1 - discountPct / 100) * 100) / 100 : base;
+    return { base, total, saving: Math.round((base - total) * 100) / 100, hasDiscount };
+};
+
+const PaymentModal = {
+    _discountPct: null,
+
+    async _fetchConfig() {
+        if (this._discountPct !== null) return;
+        try {
+            const cfg = await API.get('/payments/config');
+            this._discountPct = cfg.volume_discount_percent || 0;
+        } catch (_) {
+            this._discountPct = 0;
+        }
+    },
+
+    async open(tariffName, amountPerMonth, onConfirm) {
+        await this._fetchConfig();
+        const discountPct = this._discountPct;
+        let months = 1;
+
+        const renderInner = () => {
+            const price = _calcPrice(amountPerMonth, months, discountPct);
+            const monthWord = _pluralize(months, 'месяц', 'месяца', 'месяцев');
+            const dots = Array.from({ length: 6 }, (_, i) =>
+                `<div style="width:10px;height:10px;border-radius:50%;background:${i < months ? 'var(--accent)' : 'var(--bg-tertiary)'};"></div>`
+            ).join('');
+
+            let priceBlock;
+            if (price.hasDiscount) {
+                priceBlock = `
+                    <div style="background:var(--bg-tertiary);border-radius:10px;padding:12px 16px;margin-bottom:8px;">
+                        <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                            <span style="font-size:12px;color:var(--text-secondary);">${months} × ${amountPerMonth} ₽</span>
+                            <span style="font-size:12px;color:var(--text-secondary);text-decoration:line-through;">${price.base} ₽</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                            <span style="font-size:12px;color:#34c759;">🔥 Скидка ${discountPct}%</span>
+                            <span style="font-size:12px;color:#34c759;">−${price.saving} ₽</span>
+                        </div>
+                        <div style="border-top:1px solid var(--border);padding-top:8px;display:flex;justify-content:space-between;align-items:center;">
+                            <span style="font-size:13px;color:var(--text-secondary);">Итого</span>
+                            <span style="font-size:22px;font-weight:700;">${price.total} ₽</span>
+                        </div>
+                    </div>`;
+            } else {
+                priceBlock = `
+                    <div style="background:var(--bg-tertiary);border-radius:10px;padding:12px 16px;margin-bottom:8px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <span style="font-size:13px;color:var(--text-secondary);">Итого</span>
+                            <span style="font-size:22px;font-weight:700;">${price.total} ₽</span>
+                        </div>
+                    </div>`;
+            }
+
+            const hint = months === 6
+                ? `<div style="font-size:14px;color:var(--text-secondary);text-align:center;margin-bottom:16px;">💡 Максимум 6 месяцев</div>`
+                : months === 1 && discountPct > 0
+                ? `<div style="font-size:16px;color:var(--text-secondary);text-align:center;margin-bottom:16px;font-weight:500;">🎁 Скидка ${discountPct}% при оплате от 2 месяцев</div>`
+                : `<div style="height:16px;margin-bottom:16px;"></div>`;
+
+            const counterColor = price.hasDiscount ? 'var(--accent)' : 'var(--text-primary)';
+            const minusStyle = `width:40px;height:40px;border-radius:50%;border:2px solid ${months > 1 ? 'var(--accent)' : 'var(--border)'};color:${months > 1 ? 'var(--accent)' : 'var(--text-tertiary)'};display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:300;background:transparent;cursor:${months > 1 ? 'pointer' : 'default'};`;
+            const plusStyle = `width:40px;height:40px;border-radius:50%;border:2px solid ${months < 6 ? 'var(--accent)' : 'var(--border)'};color:${months < 6 ? 'var(--accent)' : 'var(--text-tertiary)'};display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:300;background:transparent;cursor:${months < 6 ? 'pointer' : 'default'};`;
+
+            return `
+                <div style="font-weight:700;font-size:16px;margin-bottom:4px;">💳 Оформление платежа</div>
+                <div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px;">Тариф: <b style="color:var(--text-primary);">${_esc(tariffName)} · ${amountPerMonth} ₽/мес</b></div>
+                <div style="text-align:center;margin-bottom:12px;">
+                    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Срок подписки</div>
+                    <div style="display:flex;justify-content:center;align-items:center;gap:20px;">
+                        <button id="pmMinus" style="${minusStyle}"${months === 1 ? ' disabled' : ''}>−</button>
+                        <div style="text-align:center;">
+                            <div style="font-size:42px;font-weight:700;line-height:1;color:${counterColor};">${months}</div>
+                            <div style="font-size:12px;color:var(--text-secondary);">${monthWord}</div>
+                        </div>
+                        <button id="pmPlus" style="${plusStyle}"${months === 6 ? ' disabled' : ''}>+</button>
+                    </div>
+                </div>
+                <div style="display:flex;justify-content:center;gap:8px;margin-bottom:16px;">${dots}</div>
+                ${priceBlock}
+                ${hint}
+                <div style="display:grid;grid-template-columns:1fr 2fr;gap:8px;">
+                    <button id="pmCancel" style="padding:12px;border:1px solid var(--border);border-radius:10px;font-size:14px;cursor:pointer;color:var(--text-secondary);background:transparent;">Отмена</button>
+                    <button id="pmConfirm" style="padding:14px;background:#0066FF;color:white;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;border:none;box-shadow:0 2px 8px rgba(0, 102, 255, 0.3);">Оплатить</button>
+                </div>`;
+        };
+
+        Modal.open(`<div id="pmContent">${renderInner()}</div>`);
+
+        const update = () => {
+            const el = document.getElementById('pmContent');
+            if (el) { el.innerHTML = renderInner(); bind(); }
+        };
+
+        const bind = () => {
+            const minus = document.getElementById('pmMinus');
+            const plus = document.getElementById('pmPlus');
+            const confirmBtn = document.getElementById('pmConfirm');
+            const cancelBtn = document.getElementById('pmCancel');
+
+            if (minus) minus.addEventListener('click', () => { if (months > 1) { months--; update(); } });
+            if (plus) plus.addEventListener('click', () => { if (months < 6) { months++; update(); } });
+            if (cancelBtn) cancelBtn.addEventListener('click', () => Modal.close());
+            if (confirmBtn) confirmBtn.addEventListener('click', async () => {
+                confirmBtn.disabled = true;
+                confirmBtn.textContent = 'Загрузка…';
+                try {
+                    await onConfirm(months);
+                    Modal.close();
+                } catch (err) {
+                    Toast.error(err.message);
+                    confirmBtn.disabled = false;
+                    confirmBtn.textContent = 'Перейти к оплате →';
+                }
+            });
+        };
+
+        bind();
+    },
+};
+
 export const Pages = {
     _esc,
     _periodStr,
@@ -77,7 +203,7 @@ export const Pages = {
                 const code = document.getElementById('loginCode').value.trim().toUpperCase();
                 await Auth.login(code);
                 Toast.success('Вы успешно вошли!');
-                const { Router } = await import('./router.js');
+                const { Router } = window.Router ? { Router: window.Router } : await import('./router.js');
                 Router.navigate('#/dashboard');
             } catch (err) {
                 Toast.error(err.message);
@@ -132,7 +258,7 @@ export const Pages = {
             } else {
                 keysHtml = '<div class="keys-grid">';
                 keys.forEach(k => {
-                    const expiryDate = k.expiry_time ? new Date(k.expiry_time * 1000) : null;
+                    const expiryDate = k.expiry_time ? new Date(k.expiry_time) : null;
                     const isExpired = expiryDate && expiryDate.getTime() / 1000 < now;
                     const isExpiring = expiryDate && !isExpired && (expiryDate.getTime() / 1000 - now) < 3 * 24 * 3600;
                     const badgeClass = isExpired ? 'expired' : (isExpiring ? 'expiring' : 'active');
@@ -166,8 +292,8 @@ export const Pages = {
                             <button class="copy-btn" data-key="${_esc(k.key)}">Копировать</button>
                         </div>
                         <div class="key-actions">
-                            <button class="btn btn-secondary btn-sm btn-renew" data-id="${k.client_id}" data-tariff="${k.tariff_id || ''}">Продлить</button>
-                            <button class="btn btn-danger btn-sm btn-delete-key" data-id="${k.client_id}">Удалить</button>
+                            <button class="btn btn-secondary btn-sm btn-renew" data-id="${k.email}" data-tariff="${k.tariff_id || ''}">Продлить</button>
+                            <button class="btn btn-danger btn-sm btn-delete-key" data-id="${k.email}">Удалить</button>
                         </div>
                     </div>`;
                 });
@@ -216,7 +342,7 @@ export const Pages = {
                             await API.post('/keys/', { tariff_id: tariffId });
                             Toast.success('Ключ успешно создан!');
                             Modal.close();
-                            const { Router } = await import('./router.js');
+                            const { Router } = window.Router ? { Router: window.Router } : await import('./router.js');
                             Router.render('dashboard');
                         } catch (err) {
                             Toast.error(err.message);
@@ -242,7 +368,7 @@ export const Pages = {
                     try {
                         await API.delete(`/keys/${btn.dataset.id}`);
                         Toast.success('Ключ удалён');
-                        const { Router } = await import('./router.js');
+                        const { Router } = window.Router ? { Router: window.Router } : await import('./router.js');
                         Router.render('dashboard');
                     } catch (err) {
                         Toast.error(err.message);
@@ -262,33 +388,26 @@ export const Pages = {
                         Toast.error('Тариф не найден');
                         return;
                     }
-                    btn.disabled = true;
-                    try {
-                        if (tariff.amount > 0) {
-                            if (!confirm('Продлить ключ? Будет создан платёж для оплаты.')) {
-                                btn.disabled = false;
-                                return;
-                            }
+                    if (tariff.amount > 0) {
+                        await PaymentModal.open(tariff.name_tariff, tariff.amount, async (months) => {
                             const paymentData = await API.post('/payments/renew', {
                                 client_id: btn.dataset.id,
-                                tariff_id: tariffId
+                                tariff_id: tariffId,
+                                number_of_months: months,
                             });
                             Toast.success('Платёж создан, переходим к оплате...');
                             window.open(paymentData.payment_url, '_blank');
-                        } else {
-                            if (!confirm('Продлить ключ на бесплатный тариф?')) {
-                                btn.disabled = false;
-                                return;
-                            }
+                        });
+                    } else {
+                        if (!confirm('Продлить ключ на бесплатный тариф?')) return;
+                        try {
                             await API.post(`/keys/${btn.dataset.id}/renew`, { tariff_id: tariffId });
                             Toast.success('Ключ продлён!');
+                            const { Router } = window.Router ? { Router: window.Router } : await import('./router.js');
+                            Router.render('dashboard');
+                        } catch (err) {
+                            Toast.error(err.message);
                         }
-                        const { Router } = await import('./router.js');
-                        Router.render('dashboard');
-                    } catch (err) {
-                        Toast.error(err.message);
-                    } finally {
-                        btn.disabled = false;
                     }
                 });
             });
@@ -339,35 +458,15 @@ export const Pages = {
                 btn.addEventListener('click', async () => {
                     if (!Auth.isLoggedIn()) {
                         Toast.info('Для покупки необходимо войти');
-                        const { Router } = await import('./router.js');
+                        const { Router } = window.Router ? { Router: window.Router } : await import('./router.js');
                         Router.navigate('#/login');
                         return;
                     }
                     const tariffId = parseInt(btn.dataset.id);
-                    Modal.open(`
-                        <h2>Оплата: ${btn.dataset.name}</h2>
-                        <p class="text-muted mb-16">Сумма: <strong>${btn.dataset.amount} ₽</strong></p>
-                        <p class="text-sm text-muted mb-16">После оплаты вы будете перенаправлены на страницу оплаты YooKassa.</p>
-                        <button class="btn btn-primary" id="payNowBtn">Перейти к оплате</button>
-                        <div class="modal-actions">
-                            <button class="btn btn-secondary" onclick="Modal.close()">Отмена</button>
-                        </div>
-                    `);
-                    document.getElementById('payNowBtn').addEventListener('click', async () => {
-                        const payBtn = document.getElementById('payNowBtn');
-                        payBtn.disabled = true;
-                        payBtn.innerHTML = '<span class="spinner"></span>';
-                        try {
-                            const data = await API.post('/payments/create', { tariff_id: tariffId });
-                            Toast.success('Платёж создан');
-                            Modal.close();
-                            window.open(data.payment_url, '_blank');
-                        } catch (err) {
-                            Toast.error(err.message);
-                        } finally {
-                            payBtn.disabled = false;
-                            payBtn.textContent = 'Перейти к оплате';
-                        }
+                    await PaymentModal.open(btn.dataset.name, parseFloat(btn.dataset.amount), async (months) => {
+                        const data = await API.post('/payments/create', { tariff_id: tariffId, number_of_months: months });
+                        Toast.success('Платёж создан');
+                        window.open(data.payment_url, '_blank');
                     });
                 });
             });
@@ -441,7 +540,7 @@ export const Pages = {
                         const result = await API.get(`/payments/${btn.dataset.id}/status`);
                         if (result.processed) {
                             Toast.success('Платёж обработан! Ключ обновлён.');
-                            const { Router } = await import('./router.js');
+                            const { Router } = window.Router ? { Router: window.Router } : await import('./router.js');
                             Router.render('payments');
                         } else {
                             Toast.info(`Статус: ${result.status}`);
@@ -584,8 +683,8 @@ export const Pages = {
                     <thead><tr><th>Client ID</th><th>TG ID</th><th>Тариф</th><th>Истекает</th><th>Действия</th></tr></thead>
                     <tbody>`;
                 keys.forEach(k => {
-                    const exp = k.expiry_time ? new Date(k.expiry_time * 1000).toLocaleDateString('ru-RU') : '—';
-                    const isExpired = k.expiry_time && k.expiry_time < now;
+                    const exp = k.expiry_time ? new Date(k.expiry_time).toLocaleDateString('ru-RU') : '—';
+                    const isExpired = k.expiry_time && k.expiry_time < Date.now();
                     html += `<tr>
                         <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc(k.client_id)}</td>
                         <td>${k.tg_id || '—'}</td>

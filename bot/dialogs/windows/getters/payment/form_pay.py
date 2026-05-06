@@ -1,111 +1,88 @@
-from typing import Any
+from typing import Optional
 
-import asyncpg
 from aiogram_dialog import DialogManager
 
+from api.backend_client import BackendAPIClient
 from dialogs.windows.base import DataGetter
-from models import PaymentModel
-from payments.pay_config import YooKassService
-from services.core.data.service import ServiceDataModel
 from logger import logger
 
 
 class FormPaymentGetter(DataGetter):
-    """Класс getter для работы с окном оплаты"""
+    """Getter для окна оплаты — создаёт платёж через backend API."""
 
-    def __init__(
-        self,
-        service: YooKassService,
-        model_service: ServiceDataModel,
-        conn: asyncpg.Pool,
-    ):
-        self.service = service
-        self.conn = conn
-        self.payment_data = model_service.payments
+    def __init__(self, backend_client: BackendAPIClient):
+        self.backend_client = backend_client
         self._data = {}
 
     async def get_data(self, dialog_manager: DialogManager, **kwargs) -> dict:
-        """Основной метод"""
         self._get_payment_data(dialog_manager)
         tg_id = dialog_manager.event.from_user.id
-        amount = self._data.get("amount")
+        amount: Optional[float] = self._data.get("amount")
         if not amount:
             raise ValueError("Не указана сумма оплаты")
-        
-        # Проверяем, есть ли уже payment_id в dialog_data
+
         existing_payment_id = dialog_manager.dialog_data.get("payment_id")
-        
-        if existing_payment_id:
-            # Платеж уже создан - проверяем его статус в YooKassa
-            try:
-                status = await self.service._get_status(existing_payment_id)
-                if status in ("pending", "waiting_for_capture"):
-                    # Платеж еще не завершен - возвращаем существующий
-                    logger.info(
-                        "[Цена:FormPay] Используется существующий платёж",
-                        tg_id=tg_id,
-                        payment_id=existing_payment_id,
-                        status=status,
-                    )
-                    # Получаем URL подтверждения из БД или кэша
-                    confirmation_url = await self._get_confirmation_url(existing_payment_id)
-                    if confirmation_url:
-                        return {"confirmation_url": confirmation_url}
-            except Exception as e:
-                logger.warning(
-                    "[Цена:FormPay] Ошибка проверки статуса платежа",
+        existing_confirmation_url = dialog_manager.dialog_data.get("confirmation_url")
+
+        if existing_payment_id and existing_confirmation_url:
+            status = await self.backend_client.get_payment_status(existing_payment_id, tg_id)
+            if status in ("pending", "waiting_for_capture", None):
+                logger.info(
+                    "[Цена:FormPay] Используется существующий платёж",
+                    tg_id=tg_id,
                     payment_id=existing_payment_id,
-                    error=str(e),
+                    status=status,
                 )
-        
-        # Создаем новый платеж
-        description = f"Оплата ИТ-услуг для {tg_id}"
-        payment_data: dict = await self.service.create_payment_form(
-            amount, description=description
+                return {"confirmation_url": existing_confirmation_url}
+
+        payment_type: str = self._data.get("payment_type", "")
+        tariff = self._data.get("tariff")
+        number_of_months: int = self._data.get("number_of_months", 1)
+
+        if payment_type.startswith("renew_key|"):
+            operation = "renew_key"
+            email = payment_type.split("|", 1)[1]
+        else:
+            operation = "create_key"
+            email = None
+
+        tariff_id: Optional[int] = tariff.id if tariff else None
+        if tariff_id is None and "|" in payment_type:
+            try:
+                tariff_id = int(payment_type.split("|", 1)[1])
+            except ValueError:
+                pass
+
+        if tariff_id is None:
+            raise ValueError("Не удалось определить тариф для создания платежа")
+
+        payment_data = await self.backend_client.create_payment(
+            tg_id=tg_id,
+            tariff_id=tariff_id,
+            operation=operation,
+            number_of_months=number_of_months,
+            email=email,
+            amount=amount,
         )
-        payment_id = payment_data.get("payment_id")
-        confirmation_url = payment_data.get("confirmation_url")
+        if not payment_data:
+            raise ValueError("Не удалось создать платёж. Обратитесь в поддержку.")
+
+        payment_id = payment_data["payment_id"]
+        confirmation_url = payment_data["confirmation_url"]
 
         dialog_manager.dialog_data["payment_id"] = payment_id
-
-        await self.seter(payment_id, tg_id, amount)
+        dialog_manager.dialog_data["confirmation_url"] = confirmation_url
 
         logger.info(
-            "[Цена:FormPay] Платёж создан в YooKassa",
+            "[Цена:FormPay] Платёж создан через backend",
             tg_id=tg_id,
             payment_id=payment_id,
             amount=amount,
-            number_of_months=self._data.get("number_of_months", 1),
-            payment_type=self._data.get("payment_type"),
+            number_of_months=number_of_months,
+            payment_type=payment_type,
         )
 
         return {"confirmation_url": confirmation_url}
-    
-    async def _get_confirmation_url(self, payment_id: str) -> str | None:
-        """Получает URL подтверждения платежа из БД или кэша."""
-        try:
-            # Пытаемся получить данные платежа из БД
-            payment = await self.payment_data.get_data(payment_id)
-            if payment and hasattr(payment, 'confirmation_url'):
-                return payment.confirmation_url
-        except Exception:
-            pass
-        return None
 
-    def _get_payment_data(self, dialog_manager: DialogManager) -> Any:
-        """Возвращает данные для диалога оплаты"""
+    def _get_payment_data(self, dialog_manager: DialogManager) -> None:
         self._data = dialog_manager.dialog_data or dialog_manager.start_data
-
-    async def seter(self, payment_id: str, user_id: int, amount: float) -> None:
-
-        payment = PaymentModel(
-            payment_id=payment_id,
-            payment_type=self._data.get("payment_type"),
-            tg_id=user_id,
-            amount=amount,
-            number_of_months=self._data.get("number_of_months", 1),
-            discount_percent=self._data.get("discount_percent", 0),
-            referral_discount=self._data.get("referral_discount", 0.0),
-            status="pending",
-        )
-        await self.payment_data.save_data(self.conn, payment, payment_id=payment_id)

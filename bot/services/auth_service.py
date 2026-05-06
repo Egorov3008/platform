@@ -3,7 +3,7 @@ import logging
 from typing import Optional
 
 from api.backend_client import BackendAPIClient
-from app.schemas.auth import RegisterFromInviteRequest, RegisterFromInviteResponse
+from api.schemas import RegisterFromInviteRequest, RegisterFromInviteResponse
 from config import INVITE_TOKEN
 
 logger = logging.getLogger(__name__)
