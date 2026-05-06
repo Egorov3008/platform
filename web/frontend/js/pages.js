@@ -440,7 +440,7 @@ export const Pages = {
                             tariffId: tariffId,
                             tariffName: tariff.name_tariff,
                             amountPerMonth: tariff.amount,
-                            renewClientId: btn.dataset.clientId,
+                            renewClientId: btn.dataset.id,
                             onSuccess: async () => {
                                 const { Router } = window.Router ? { Router: window.Router } : await import('./router.js');
                                 Router.render('dashboard');
