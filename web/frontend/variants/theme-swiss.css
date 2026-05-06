@@ -1,0 +1,283 @@
+/* ===== Modern Swiss Theme — Light + Dark ===== */
+/* Deep teal + white (light) / Deep teal + near-black (dark) */
+
+:root {
+    /* === LIGHT MODE === */
+    --primary: #0D7377;
+    --primary-hover: #0A5C60;
+    --primary-light: #E3F4F4;
+    --accent: #14B8A6;
+
+    --bg: #FFFFFF;
+    --surface: #F7F9FA;
+    --surface-2: #EFF2F4;
+    --text: #0F1923;
+    --text-secondary: #5A6A78;
+    --text-tertiary: #8FA0B0;
+    --border: #DDE4EA;
+    --border-2: #C8D3DC;
+
+    --success: #0B9266;
+    --success-bg: #E6F7F2;
+    --error: #D93025;
+    --error-bg: #FDECEA;
+    --warning: #C07D00;
+    --warning-bg: #FEF5E0;
+
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    --shadow-md: 0 4px 16px rgba(15, 23, 42, 0.10), 0 2px 4px rgba(15, 23, 42, 0.06);
+    --shadow-lg: 0 12px 40px rgba(15, 23, 42, 0.12), 0 4px 8px rgba(15, 23, 42, 0.06);
+    --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* === DARK MODE === */
+[data-theme="dark"] {
+    --primary: #0E8A8F;
+    --primary-hover: #10A0A6;
+    --primary-light: rgba(14, 138, 143, 0.14);
+    --accent: #2DD4BF;
+
+    --bg: #0D1117;
+    --surface: #161D27;
+    --surface-2: #1C2535;
+    --text: #EEF2F6;
+    --text-secondary: #8A9BB0;
+    --text-tertiary: #566070;
+    --border: #1E2D3D;
+    --border-2: #253344;
+
+    --success: #0FA876;
+    --success-bg: rgba(15, 168, 118, 0.12);
+    --error: #E84040;
+    --error-bg: rgba(232, 64, 64, 0.10);
+    --warning: #E09A00;
+    --warning-bg: rgba(224, 154, 0, 0.10);
+
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.30);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.40), 0 2px 4px rgba(0, 0, 0, 0.25);
+    --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.50), 0 4px 8px rgba(0, 0, 0, 0.30);
+}
+
+/* Smooth theme transitions */
+*, *::before, *::after {
+    transition-property: background-color, border-color, color, box-shadow;
+    transition-duration: 0.25s;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Theme Toggle Button ── */
+.theme-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 4px;
+}
+
+.theme-toggle-track {
+    width: 44px;
+    height: 24px;
+    background: #D1DCE5;
+    border-radius: 12px;
+    border: 1.5px solid var(--border-2);
+    position: relative;
+    flex-shrink: 0;
+}
+
+[data-theme="dark"] .theme-toggle-track {
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
+.theme-toggle-knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #FFFFFF;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.26s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+[data-theme="dark"] .theme-toggle-knob {
+    transform: translateX(20px);
+    background: #EEF2F6;
+}
+
+.theme-toggle-label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+/* Typography: Helvetica Neue / system fonts for Swiss feel */
+body {
+    font-family: 'Helvetica Neue', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    letter-spacing: -0.01em;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Headers: More spacious, tighter letter-spacing for impact */
+h1, h2, h3, h4, h5, h6 {
+    letter-spacing: -0.02em;
+    font-weight: 600;
+}
+
+/* Header styling */
+.header {
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 2px 0 rgba(15, 23, 42, 0.02);
+}
+
+.logo {
+    color: var(--primary);
+    font-weight: 700;
+    font-size: 1.2rem;
+    letter-spacing: -0.03em;
+}
+
+/* Button refinements */
+.btn {
+    border-radius: var(--radius);
+    font-weight: 500;
+    transition: all var(--transition);
+    text-transform: none;
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(13, 115, 119, 0.15);
+}
+
+.btn-primary:hover {
+    background: var(--primary-hover);
+    box-shadow: 0 4px 12px rgba(13, 115, 119, 0.25);
+    transform: translateY(-1px);
+}
+
+/* Form elements: Cleaner borders */
+.form-input {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+    transition: all var(--transition);
+}
+
+.form-input:focus {
+    border-color: var(--primary);
+    box-shadow: inset 0 0 0 1px var(--primary), 0 0 0 3px rgba(13, 115, 119, 0.08);
+    background: var(--bg);
+}
+
+/* Cards: Minimal elevation */
+.card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: none;
+    transition: all var(--transition);
+}
+
+.card:hover {
+    border-color: var(--primary-light);
+    box-shadow: 0 2px 8px rgba(13, 115, 119, 0.08);
+}
+
+/* Key value display: Teal gradient with refined typography */
+.key-value {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+    box-shadow: 0 4px 16px rgba(13, 115, 119, 0.15);
+    border-radius: var(--radius);
+}
+
+.key-value-text {
+    font-family: 'Courier New', 'SF Mono', monospace;
+    font-size: 0.85rem;
+    letter-spacing: 0.01em;
+}
+
+/* Tariff cards: Refined with border accent */
+.tariff-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 20px;
+    transition: all var(--transition);
+    position: relative;
+}
+
+.tariff-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--primary);
+    border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.tariff-card:hover {
+    border-color: var(--primary);
+    box-shadow: 0 4px 16px rgba(13, 115, 119, 0.12);
+    transform: translateY(-2px);
+}
+
+.tariff-price {
+    color: var(--primary);
+    font-weight: 700;
+    font-size: 2.4rem;
+}
+
+/* Section headers: More prominent */
+.section-header h2 {
+    font-size: 1.5rem;
+    color: var(--text);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+/* Tables: Swiss grid feel */
+.table th {
+    background: var(--surface);
+    text-transform: uppercase;
+    font-weight: 600;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+}
+
+.table tr:hover td {
+    background: var(--primary-light);
+}
+
+/* Modal: Clean borders */
+.modal {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.15);
+}
+
+/* Empty state: Teal accent */
+.empty-state h3 {
+    color: var(--text);
+}
+
+.empty-state svg {
+    opacity: 0.15;
+    color: var(--primary);
+}
+
+/* Toast: Teal accents */
+.toast.success { border-left: 3px solid var(--success); }
+.toast.error { border-left: 3px solid var(--error); }
+.toast.info { border-left: 3px solid var(--primary); }

@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Swiss Theme Demo - VPN Panel</title>
+    <style>
+        /* Modern Swiss Theme */
+        :root {
+            --primary: #0D7377;
+            --primary-hover: #055A63;
+            --primary-light: #E8F4F5;
+            --accent: #14B8A6;
+            --bg: #FFFFFF;
+            --surface: #FAFBFC;
+            --text: #0F172A;
+            --text-secondary: #64748B;
+            --border: #E2E8F0;
+            --success: #10B981;
+            --success-bg: #ECFDF5;
+            --error: #EF4444;
+            --error-bg: #FEF2F2;
+            --radius: 12px;
+            --shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+            --shadow-md: 0 2px 4px rgba(15, 23, 42, 0.08);
+            --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Helvetica Neue', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: var(--bg);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 24px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .logo-icon {
+            width: 24px;
+            height: 24px;
+            background: var(--primary);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+        }
+
+        .theme-badge {
+            background: var(--primary-light);
+            color: var(--primary);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+
+        .main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 32px 24px;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 24px;
+            letter-spacing: -0.02em;
+        }
+
+        .section {
+            margin-bottom: 40px;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+            transition: all var(--transition);
+        }
+
+        .card:hover {
+            border-color: var(--primary-light);
+            box-shadow: 0 2px 8px rgba(13, 115, 119, 0.08);
+        }
+
+        /* Keys Grid */
+        .keys-grid {
+            display: grid;
+            gap: 16px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        }
+
+        .key-card h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .key-meta {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .key-value {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin: 12px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            box-shadow: 0 4px 16px rgba(13, 115, 119, 0.15);
+        }
+
+        .key-value-text {
+            color: white;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            flex: 1;
+            word-break: break-all;
+        }
+
+        .copy-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            padding: 6px 12px;
+            color: white;
+            font-weight: 600;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all var(--transition);
+            white-space: nowrap;
+        }
+
+        .copy-btn:hover {
+            background: rgba(255, 255, 255, 0.35);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        /* Tariff Cards */
+        .tariffs-grid {
+            display: grid;
+            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        }
+
+        .tariff-card {
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 28px 20px;
+            transition: all var(--transition);
+            position: relative;
+            text-align: center;
+        }
+
+        .tariff-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--primary);
+            border-radius: var(--radius) var(--radius) 0 0;
+        }
+
+        .tariff-card h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .tariff-price {
+            color: var(--primary);
+            font-size: 2.4rem;
+            font-weight: 700;
+            margin: 16px 0;
+        }
+
+        .tariff-features {
+            list-style: none;
+            margin: 16px 0 24px;
+            text-align: left;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .tariff-features li {
+            padding: 6px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tariff-features li::before {
+            content: "✓";
+            color: var(--success);
+            font-weight: 700;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: var(--radius);
+            font-weight: 600;
+            font-size: 0.9rem;
+            border: none;
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            width: 100%;
+            box-shadow: 0 2px 6px rgba(13, 115, 119, 0.15);
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+            box-shadow: 0 4px 12px rgba(13, 115, 119, 0.25);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border);
+            margin-right: 8px;
+        }
+
+        .btn-secondary:hover {
+            background: var(--border);
+        }
+
+        .btn-danger {
+            background: var(--error);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #DC2626;
+        }
+
+        .btn-sm {
+            padding: 8px 16px;
+            font-size: 0.8rem;
+            width: auto;
+        }
+
+        .key-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+        }
+
+        /* Badge */
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge.active {
+            background: var(--success-bg);
+            color: var(--success);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            gap: 12px;
+        }
+
+        @media (max-width: 768px) {
+            .main {
+                padding: 16px 12px;
+            }
+            h2 {
+                font-size: 1.3rem;
+            }
+            .section-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-inner">
+            <div class="logo">
+                <div class="logo-icon">🔒</div>
+                <span>VPN Panel</span>
+            </div>
+            <div class="theme-badge">SWISS THEME</div>
+        </div>
+    </header>
+
+    <main class="main">
+        <!-- Keys Section -->
+        <section class="section">
+            <div class="section-header">
+                <h2>Your VPN Keys</h2>
+                <button class="btn btn-primary btn-sm">+ Add New Key</button>
+            </div>
+            <div class="keys-grid">
+                <div class="card key-card">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                        <h3>Premium Key</h3>
+                        <span class="badge active">Active</span>
+                    </div>
+                    <div class="key-meta">
+                        <div><strong>Tariff:</strong> Premium 30 days</div>
+                        <div><strong>Expiry:</strong> 24 days remaining</div>
+                    </div>
+                    <div class="key-value">
+                        <span class="key-value-text">XXXX-XXXX-XXXX-XXXX-XXXX</span>
+                        <button class="copy-btn">Copy</button>
+                    </div>
+                    <div class="key-actions">
+                        <button class="btn btn-secondary btn-sm">Renew</button>
+                        <button class="btn btn-danger btn-sm">Delete</button>
+                    </div>
+                </div>
+
+                <div class="card key-card">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                        <h3>Basic Key</h3>
+                        <span class="badge" style="background: #FEF3C7; color: #D97706;">Expiring</span>
+                    </div>
+                    <div class="key-meta">
+                        <div><strong>Tariff:</strong> Basic 30 days</div>
+                        <div><strong>Expiry:</strong> 3 days remaining</div>
+                    </div>
+                    <div class="key-value">
+                        <span class="key-value-text">YYYY-YYYY-YYYY-YYYY-YYYY</span>
+                        <button class="copy-btn">Copy</button>
+                    </div>
+                    <div class="key-actions">
+                        <button class="btn btn-secondary btn-sm">Renew</button>
+                        <button class="btn btn-danger btn-sm">Delete</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tariffs Section -->
+        <section class="section">
+            <h2>Choose Your Plan</h2>
+            <div class="tariffs-grid">
+                <div class="card tariff-card">
+                    <h3>Basic</h3>
+                    <div class="tariff-price">$9.99 <span style="font-size: 0.5em; color: var(--text-secondary);">/mo</span></div>
+                    <ul class="tariff-features">
+                        <li>100 GB/month</li>
+                        <li>5 locations</li>
+                        <li>Standard support</li>
+                        <li>Mobile app</li>
+                    </ul>
+                    <button class="btn btn-primary">Select Plan</button>
+                </div>
+
+                <div class="card tariff-card">
+                    <h3>Premium</h3>
+                    <div class="tariff-price">$19.99 <span style="font-size: 0.5em; color: var(--text-secondary);">/mo</span></div>
+                    <ul class="tariff-features">
+                        <li>Unlimited data</li>
+                        <li>20+ locations</li>
+                        <li>Priority support</li>
+                        <li>No ads</li>
+                    </ul>
+                    <button class="btn btn-primary">Select Plan</button>
+                </div>
+
+                <div class="card tariff-card">
+                    <h3>Enterprise</h3>
+                    <div class="tariff-price">$49.99 <span style="font-size: 0.5em; color: var(--text-secondary);">/mo</span></div>
+                    <ul class="tariff-features">
+                        <li>Unlimited data</li>
+                        <li>All locations</li>
+                        <li>24/7 support</li>
+                        <li>Custom solutions</li>
+                    </ul>
+                    <button class="btn btn-primary">Select Plan</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Color Palette -->
+        <section class="section">
+            <h2>Color Palette</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;">
+                <div style="text-align: center;">
+                    <div style="width: 100%; height: 100px; background: #0D7377; border-radius: 12px; margin-bottom: 8px;"></div>
+                    <strong>Primary</strong><br><span style="font-size: 0.85rem; color: var(--text-secondary);">#0D7377</span>
+                </div>
+                <div style="text-align: center;">
+                    <div style="width: 100%; height: 100px; background: #14B8A6; border-radius: 12px; margin-bottom: 8px;"></div>
+                    <strong>Accent</strong><br><span style="font-size: 0.85rem; color: var(--text-secondary);">#14B8A6</span>
+                </div>
+                <div style="text-align: center;">
+                    <div style="width: 100%; height: 100px; background: #FAFBFC; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 8px;"></div>
+                    <strong>Surface</strong><br><span style="font-size: 0.85rem; color: var(--text-secondary);">#FAFBFC</span>
+                </div>
+                <div style="text-align: center;">
+                    <div style="width: 100%; height: 100px; background: #10B981; border-radius: 12px; margin-bottom: 8px;"></div>
+                    <strong>Success</strong><br><span style="font-size: 0.85rem; color: var(--text-secondary);">#10B981</span>
+                </div>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

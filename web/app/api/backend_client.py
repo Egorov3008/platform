@@ -170,8 +170,8 @@ class WebBackendClient:
         """DELETE /api/v1/keys/{email} - Delete a VPN key."""
         method, path = "DELETE", f"/api/v1/keys/{email}"
         try:
-            await self._log_request(method, path)
-            resp = await self._client.delete(path, headers=self._get_headers())
+            await self._log_request(method, path, params=self._get_params())
+            resp = await self._client.delete(path, headers=self._get_headers(), params=self._get_params())
             resp.raise_for_status()
             self._log_response(method, path, resp.status_code)
             if resp.status_code == 204:

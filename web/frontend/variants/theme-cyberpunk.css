@@ -1,0 +1,318 @@
+/* ===== Dark Cyberpunk Theme ===== */
+/* Neon pink + cyan, dark mode, retro-futuristic energy */
+
+:root {
+    /* Color palette: neon accent on dark */
+    --primary: #FF006E;      /* Neon pink */
+    --primary-hover: #FF1494;
+    --primary-light: rgba(255, 0, 110, 0.12);
+    --accent: #00D9FF;       /* Cyan neon */
+    --accent-secondary: #8338EC; /* Purple neon */
+    --bg: #0A0E27;           /* Deep space black */
+    --surface: #1A1F3A;      /* Slightly lighter */
+    --surface-hover: #222844;
+    --text: #F5F7FA;         /* Near white */
+    --text-secondary: #A0AEC0;
+    --border: #2D3748;
+    --success: #38B000;      /* Green neon */
+    --success-bg: rgba(56, 176, 0, 0.12);
+    --error: #FF006E;        /* Reuse pink */
+    --error-bg: rgba(255, 0, 110, 0.12);
+    --warning: #FFB81C;      /* Yellow neon */
+    --warning-bg: rgba(255, 184, 28, 0.12);
+    --radius: 10px;
+    --radius-sm: 6px;
+    --shadow: 0 0 20px rgba(0, 217, 255, 0.1);
+    --shadow-md: 0 0 40px rgba(255, 0, 110, 0.2);
+    --shadow-lg: 0 0 60px rgba(255, 0, 110, 0.3), 0 0 20px rgba(0, 217, 255, 0.2);
+    --transition: 0.3s cubic-bezier(0.23, 1, 0.320, 1);
+    --glow: 0 0 15px rgba(0, 217, 255, 0.6);
+}
+
+/* Typography: Futura / geometric sans for cyberpunk */
+body {
+    font-family: 'Courier Prime', 'IBM Plex Mono', 'Courier New', monospace;
+    background: var(--bg);
+    color: var(--text);
+    background-image:
+        radial-gradient(circle at 20% 50%, rgba(255, 0, 110, 0.05) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(0, 217, 255, 0.05) 0%, transparent 50%);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+
+/* Glowing text effect on headers */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--text);
+    text-shadow: 0 0 10px rgba(0, 217, 255, 0.3);
+    font-weight: 700;
+}
+
+/* Header: Dark with glow */
+.header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 0 20px rgba(255, 0, 110, 0.1), inset 0 -1px 0 var(--accent);
+}
+
+.logo {
+    color: var(--accent);
+    font-weight: 800;
+    font-size: 1.3rem;
+    text-shadow: 0 0 20px rgba(0, 217, 255, 0.6);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.logo svg {
+    filter: drop-shadow(0 0 8px rgba(0, 217, 255, 0.5));
+}
+
+/* Nav links: Neon glow on hover */
+.nav a {
+    color: var(--text-secondary);
+    transition: all var(--transition);
+    position: relative;
+}
+
+.nav a:hover, .nav a.active {
+    color: var(--accent);
+    background: rgba(0, 217, 255, 0.1);
+    text-shadow: 0 0 15px rgba(0, 217, 255, 0.6);
+    box-shadow: inset 0 0 10px rgba(0, 217, 255, 0.2);
+}
+
+/* Buttons: Neon borders and glows */
+.btn {
+    border-radius: var(--radius-sm);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    transition: all var(--transition);
+    border: 2px solid transparent;
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: #fff;
+    border: 2px solid var(--primary);
+    box-shadow: 0 0 20px rgba(255, 0, 110, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.1);
+}
+
+.btn-primary:hover {
+    background: transparent;
+    box-shadow: 0 0 30px rgba(255, 0, 110, 0.8), 0 0 60px rgba(255, 0, 110, 0.4);
+    transform: scaleX(1.05);
+}
+
+.btn-secondary {
+    background: transparent;
+    border: 2px solid var(--accent);
+    color: var(--accent);
+    text-shadow: 0 0 10px rgba(0, 217, 255, 0.4);
+    box-shadow: inset 0 0 10px rgba(0, 217, 255, 0.1);
+}
+
+.btn-secondary:hover {
+    background: rgba(0, 217, 255, 0.1);
+    box-shadow: 0 0 20px rgba(0, 217, 255, 0.6), inset 0 0 10px rgba(0, 217, 255, 0.2);
+}
+
+/* Forms: Dark with cyan border focus */
+.form-input {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    transition: all var(--transition);
+}
+
+.form-input:focus {
+    background: var(--surface-hover);
+    border-color: var(--accent);
+    box-shadow: 0 0 20px rgba(0, 217, 255, 0.3), inset 0 0 10px rgba(0, 217, 255, 0.05);
+}
+
+.form-input::placeholder {
+    color: var(--text-secondary);
+}
+
+/* Cards: Dark with neon accent edges */
+.card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    transition: all var(--transition);
+    position: relative;
+    overflow: hidden;
+}
+
+.card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    transition: left var(--transition);
+}
+
+.card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 30px rgba(0, 217, 255, 0.3), 0 0 60px rgba(255, 0, 110, 0.1);
+}
+
+.card:hover::before {
+    left: 100%;
+}
+
+/* Key value: Neon gradient with strong glow */
+.key-value {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent-secondary) 50%, var(--accent) 100%);
+    box-shadow: 0 0 30px rgba(255, 0, 110, 0.4), 0 0 60px rgba(0, 217, 255, 0.2);
+    border: 1px solid rgba(0, 217, 255, 0.5);
+    position: relative;
+    overflow: hidden;
+}
+
+.key-value::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    animation: shimmer 3s infinite;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+.key-value-text {
+    font-family: 'IBM Plex Mono', monospace;
+    color: #fff;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+    font-size: 0.85rem;
+    letter-spacing: 0.02em;
+    font-weight: 500;
+}
+
+.key-value .copy-btn {
+    background: rgba(0, 217, 255, 0.1);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    text-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
+}
+
+.key-value .copy-btn:hover {
+    background: var(--accent);
+    color: var(--bg);
+    box-shadow: 0 0 20px rgba(0, 217, 255, 0.8);
+}
+
+/* Tariff cards: Neon border accent */
+.tariff-card {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    transition: all var(--transition);
+    position: relative;
+    overflow: hidden;
+}
+
+.tariff-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary), var(--accent));
+    opacity: 0;
+    transition: opacity var(--transition);
+}
+
+.tariff-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 30px rgba(0, 217, 255, 0.3), inset 0 0 20px rgba(0, 217, 255, 0.05);
+    transform: translateY(-4px);
+}
+
+.tariff-card:hover::before {
+    opacity: 1;
+}
+
+.tariff-price {
+    color: var(--accent);
+    font-size: 2.4rem;
+    font-weight: 800;
+    text-shadow: 0 0 20px rgba(0, 217, 255, 0.6);
+}
+
+/* Section headers */
+.section-header h2 {
+    color: var(--accent);
+    font-size: 1.5rem;
+    text-shadow: 0 0 15px rgba(0, 217, 255, 0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Tables */
+.table th {
+    background: var(--surface-hover);
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 700;
+    text-shadow: 0 0 10px rgba(0, 217, 255, 0.3);
+}
+
+.table tr:hover td {
+    background: rgba(0, 217, 255, 0.08);
+}
+
+/* Modal */
+.modal {
+    background: var(--surface);
+    border: 2px solid var(--accent);
+    box-shadow: 0 0 50px rgba(255, 0, 110, 0.3), 0 0 100px rgba(0, 217, 255, 0.2);
+}
+
+.modal h2 {
+    color: var(--accent);
+    text-shadow: 0 0 15px rgba(0, 217, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Toasts */
+.toast {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: 0 0 30px rgba(0, 217, 255, 0.2);
+}
+
+.toast.success { border-left: 3px solid var(--success); }
+.toast.error { border-left: 3px solid var(--primary); }
+.toast.info { border-left: 3px solid var(--accent); }
+
+/* Loading spinner: Cyan glow */
+.spinner {
+    border-color: var(--border);
+    border-top-color: var(--accent);
+    box-shadow: 0 0 15px rgba(0, 217, 255, 0.5);
+}
+
+/* Empty state */
+.empty-state svg {
+    opacity: 0.2;
+    filter: drop-shadow(0 0 10px rgba(0, 217, 255, 0.4));
+}
+
+.empty-state h3 {
+    color: var(--accent);
+}

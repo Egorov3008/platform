@@ -1,9 +1,11 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VPN Panel</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -17,6 +19,11 @@
                 </svg>
                 VPN Panel
             </a>
+            <button class="theme-toggle" id="themeToggle" aria-label="Сменить тему" style="display:none">
+                <div class="theme-toggle-track">
+                    <div class="theme-toggle-knob"></div>
+                </div>
+            </button>
             <button class="btn btn-secondary btn-sm header-logout" id="headerLogoutBtn" style="display:none">Выйти</button>
             <button class="hamburger" id="hamburgerBtn" aria-label="Меню">
                 <span></span><span></span><span></span>

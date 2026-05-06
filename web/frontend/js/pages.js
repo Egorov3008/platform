@@ -38,6 +38,8 @@ const _calcPrice = function(amountPerMonth, months, discountPct) {
 
 const PaymentModal = {
     _discountPct: null,
+    _paymentId: null,
+    _paymentUrl: null,
 
     async _fetchConfig() {
         if (this._discountPct !== null) return;
@@ -49,41 +51,44 @@ const PaymentModal = {
         }
     },
 
-    async open(tariffName, amountPerMonth, onConfirm) {
+    async open({ tariffId, tariffName, amountPerMonth, renewClientId = null, onSuccess }) {
         await this._fetchConfig();
+        this._paymentId = null;
+        this._paymentUrl = null;
+
         const discountPct = this._discountPct;
         let months = 1;
 
-        const renderInner = () => {
+        const renderSelection = () => {
             const price = _calcPrice(amountPerMonth, months, discountPct);
             const monthWord = _pluralize(months, 'месяц', 'месяца', 'месяцев');
             const dots = Array.from({ length: 6 }, (_, i) =>
-                `<div style="width:10px;height:10px;border-radius:50%;background:${i < months ? 'var(--accent)' : 'var(--bg-tertiary)'};"></div>`
+                `<div style="width:10px;height:10px;border-radius:50%;background:${i < months ? 'var(--accent)' : 'var(--surface-2)'};"></div>`
             ).join('');
 
             let priceBlock;
             if (price.hasDiscount) {
                 priceBlock = `
-                    <div style="background:var(--bg-tertiary);border-radius:10px;padding:12px 16px;margin-bottom:8px;">
+                    <div style="background:var(--surface-2);border-radius:10px;padding:12px 16px;margin-bottom:8px;">
                         <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
                             <span style="font-size:12px;color:var(--text-secondary);">${months} × ${amountPerMonth} ₽</span>
                             <span style="font-size:12px;color:var(--text-secondary);text-decoration:line-through;">${price.base} ₽</span>
                         </div>
                         <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-                            <span style="font-size:12px;color:#34c759;">🔥 Скидка ${discountPct}%</span>
-                            <span style="font-size:12px;color:#34c759;">−${price.saving} ₽</span>
+                            <span style="font-size:12px;color:var(--success);">🔥 Скидка ${discountPct}%</span>
+                            <span style="font-size:12px;color:var(--success);">−${price.saving} ₽</span>
                         </div>
                         <div style="border-top:1px solid var(--border);padding-top:8px;display:flex;justify-content:space-between;align-items:center;">
                             <span style="font-size:13px;color:var(--text-secondary);">Итого</span>
-                            <span style="font-size:22px;font-weight:700;">${price.total} ₽</span>
+                            <span style="font-size:22px;font-weight:700;color:var(--text);">${price.total} ₽</span>
                         </div>
                     </div>`;
             } else {
                 priceBlock = `
-                    <div style="background:var(--bg-tertiary);border-radius:10px;padding:12px 16px;margin-bottom:8px;">
+                    <div style="background:var(--surface-2);border-radius:10px;padding:12px 16px;margin-bottom:8px;">
                         <div style="display:flex;justify-content:space-between;align-items:center;">
                             <span style="font-size:13px;color:var(--text-secondary);">Итого</span>
-                            <span style="font-size:22px;font-weight:700;">${price.total} ₽</span>
+                            <span style="font-size:22px;font-weight:700;color:var(--text);">${price.total} ₽</span>
                         </div>
                     </div>`;
             }
@@ -91,16 +96,16 @@ const PaymentModal = {
             const hint = months === 6
                 ? `<div style="font-size:14px;color:var(--text-secondary);text-align:center;margin-bottom:16px;">💡 Максимум 6 месяцев</div>`
                 : months === 1 && discountPct > 0
-                ? `<div style="font-size:16px;color:var(--text-secondary);text-align:center;margin-bottom:16px;font-weight:500;">🎁 Скидка ${discountPct}% при оплате от 2 месяцев</div>`
+                ? `<div style="font-size:14px;color:var(--text-secondary);text-align:center;margin-bottom:16px;font-weight:500;">🎁 Скидка ${discountPct}% при оплате от 2 месяцев</div>`
                 : `<div style="height:16px;margin-bottom:16px;"></div>`;
 
-            const counterColor = price.hasDiscount ? 'var(--accent)' : 'var(--text-primary)';
+            const counterColor = price.hasDiscount ? 'var(--accent)' : 'var(--text)';
             const minusStyle = `width:40px;height:40px;border-radius:50%;border:2px solid ${months > 1 ? 'var(--accent)' : 'var(--border)'};color:${months > 1 ? 'var(--accent)' : 'var(--text-tertiary)'};display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:300;background:transparent;cursor:${months > 1 ? 'pointer' : 'default'};`;
             const plusStyle = `width:40px;height:40px;border-radius:50%;border:2px solid ${months < 6 ? 'var(--accent)' : 'var(--border)'};color:${months < 6 ? 'var(--accent)' : 'var(--text-tertiary)'};display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:300;background:transparent;cursor:${months < 6 ? 'pointer' : 'default'};`;
 
             return `
                 <div style="font-weight:700;font-size:16px;margin-bottom:4px;">💳 Оформление платежа</div>
-                <div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px;">Тариф: <b style="color:var(--text-primary);">${_esc(tariffName)} · ${amountPerMonth} ₽/мес</b></div>
+                <div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px;">Тариф: <b style="color:var(--text);">${_esc(tariffName)} · ${amountPerMonth} ₽/мес</b></div>
                 <div style="text-align:center;margin-bottom:12px;">
                     <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Срок подписки</div>
                     <div style="display:flex;justify-content:center;align-items:center;gap:20px;">
@@ -116,42 +121,138 @@ const PaymentModal = {
                 ${priceBlock}
                 ${hint}
                 <div style="display:grid;grid-template-columns:1fr 2fr;gap:8px;">
-                    <button id="pmCancel" style="padding:12px;border:1px solid var(--border);border-radius:10px;font-size:14px;cursor:pointer;color:var(--text-secondary);background:transparent;">Отмена</button>
-                    <button id="pmConfirm" style="padding:14px;background:#0066FF;color:white;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;border:none;box-shadow:0 2px 8px rgba(0, 102, 255, 0.3);">Оплатить</button>
+                    <button id="pmCancel" style="padding:12px;border:1px solid var(--border);border-radius:8px;font-size:14px;cursor:pointer;color:var(--text-secondary);background:transparent;font-weight:500;">Отмена</button>
+                    <button id="pmConfirm" style="padding:14px;background:var(--primary);color:white;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;border:none;box-shadow:0 2px 8px rgba(13, 115, 119, 0.3);">Оплатить</button>
                 </div>`;
         };
 
-        Modal.open(`<div id="pmContent">${renderInner()}</div>`);
-
-        const update = () => {
-            const el = document.getElementById('pmContent');
-            if (el) { el.innerHTML = renderInner(); bind(); }
+        const renderWaiting = () => {
+            return `
+                <div style="text-align:center;padding:20px 0;">
+                    <div style="font-size:48px;margin-bottom:16px;">⏳</div>
+                    <div style="font-weight:700;font-size:16px;margin-bottom:8px;">Ожидаем подтверждения платежа</div>
+                    <div style="font-size:14px;color:var(--text-secondary);margin-bottom:24px;">Ссылка на оплату открыта в новой вкладке. Завершите платёж и нажмите кнопку ниже.</div>
+                    <div style="display:grid;grid-template-columns:1fr;gap:8px;">
+                        <button id="pmCheck" style="padding:14px;background:var(--primary);color:white;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;border:none;box-shadow:0 2px 8px rgba(13, 115, 119, 0.3);">✓ Проверить оплату</button>
+                        <button id="pmOpenLink" style="padding:12px;border:1px solid var(--border);border-radius:8px;font-size:14px;cursor:pointer;color:var(--text-secondary);background:transparent;font-weight:500;">Открыть ссылку снова</button>
+                        <button id="pmWaitCancel" style="padding:12px;border:1px solid var(--border);border-radius:8px;font-size:14px;cursor:pointer;color:var(--error);background:transparent;font-weight:500;">Отмена</button>
+                    </div>
+                </div>`;
         };
 
-        const bind = () => {
+        const renderSuccess = () => {
+            return `
+                <div style="text-align:center;padding:40px 0;">
+                    <div style="font-size:64px;margin-bottom:16px;animation:bounce 0.6s ease;animation-iteration-count:1;">✓</div>
+                    <div style="font-weight:700;font-size:20px;color:var(--success);margin-bottom:8px;">Платёж успешно обработан!</div>
+                    <div style="font-size:14px;color:var(--text-secondary);margin-bottom:24px;">Ваш ключ готов к использованию</div>
+                    <div style="display:inline-block;padding:12px 20px;background:var(--success-bg);border-radius:8px;color:var(--success);font-size:14px;">🎉 Ключ создан успешно</div>
+                </div>
+                <style>
+                    @keyframes bounce {
+                        0%, 100% { transform: scale(0.3); opacity: 0; }
+                        50% { transform: scale(1.1); }
+                        100% { transform: scale(1); opacity: 1; }
+                    }
+                </style>`;
+        };
+
+        Modal.open(`<div id="pmContent">${renderSelection()}</div>`);
+
+        const update = (state) => {
+            const el = document.getElementById('pmContent');
+            if (!el) return;
+            if (state === 'selection') {
+                el.innerHTML = renderSelection();
+                bindSelection();
+            } else if (state === 'waiting') {
+                el.innerHTML = renderWaiting();
+                bindWaiting();
+            } else if (state === 'success') {
+                el.innerHTML = renderSuccess();
+                setTimeout(() => {
+                    Modal.close();
+                    if (onSuccess) onSuccess();
+                }, 2000);
+            }
+        };
+
+        const bindSelection = () => {
             const minus = document.getElementById('pmMinus');
             const plus = document.getElementById('pmPlus');
             const confirmBtn = document.getElementById('pmConfirm');
             const cancelBtn = document.getElementById('pmCancel');
 
-            if (minus) minus.addEventListener('click', () => { if (months > 1) { months--; update(); } });
-            if (plus) plus.addEventListener('click', () => { if (months < 6) { months++; update(); } });
+            if (minus) minus.addEventListener('click', () => { if (months > 1) { months--; update('selection'); } });
+            if (plus) plus.addEventListener('click', () => { if (months < 6) { months++; update('selection'); } });
             if (cancelBtn) cancelBtn.addEventListener('click', () => Modal.close());
             if (confirmBtn) confirmBtn.addEventListener('click', async () => {
                 confirmBtn.disabled = true;
                 confirmBtn.textContent = 'Загрузка…';
                 try {
-                    await onConfirm(months);
-                    Modal.close();
+                    let res;
+                    if (renewClientId) {
+                        res = await API.post('/payments/renew', {
+                            client_id: renewClientId,
+                            tariff_id: tariffId,
+                            number_of_months: months,
+                        });
+                    } else {
+                        res = await API.post('/payments/create', {
+                            tariff_id: tariffId,
+                            number_of_months: months,
+                        });
+                    }
+                    this._paymentUrl = res.payment_url;
+                    this._paymentId = res.payment_id;
+                    window.open(res.payment_url, '_blank');
+                    update('waiting');
                 } catch (err) {
                     Toast.error(err.message);
                     confirmBtn.disabled = false;
-                    confirmBtn.textContent = 'Перейти к оплате →';
+                    confirmBtn.textContent = 'Оплатить';
                 }
             });
         };
 
-        bind();
+        const bindWaiting = () => {
+            const checkBtn = document.getElementById('pmCheck');
+            const linkBtn = document.getElementById('pmOpenLink');
+            const cancelBtn = document.getElementById('pmWaitCancel');
+
+            if (checkBtn) {
+                checkBtn.addEventListener('click', async () => {
+                    checkBtn.disabled = true;
+                    checkBtn.textContent = 'Проверка…';
+                    try {
+                        const status = await API.get(`/payments/${this._paymentId}/status`);
+                        if (status.processed || status.status === 'succeeded') {
+                            update('success');
+                        } else {
+                            Toast.show('Платёж ещё не обработан. Попробуйте позже.', 'warning');
+                            checkBtn.disabled = false;
+                            checkBtn.textContent = '✓ Проверить оплату';
+                        }
+                    } catch (err) {
+                        Toast.error(err.message);
+                        checkBtn.disabled = false;
+                        checkBtn.textContent = '✓ Проверить оплату';
+                    }
+                });
+            }
+            if (linkBtn) {
+                linkBtn.addEventListener('click', () => {
+                    if (this._paymentUrl) {
+                        window.open(this._paymentUrl, '_blank');
+                    }
+                });
+            }
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', () => Modal.close());
+            }
+        };
+
+        bindSelection();
     },
 };
 
@@ -219,44 +320,17 @@ export const Pages = {
 
         try {
             const [keys, tariffs] = await Promise.all([
-                API.get('/keys/').catch(err => {
-                    Toast.error('Не удалось загрузить ключи');
-                    return [];
-                }),
-                API.get('/tariffs/').catch(err => {
-                    Toast.error('Не удалось загрузить тарифы');
-                    return [];
-                }),
+                API.get('/keys/').catch(() => []),
+                API.get('/tariffs/').catch(() => []),
             ]);
 
-            const userPayload = Auth.getUser();
-            const hasTelegram = userPayload && userPayload.tg_id;
-
             const now = Date.now() / 1000;
-            let keysHtml = '';
+            let html = '';
 
-            if (!keys || keys.length === 0) {
-                if (!hasTelegram) {
-                    keysHtml = `
-                    <div class="empty-state">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:48px;height:48px">
-                            <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
-                        </svg>
-                        <h3>Необходимо привязать Telegram</h3>
-                        <p>Для создания VPN ключей нужно привязать Telegram аккаунт</p>
-                    </div>`;
-                } else {
-                    keysHtml = `
-                    <div class="empty-state">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
-                        </svg>
-                        <h3>У вас пока нет ключей</h3>
-                        <p>Создайте первый VPN-ключ, выбрав тариф</p>
-                    </div>`;
-                }
-            } else {
-                keysHtml = '<div class="keys-grid">';
+            // Keys section
+            if (keys && keys.length > 0) {
+                html += `<div class="section-header"><h2>Мои ключи</h2></div>`;
+                html += '<div class="keys-grid">';
                 keys.forEach(k => {
                     const expiryDate = k.expiry_time ? new Date(k.expiry_time) : null;
                     const isExpired = expiryDate && expiryDate.getTime() / 1000 < now;
@@ -267,7 +341,7 @@ export const Pages = {
                         ? `${(k.used_traffic / 1073741824).toFixed(2)} / ${k.total_gb.toFixed(1)} ГБ`
                         : 'Не ограничен';
 
-                    keysHtml += `
+                    html += `
                     <div class="card key-card" data-client-id="${k.client_id}">
                         <div class="key-card-header">
                             <h3>${_esc(k.name_tariff || k.email || 'VPN ключ')}</h3>
@@ -292,68 +366,39 @@ export const Pages = {
                             <button class="copy-btn" data-key="${_esc(k.key)}">Копировать</button>
                         </div>
                         <div class="key-actions">
-                            <button class="btn btn-secondary btn-sm btn-renew" data-id="${k.email}" data-tariff="${k.tariff_id || ''}">Продлить</button>
+                            <button class="btn btn-secondary btn-sm btn-renew" data-id="${k.email}" data-tariff="${k.tariff_id || ''}" data-client-id="${k.client_id}">Продлить</button>
                             <button class="btn btn-danger btn-sm btn-delete-key" data-id="${k.email}">Удалить</button>
                         </div>
                     </div>`;
                 });
-                keysHtml += '</div>';
+                html += '</div>';
+                html += '<div style="height:24px;"></div>';
             }
 
-            const tariffOptions = tariffs.map(t =>
-                `<option value="${t.id}">${t.name_tariff} — ${t.amount} ₽ / ${_periodStr(t.period)}</option>`
-            ).join('');
-
-            container.innerHTML = `
-                <div class="section-header">
-                    <h2>Мои VPN ключи</h2>
-                    ${hasTelegram ? '<button class="btn btn-primary btn-sm" id="createKeyBtn">+ Создать ключ</button>' : ''}
-                </div>
-                ${keysHtml}
-                <div id="tariffOptions" class="hidden">${tariffOptions}</div>
-            `;
-
-            const createBtn = document.getElementById('createKeyBtn');
-            if (createBtn) {
-                createBtn.addEventListener('click', () => {
-                    if (!tariffs.length) {
-                        Toast.error('Нет доступных тарифов');
-                        return;
-                    }
-                    Modal.open(`
-                        <h2>Создать VPN ключ</h2>
-                        <form id="createKeyForm">
-                            <div class="form-group">
-                                <label for="keyTariff">Тариф</label>
-                                <select id="keyTariff" class="form-input" required>
-                                    ${tariffs.map(t => `<option value="${t.id}">${t.name_tariff} — ${t.amount} ₽ (${_periodStr(t.period)})</option>`).join('')}
-                                </select>
-                            </div>
-                            <button type="submit" class="btn btn-primary" id="createKeySubmitBtn">Создать</button>
-                        </form>
-                    `);
-                    document.getElementById('createKeyForm').addEventListener('submit', async (e) => {
-                        e.preventDefault();
-                        const btn = document.getElementById('createKeySubmitBtn');
-                        btn.disabled = true;
-                        btn.innerHTML = '<span class="spinner"></span>';
-                        try {
-                            const tariffId = parseInt(document.getElementById('keyTariff').value);
-                            await API.post('/keys/', { tariff_id: tariffId });
-                            Toast.success('Ключ успешно создан!');
-                            Modal.close();
-                            const { Router } = window.Router ? { Router: window.Router } : await import('./router.js');
-                            Router.render('dashboard');
-                        } catch (err) {
-                            Toast.error(err.message);
-                        } finally {
-                            btn.disabled = false;
-                            btn.textContent = 'Создать';
-                        }
-                    });
+            // Tariffs section
+            if (tariffs && tariffs.length > 0) {
+                html += `<div class="section-header"><h2>Доступные тарифы</h2></div>`;
+                html += '<div class="tariffs-grid">';
+                tariffs.forEach(t => {
+                    html += `
+                    <div class="card tariff-card">
+                        <h3>${_esc(t.name_tariff)}</h3>
+                        ${t.description ? `<p class="text-sm text-muted" style="margin-bottom:12px;">${_esc(t.description)}</p>` : ''}
+                        <div class="tariff-price">${t.amount} ₽ <span>/ ${_periodStr(t.period)}</span></div>
+                        <ul class="tariff-features">
+                            <li>${t.limit_ip} ${_pluralize(t.limit_ip, 'подключение', 'подключения', 'подключений')}</li>
+                            <li>${t.traffic_limit >= 1024 ? (t.traffic_limit / 1024).toFixed(0) + ' ТБ' : t.traffic_limit.toFixed(0) + ' ГБ'} трафика</li>
+                            <li>Срок: ${_periodStr(t.period)}</li>
+                        </ul>
+                        <button class="btn btn-primary btn-buy" data-id="${t.id}" data-name="${_esc(t.name_tariff)}" data-amount="${t.amount}">Купить</button>
+                    </div>`;
                 });
+                html += '</div>';
             }
 
+            container.innerHTML = html;
+
+            // Bind copy buttons
             container.querySelectorAll('.copy-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     navigator.clipboard.writeText(btn.dataset.key).then(() => {
@@ -362,6 +407,7 @@ export const Pages = {
                 });
             });
 
+            // Bind delete buttons
             container.querySelectorAll('.btn-delete-key').forEach(btn => {
                 btn.addEventListener('click', async () => {
                     if (!confirm('Удалить этот ключ?')) return;
@@ -376,6 +422,7 @@ export const Pages = {
                 });
             });
 
+            // Bind renew buttons
             container.querySelectorAll('.btn-renew').forEach(btn => {
                 btn.addEventListener('click', async () => {
                     const tariffId = parseInt(btn.dataset.tariff);
@@ -389,14 +436,15 @@ export const Pages = {
                         return;
                     }
                     if (tariff.amount > 0) {
-                        await PaymentModal.open(tariff.name_tariff, tariff.amount, async (months) => {
-                            const paymentData = await API.post('/payments/renew', {
-                                client_id: btn.dataset.id,
-                                tariff_id: tariffId,
-                                number_of_months: months,
-                            });
-                            Toast.success('Платёж создан, переходим к оплате...');
-                            window.open(paymentData.payment_url, '_blank');
+                        await PaymentModal.open({
+                            tariffId: tariffId,
+                            tariffName: tariff.name_tariff,
+                            amountPerMonth: tariff.amount,
+                            renewClientId: btn.dataset.clientId,
+                            onSuccess: async () => {
+                                const { Router } = window.Router ? { Router: window.Router } : await import('./router.js');
+                                Router.render('dashboard');
+                            }
                         });
                     } else {
                         if (!confirm('Продлить ключ на бесплатный тариф?')) return;
@@ -412,67 +460,29 @@ export const Pages = {
                 });
             });
 
-        } catch (err) {
-            if (!Auth.isLoggedIn()) {
-                return;
-            }
-            container.innerHTML = `<div class="empty-state"><h3>Ошибка загрузки</h3><p>${_esc(err.message)}</p><button class="btn btn-secondary mt-16" onclick="Router.render('dashboard')">Повторить</button></div>`;
-        }
-    },
-
-    async tariffs(container) {
-        container.innerHTML = `<div class="loading-page page-loading"><div class="spinner"></div></div>`;
-
-        try {
-            const tariffs = await API.get('/tariffs/');
-
-            if (!tariffs || tariffs.length === 0) {
-                container.innerHTML = `<div class="empty-state"><h3>Нет доступных тарифов</h3><p>Попробуйте позже</p></div>`;
-                return;
-            }
-
-            let html = `
-                <div class="section-header">
-                    <h2>Тарифные планы</h2>
-                </div>
-                <div class="tariffs-grid">`;
-
-            tariffs.forEach(t => {
-                html += `
-                <div class="card tariff-card">
-                    <h3>${_esc(t.name_tariff)}</h3>
-                    ${t.description ? `<p class="text-sm text-muted">${_esc(t.description)}</p>` : ''}
-                    <div class="tariff-price">${t.amount} ₽ <span>/ ${_periodStr(t.period)}</span></div>
-                    <ul class="tariff-features">
-                        <li>${t.limit_ip} ${_pluralize(t.limit_ip, 'подключение', 'подключения', 'подключений')}</li>
-                        <li>${t.traffic_limit >= 1024 ? (t.traffic_limit / 1024).toFixed(0) + ' ТБ' : t.traffic_limit.toFixed(0) + ' ГБ'} трафика</li>
-                        <li>Срок: ${_periodStr(t.period)}</li>
-                    </ul>
-                    <button class="btn btn-primary btn-buy" data-id="${t.id}" data-name="${_esc(t.name_tariff)}" data-amount="${t.amount}">Купить</button>
-                </div>`;
-            });
-            html += '</div>';
-            container.innerHTML = html;
-
+            // Bind buy buttons
             container.querySelectorAll('.btn-buy').forEach(btn => {
                 btn.addEventListener('click', async () => {
-                    if (!Auth.isLoggedIn()) {
-                        Toast.info('Для покупки необходимо войти');
-                        const { Router } = window.Router ? { Router: window.Router } : await import('./router.js');
-                        Router.navigate('#/login');
-                        return;
-                    }
                     const tariffId = parseInt(btn.dataset.id);
-                    await PaymentModal.open(btn.dataset.name, parseFloat(btn.dataset.amount), async (months) => {
-                        const data = await API.post('/payments/create', { tariff_id: tariffId, number_of_months: months });
-                        Toast.success('Платёж создан');
-                        window.open(data.payment_url, '_blank');
+                    const tariffName = btn.dataset.name;
+                    const amount = parseFloat(btn.dataset.amount);
+
+                    await PaymentModal.open({
+                        tariffId: tariffId,
+                        tariffName: tariffName,
+                        amountPerMonth: amount,
+                        renewClientId: null,
+                        onSuccess: async () => {
+                            const { Router } = window.Router ? { Router: window.Router } : await import('./router.js');
+                            Router.render('dashboard');
+                        }
                     });
                 });
             });
 
         } catch (err) {
-            container.innerHTML = `<div class="empty-state"><h3>Ошибка загрузки</h3><p>${_esc(err.message)}</p><button class="btn btn-secondary mt-16" onclick="Router.render('tariffs')">Повторить</button></div>`;
+            if (!Auth.isLoggedIn()) return;
+            container.innerHTML = `<div class="empty-state"><h3>Ошибка загрузки</h3><p>${_esc(err.message)}</p><button class="btn btn-secondary mt-16" onclick="Router.render('dashboard')">Повторить</button></div>`;
         }
     },
 
@@ -486,7 +496,7 @@ export const Pages = {
                 html += `<div class="card"><div class="empty-state" style="padding:32px 16px">
                     <h3>Платежей пока нет</h3>
                     <p>После оплаты тарифа платежи появятся здесь.</p>
-                    <button class="btn btn-secondary mt-16" onclick="Router.navigate('#/tariffs')">Выбрать тариф</button>
+                    <button class="btn btn-secondary mt-16" onclick="Router.navigate('#/dashboard')">Выбрать тариф</button>
                 </div></div>`;
             } else {
                 const statusLabels = {
@@ -503,13 +513,13 @@ export const Pages = {
                     pending: 'warning',
                     processing: 'warning'
                 };
-                html += `<div class="card"><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
-                    <thead><tr style="border-bottom:2px solid var(--border)">
-                        <th style="padding:10px;text-align:left">Дата</th>
-                        <th style="padding:10px;text-align:left">Сумма</th>
-                        <th style="padding:10px;text-align:left">Тип</th>
-                        <th style="padding:10px;text-align:left">Статус</th>
-                        <th style="padding:10px;text-align:left"></th>
+                html += `<div class="card"><div class="table-wrapper"><table class="table">
+                    <thead><tr>
+                        <th>Дата</th>
+                        <th>Сумма</th>
+                        <th>Тип</th>
+                        <th>Статус</th>
+                        <th></th>
                     </tr></thead><tbody>`;
                 payments.forEach(p => {
                     const date = p.created_at
@@ -525,12 +535,12 @@ export const Pages = {
                     const opLabel = (p.payment_type || '').startsWith('web_renew') ? 'Продление' : 'Новый ключ';
                     const stClass = statusClasses[p.status] || '';
                     const stLabel = statusLabels[p.status] || p.status;
-                    html += `<tr style="border-bottom:1px solid var(--border)">
-                        <td style="padding:10px">${date}</td>
-                        <td style="padding:10px"><strong>${p.amount} ₽</strong></td>
-                        <td style="padding:10px">${opLabel}</td>
-                        <td style="padding:10px"><span class="badge ${stClass}">${stLabel}</span></td>
-                        <td style="padding:10px">
+                    html += `<tr>
+                        <td>${date}</td>
+                        <td><strong>${p.amount} ₽</strong></td>
+                        <td>${opLabel}</td>
+                        <td><span class="badge ${stClass}">${stLabel}</span></td>
+                        <td>
                             ${p.status === 'pending' || p.status === 'processing'
                                 ? `<button class="btn btn-sm btn-secondary btn-check-status" data-id="${p.payment_id}" style="margin:0">Проверить</button>`
                                 : ''}
@@ -688,27 +698,45 @@ export const Pages = {
                     return;
                 }
                 const now = Date.now() / 1000;
-                let html = `<div class="card"><div class="table-wrapper"><table class="table">
-                    <thead><tr><th>Client ID</th><th>TG ID</th><th>Тариф</th><th>Истекает</th><th>Действия</th></tr></thead>
-                    <tbody>`;
-                keys.forEach(k => {
-                    const exp = k.expiry_time ? new Date(k.expiry_time).toLocaleDateString('ru-RU') : '—';
-                    const isExpired = k.expiry_time && k.expiry_time < Date.now();
-                    html += `<tr>
-                        <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc(k.client_id)}</td>
-                        <td>${k.tg_id || '—'}</td>
-                        <td>${_esc(k.name_tariff || '—')}</td>
-                        <td>${exp} ${isExpired ? '<span class="key-badge expired" style="margin-left:4px">Истёк</span>' : ''}</td>
-                        <td>
-                            <button class="btn btn-sm btn-danger" onclick="window.Admin.deleteKey('${_esc(k.client_id)}')">Удалить</button>
-                        </td>
-                    </tr>`;
-                });
+                let html = `<div class="card">
+                    <div style="margin-bottom:16px;">
+                        <input type="text" id="keySearch" class="form-input" placeholder="Поиск по email..." style="width:100%">
+                    </div>
+                    <div class="table-wrapper"><table class="table">
+                    <thead><tr><th>Client ID</th><th>Email</th><th>TG ID</th><th>Тариф</th><th>Истекает</th><th>Действия</th></tr></thead>
+                    <tbody id="keysTableBody">`;
+
+                const renderTable = (filteredKeys) => {
+                    let tbody = '';
+                    filteredKeys.forEach(k => {
+                        const isExpired = k.expiry_time && new Date(k.expiry_time).getTime() / 1000 < now;
+                        const expiryDate = k.expiry_time
+                            ? new Date(k.expiry_time).toLocaleDateString('ru-RU')
+                            : '—';
+                        tbody += `<tr>
+                            <td>${_esc(k.client_id || '—')}</td>
+                            <td>${_esc(k.email || '—')}</td>
+                            <td>${k.tg_id || '—'}</td>
+                            <td>${_esc(k.name_tariff || '—')}</td>
+                            <td><span class="key-badge ${isExpired ? 'expired' : 'active'}">${expiryDate}</span></td>
+                            <td><button class="btn btn-sm btn-danger" onclick="window.Admin.deleteKey('${_esc(k.email)}')">Удалить</button></td>
+                        </tr>`;
+                    });
+                    return tbody;
+                };
+
+                html += renderTable(keys);
                 html += '</tbody></table></div></div>';
                 content.innerHTML = html;
+
+                document.getElementById('keySearch').addEventListener('input', (e) => {
+                    const query = e.target.value.toLowerCase();
+                    const filtered = keys.filter(k => (k.email || '').toLowerCase().includes(query));
+                    document.getElementById('keysTableBody').innerHTML = renderTable(filtered);
+                });
             }
         } catch (err) {
-            content.innerHTML = `<div class="card"><p style="color:var(--error)">Ошибка: ${_esc(err.message)}</p></div>`;
+            content.innerHTML = `<div class="card"><p class="text-muted">${_esc(err.message)}</p></div>`;
         }
     },
 };

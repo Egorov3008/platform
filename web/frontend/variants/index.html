@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Design Variants - VPN Panel</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 16px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .subtitle {
+            color: rgba(255, 255, 255, 0.9);
+            text-align: center;
+            font-size: 1.1rem;
+            margin-bottom: 48px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .variants-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 24px;
+            margin-bottom: 48px;
+        }
+
+        .variant-card {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .variant-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .variant-preview {
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.5rem;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .variant-preview.swiss {
+            background: linear-gradient(135deg, #0D7377 0%, #14B8A6 100%);
+        }
+
+        .variant-preview.cyberpunk {
+            background: linear-gradient(135deg, #FF006E 0%, #00D9FF 50%, #8338EC 100%);
+            animation: glow 3s ease-in-out infinite;
+        }
+
+        @keyframes glow {
+            0%, 100% { filter: drop-shadow(0 0 10px rgba(0, 217, 255, 0.3)); }
+            50% { filter: drop-shadow(0 0 20px rgba(255, 0, 110, 0.5)); }
+        }
+
+        .variant-preview.organic {
+            background: linear-gradient(135deg, #D97706 0%, #EC4899 50%, #8B5CF6 100%);
+        }
+
+        .variant-preview.arcade {
+            background: linear-gradient(135deg, #FFFF00 0%, #FF00FF 50%, #00FFFF 100%);
+            animation: arcade-flash 0.3s infinite;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 0.2em;
+            text-shadow: 3px 3px 0 black, 6px 6px 0 red;
+            font-weight: 900;
+        }
+
+        @keyframes arcade-flash {
+            0%, 100% { filter: brightness(1); }
+            50% { filter: brightness(1.2); }
+        }
+
+        .variant-content {
+            padding: 28px 24px;
+        }
+
+        .variant-name {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #1a1a1a;
+        }
+
+        .variant-description {
+            color: #666;
+            font-size: 0.95rem;
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
+
+        .variant-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #f0f0f0;
+            color: #333;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .variant-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            text-align: center;
+        }
+
+        .btn-demo {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-demo:hover {
+            background: #5568d3;
+        }
+
+        .btn-css {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-css:hover {
+            background: #e0e0e0;
+        }
+
+        .files-section {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            margin-bottom: 32px;
+        }
+
+        .files-section h2 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: #1a1a1a;
+        }
+
+        .files-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 16px;
+        }
+
+        .file-item {
+            background: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 16px;
+            transition: all 0.2s;
+        }
+
+        .file-item:hover {
+            background: #f0f0f0;
+            border-color: #667eea;
+        }
+
+        .file-name {
+            font-weight: 600;
+            color: #667eea;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+        }
+
+        .file-description {
+            color: #666;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .comparison-section {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .comparison-section h2 {
+            font-size: 1.5rem;
+            margin-bottom: 24px;
+            color: #1a1a1a;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+        }
+
+        .comparison-table th {
+            background: #f0f0f0;
+            padding: 12px;
+            text-align: left;
+            font-weight: 700;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .comparison-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .comparison-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .color-sample {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            .variant-card {
+                margin-bottom: 16px;
+            }
+
+            .comparison-table {
+                font-size: 0.85rem;
+            }
+
+            .comparison-table th,
+            .comparison-table td {
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 VPN Panel Design Variants</h1>
+        <p class="subtitle">Explore four distinct design directions for the web interface. Choose one or test them all!</p>
+
+        <div class="variants-grid">
+            <!-- Swiss Variant -->
+            <div class="variant-card">
+                <div class="variant-preview swiss">Swiss Design</div>
+                <div class="variant-content">
+                    <div class="variant-name">Modern Swiss</div>
+                    <p class="variant-description">Minimalist elegance with deep teal and refined typography. Perfect for professional, enterprise-focused branding.</p>
+                    <div class="variant-badges">
+                        <span class="badge">Minimal</span>
+                        <span class="badge">Refined</span>
+                        <span class="badge">Professional</span>
+                    </div>
+                    <div class="variant-actions">
+                        <a href="demo-swiss.html" class="btn btn-demo" target="_blank">View Demo</a>
+                        <a href="theme-swiss.css" class="btn btn-css" download>Get CSS</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cyberpunk Variant -->
+            <div class="variant-card">
+                <div class="variant-preview cyberpunk">Cyberpunk</div>
+                <div class="variant-content">
+                    <div class="variant-name">Dark Neon</div>
+                    <p class="variant-description">Bold, futuristic cyberpunk aesthetic with neon colors on dark background. Perfect for tech-forward branding.</p>
+                    <div class="variant-badges">
+                        <span class="badge">Bold</span>
+                        <span class="badge">Futuristic</span>
+                        <span class="badge">Memorable</span>
+                    </div>
+                    <div class="variant-actions">
+                        <a href="demo-cyberpunk.html" class="btn btn-demo" target="_blank">View Demo</a>
+                        <a href="theme-cyberpunk.css" class="btn btn-css" download>Get CSS</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Organic Variant -->
+            <div class="variant-card">
+                <div class="variant-preview organic">Organic</div>
+                <div class="variant-content">
+                    <div class="variant-name">Warm & Organic</div>
+                    <p class="variant-description">Friendly, approachable design with warm earth tones. Perfect for accessible, consumer-focused branding.</p>
+                    <div class="variant-badges">
+                        <span class="badge">Friendly</span>
+                        <span class="badge">Accessible</span>
+                        <span class="badge">Warm</span>
+                    </div>
+                    <div class="variant-actions">
+                        <a href="demo-organic.html" class="btn btn-demo" target="_blank">View Demo</a>
+                        <a href="theme-organic.css" class="btn btn-css" download>Get CSS</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Retro Arcade Variant -->
+            <div class="variant-card">
+                <div class="variant-preview arcade">80s ARCADE</div>
+                <div class="variant-content">
+                    <div class="variant-name">Retro Arcade</div>
+                    <p class="variant-description">Pixel-perfect 80s arcade aesthetic with neon colors, scanlines, and blocky design. Perfect for bold, nostalgic branding.</p>
+                    <div class="variant-badges">
+                        <span class="badge">Retro</span>
+                        <span class="badge">Pixel Art</span>
+                        <span class="badge">Fun</span>
+                    </div>
+                    <div class="variant-actions">
+                        <a href="demo-retro-arcade.html" class="btn btn-demo" target="_blank">View Demo</a>
+                        <a href="theme-retro-arcade.css" class="btn btn-css" download>Get CSS</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Files Section -->
+        <div class="files-section">
+            <h2>📁 Files Included</h2>
+            <div class="files-list">
+                <div class="file-item">
+                    <div class="file-name">theme-swiss.css</div>
+                    <div class="file-description">Complete CSS stylesheet for Modern Swiss variant. Ready to use as replacement for style.css</div>
+                </div>
+                <div class="file-item">
+                    <div class="file-name">theme-cyberpunk.css</div>
+                    <div class="file-description">Complete CSS stylesheet for Dark Neon variant. Includes animations and glows.</div>
+                </div>
+                <div class="file-item">
+                    <div class="file-name">theme-organic.css</div>
+                    <div class="file-description">Complete CSS stylesheet for Warm & Organic variant. Includes gradients and playful animations.</div>
+                </div>
+                <div class="file-item">
+                    <div class="file-name">theme-retro-arcade.css</div>
+                    <div class="file-description">Complete CSS stylesheet for Retro Arcade variant. Includes scanlines, pixel-perfect design, and 80s arcade vibes.</div>
+                </div>
+                <div class="file-item">
+                    <div class="file-name">DESIGN_REVIEW.md</div>
+                    <div class="file-description">Detailed analysis of current design and recommendations for each variant.</div>
+                </div>
+                <div class="file-item">
+                    <div class="file-name">TESTING_GUIDE.md</div>
+                    <div class="file-description">Step-by-step guide for testing each variant on all pages and devices.</div>
+                </div>
+                <div class="file-item">
+                    <div class="file-name">VISUAL_GUIDE.md</div>
+                    <div class="file-description">Visual descriptions and ASCII examples of what each variant looks like.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Comparison Section -->
+        <div class="comparison-section">
+            <h2>📊 Quick Comparison</h2>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Aspect</th>
+                        <th>Swiss</th>
+                        <th>Cyberpunk</th>
+                        <th>Organic</th>
+                        <th>Arcade</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Primary Color</strong></td>
+                        <td><span class="color-sample" style="background: #0D7377;"></span> Teal #0D7377</td>
+                        <td><span class="color-sample" style="background: #FF006E;"></span> Pink #FF006E</td>
+                        <td><span class="color-sample" style="background: #D97706;"></span> Orange #D97706</td>
+                        <td><span class="color-sample" style="background: #FFFF00;"></span> Yellow #FFFF00</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Theme</strong></td>
+                        <td>Light</td>
+                        <td>Dark</td>
+                        <td>Light (Warm)</td>
+                        <td>Dark (Neon)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Typography</strong></td>
+                        <td>Helvetica Neue</td>
+                        <td>Monospace (Courier)</td>
+                        <td>Georgia / Trebuchet</td>
+                        <td>Courier (Pixel)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Mood</strong></td>
+                        <td>Professional</td>
+                        <td>Tech-Forward</td>
+                        <td>Friendly</td>
+                        <td>Retro/Fun</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Best For</strong></td>
+                        <td>Enterprise/Business</td>
+                        <td>Enthusiasts/Tech</td>
+                        <td>Consumers</td>
+                        <td>Nostalgia/Fun</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Memorability</strong></td>
+                        <td>★★★★☆</td>
+                        <td>★★★★★</td>
+                        <td>★★★★☆</td>
+                        <td>★★★★★</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Accessibility</strong></td>
+                        <td>Excellent</td>
+                        <td>Good*</td>
+                        <td>Excellent</td>
+                        <td>Good**</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p style="color: #666; font-size: 0.9rem; margin-top: 16px;">* Cyberpunk uses intense colors; strong contrast is readable but may be tiring for extended use. ** Arcade uses bright neon; readable with strong contrast but heavy scanlines may affect some.</p>
+        </div>
+    </div>
+</body>
+</html>

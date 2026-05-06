@@ -63,12 +63,12 @@ export const Router = {
         }
 
         Logger.log('Router', '  ✓ Проверки пройдены, рендер страницы:', route.page);
-        this.render(route.page, Pages);
+        this.render(route.page);
         this.updateNav(hash);
         Logger.groupEnd();
     },
 
-    render(page, Pages) {
+    async render(page) {
         Logger.group('Router', 'render: ' + page);
         const main = document.getElementById('mainContent');
         if (!main) {
@@ -76,6 +76,7 @@ export const Router = {
             Logger.groupEnd();
             return;
         }
+        const { Pages } = await import('./pages.js?v=2');
         const renderers = {
             login: Pages.login,
             dashboard: Pages.dashboard,
