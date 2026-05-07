@@ -35,12 +35,14 @@ services:
     network_mode: host
     environment:
       BACKEND_URL: http://localhost:8000
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8002", "--ssl-keyfile=/app/key.pem", "--ssl-certfile=/app/cert.pem"]
     volumes:
       - ./.env:/app/.env:ro
       - ./web:/app
+      - ./cert.pem:/app/cert.pem:ro
+      - ./key.pem:/app/key.pem:ro
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('https://localhost:8002/health')"]
       interval: 10s
       timeout: 5s
       retries: 5
