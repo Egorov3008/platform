@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from httpx import HTTPStatusError
 from app.core.dependencies import get_current_user, get_conn, get_backend_client
-from app.core.security import set_auth_cookies, clear_auth_cookies
+from app.core.security import set_auth_cookies, clear_auth_cookies, create_access_token, create_refresh_token, verify_telegram_data
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.captcha import generate_captcha, verify_captcha, CaptchaError
@@ -52,7 +52,7 @@ async def telegram_callback(
 
         # 2. Verify Telegram data and extract tg_id
         logger.debug("Verifying Telegram signature...")
-        tg_data = request.telegram_data.dict()
+        tg_data = verify_telegram_data(request.telegram_data)
         tg_id = tg_data.get("id")
 
         if not tg_id:

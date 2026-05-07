@@ -1,10 +1,13 @@
 import secrets
 import string
+import hashlib
+import hmac
 from datetime import datetime, timedelta, timezone
-from fastapi import Response
+from fastapi import Response, HTTPException
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from app.core.config import settings
+from app.schemas.auth import TelegramAuthData
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -67,3 +70,18 @@ def clear_auth_cookies(response: Response) -> None:
     response.delete_cookie("access_token", samesite="strict")
     response.delete_cookie("refresh_token", samesite="strict")
     response.delete_cookie("csrf_token", samesite="strict")
+
+
+def verify_telegram_data(tg_data: TelegramAuthData) -> dict:
+    """Verify Telegram Widget authentication data signature."""
+    data_check_string = "\n".join(
+        f"{key}={value}"
+        for key, value in sorted(tg_data.dict(exclude={"hash"}).items())
+    )
+    secret = hashlib.sha256(settings.telegram_bot_token.encode()).digest()
+    computed_hash = hmac.new(secret, data_check_string.encode(), hashlib.sha256).hexdigest()
+
+    if computed_hash != tg_data.hash:
+        raise HTTPException(status_code=400, detail="Invalid Telegram signature")
+
+    return tg_data.dict()
