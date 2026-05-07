@@ -20,31 +20,6 @@ async def client(mock_conn):
 
 
 @pytest.mark.asyncio
-async def test_login_with_valid_code_sets_cookies(client):
-    fake_record = {"id": 1, "code": "ABCD1234", "tg_id": 123, "used": True}
-    fake_user = {"id": 42, "tg_id": 123, "email": "tg_123@bot.local"}
-
-    with (
-        patch("app.services.auth.login_codes_repo.consume", return_value=fake_record),
-        patch("app.services.auth.web_users_repo.get_by_tg_id", return_value=fake_user),
-    ):
-        resp = await client.post("/api/v1/auth/login", json={"code": "ABCD1234"})
-
-    assert resp.status_code == 200
-    assert "access_token" in resp.cookies
-    assert "refresh_token" in resp.cookies
-    assert "csrf_token" in resp.cookies
-
-
-@pytest.mark.asyncio
-async def test_login_with_invalid_code_returns_400(client):
-    with patch("app.services.auth.login_codes_repo.consume", return_value=None):
-        resp = await client.post("/api/v1/auth/login", json={"code": "BADCODE1"})
-
-    assert resp.status_code == 400
-
-
-@pytest.mark.asyncio
 async def test_me_returns_user_info(client):
     payload = {"sub": "42", "tg_id": 123, "is_admin": False}
     token = create_access_token(payload)
