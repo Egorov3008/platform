@@ -291,7 +291,7 @@ class WebBackendClient:
             raise
 
     async def create_user(self, tg_id: int) -> UserResponse:
-        """POST /api/v1/users - Create a new user in backend with minimal data.
+        """POST /api/v1/users/register - Create a new user in backend with minimal data.
 
         Auto-assigns:
         - server_id (by backend logic)
@@ -299,7 +299,7 @@ class WebBackendClient:
         - balance: 0.0
         - trial: 0
         """
-        method, path = "POST", "/api/v1/users"
+        method, path = "POST", "/api/v1/users/register"
         json_data = {"tg_id": tg_id}
         try:
             await self._log_request(method, path, json_data=json_data)
