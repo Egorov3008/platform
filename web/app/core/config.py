@@ -3,8 +3,12 @@ from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-# Locate .env in project root
-_env_file = Path(__file__).parent.parent.parent.parent / ".env"
+# Locate .env in project root (accounting for worktree: web/app/core/config.py → need 7 parents to reach /home/claude/vpn-platform/)
+_env_path = Path(__file__).parent.parent.parent.parent.parent.parent.parent / ".env"
+if not _env_path.exists():
+    # Fallback: try worktree root (4 parents)
+    _env_path = Path(__file__).parent.parent.parent.parent / ".env"
+_env_file = _env_path
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=str(_env_file), extra="ignore")

@@ -43,7 +43,14 @@ export const Auth = {
     },
 
     _mountTelegramWidget(botUsername) {
-        if (!botUsername) return;
+        if (!botUsername) {
+            console.error('Telegram bot username is not configured');
+            const container = document.getElementById('telegram-widget-container');
+            if (container) {
+                container.innerHTML = '<div style="color: var(--error); text-align: center; padding: 16px;">Telegram авторизация недоступна</div>';
+            }
+            return;
+        }
         const container = document.getElementById('telegram-widget-container');
         if (!container) return;
         container.innerHTML = '';
