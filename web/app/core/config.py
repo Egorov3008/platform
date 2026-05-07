@@ -49,6 +49,7 @@ class Settings(BaseSettings):
 
     # Invite token for registration
     invite_token: str = "changeme"
+    captcha_secret: str = "changeme_captcha"
 
 
 settings = Settings()
