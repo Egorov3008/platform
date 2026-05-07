@@ -2,6 +2,8 @@ from typing import Optional, Any
 import httpx
 import logging
 import traceback
+from httpx import HTTPStatusError
+from app.schemas.users import UserResponse
 
 logger = logging.getLogger(__name__)
 
@@ -274,7 +276,7 @@ class WebBackendClient:
             self._log_error(method, path, e, resp.status_code if 'resp' in locals() else None)
             raise
 
-    async def get_user(self, tg_id: int) -> dict:
+    async def get_user(self, tg_id: int) -> UserResponse:
         """GET /api/v1/users/{tg_id} - Get user details."""
         method, path = "GET", f"/api/v1/users/{tg_id}"
         try:
@@ -283,7 +285,33 @@ class WebBackendClient:
             resp.raise_for_status()
             data = resp.json()
             self._log_response(method, path, resp.status_code, len(str(data)))
-            return data
+            return UserResponse(**data)
+        except Exception as e:
+            self._log_error(method, path, e, resp.status_code if 'resp' in locals() else None)
+            raise
+
+    async def create_user(self, tg_id: int) -> UserResponse:
+        """POST /api/v1/users - Create a new user in backend with minimal data.
+
+        Auto-assigns:
+        - server_id (by backend logic)
+        - is_admin: false
+        - balance: 0.0
+        - trial: 0
+        """
+        method, path = "POST", "/api/v1/users"
+        json_data = {"tg_id": tg_id}
+        try:
+            await self._log_request(method, path, json_data=json_data)
+            resp = await self._client.post(
+                path,
+                headers=self._get_headers(),
+                json=json_data,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            self._log_response(method, path, resp.status_code, len(str(data)))
+            return UserResponse(**data)
         except Exception as e:
             self._log_error(method, path, e, resp.status_code if 'resp' in locals() else None)
             raise
