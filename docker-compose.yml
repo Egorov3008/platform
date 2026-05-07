@@ -1,9 +1,32 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file: ./.env
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   backend:
     build: ./backend
     restart: unless-stopped
     env_file: ./.env
-    network_mode: host
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
     volumes:
       - ./.env:/app/.env:ro
       - ./backend:/app
@@ -18,7 +41,6 @@ services:
     build: ./bot
     restart: unless-stopped
     env_file: ./.env
-    network_mode: host
     depends_on:
       backend:
         condition: service_healthy
@@ -32,18 +54,23 @@ services:
     build: ./web
     restart: unless-stopped
     env_file: ./.env
-    network_mode: host
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "8002:8000"
     environment:
-      BACKEND_URL: http://localhost:8000
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8002", "--ssl-keyfile=/app/key.pem", "--ssl-certfile=/app/cert.pem"]
+      BACKEND_URL: http://backend:8000
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
     volumes:
       - ./.env:/app/.env:ro
       - ./web:/app
-      - ./cert.pem:/app/cert.pem:ro
-      - ./key.pem:/app/key.pem:ro
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('https://localhost:8002/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 15s
+
+volumes:
+  postgres_data:
