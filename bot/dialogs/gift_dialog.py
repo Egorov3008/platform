@@ -6,7 +6,6 @@ from config import SUPPORT_CHAT_URL
 from getters.gift_getter import getter_gift_main
 from states.gift import GiftStates
 from states.main import MainMenu
-from states.registrate import Register
 
 main_window = Window(
     Const(
@@ -35,9 +34,9 @@ not_found_window = Window(
     Const("🎁 Подарок не найден"),
     Const("Ссылка может быть неактивна или устарела."),
     Start(
-        Const("Перейти к регистрации"),
-        id="registration",
-        state=Register.captcha,
+        Const("В главное меню"),
+        id="home",
+        state=MainMenu.welcome,
         mode=StartMode.RESET_STACK,
     ),
     state=GiftStates.not_found,
@@ -47,9 +46,9 @@ already_used_window = Window(
     Const("🎁 Этот подарок уже был использован"),
     Const("Каждый подарок можно активировать только один раз."),
     Start(
-        Const("Перейти к регистрации"),
-        id="registration",
-        state=Register.captcha,
+        Const("В главное меню"),
+        id="home",
+        state=MainMenu.welcome,
         mode=StartMode.RESET_STACK,
     ),
     state=GiftStates.already_used,

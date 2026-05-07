@@ -4,13 +4,12 @@ Comprehensive async tests for handlers/start.py — send_massage_registration.
 Covers: unknown_user, gift, and registered_user routing branches,
 proper dialog starts, missing registration_result fallback, AttributeError branch.
 """
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from aiogram_dialog import StartMode
 
 from states.main import MainMenu
-from states.registrate import Register
 
 
 def _make_manager(middleware_data: dict | None = None) -> AsyncMock:
@@ -30,26 +29,27 @@ def _make_message(tg_id: int = 123456) -> AsyncMock:
 
 
 class TestSendMassegeRegistration:
-    async def test_unknown_user_starts_register_dialog(self):
+    async def test_unknown_user_calls_auto_register(self):
+        """Unknown user triggers auto-registration via auto_register_user."""
         from handlers.start import send_massage_registration
 
         manager = _make_manager({"registration_result": {"type": "unknown_user"}})
         message = _make_message()
 
-        await send_massage_registration(message, manager)
+        with patch("handlers.start.auto_register_user") as mock_auto_reg:
+            await send_massage_registration(message, manager)
+            mock_auto_reg.assert_called_once_with(message, manager)
 
-        manager.start.assert_called_once_with(Register.captcha, mode=StartMode.RESET_STACK)
-
-    async def test_no_registration_result_starts_register_dialog(self):
-        """Handler defaults to Register.captcha when registration_result is None."""
+    async def test_no_registration_result_calls_auto_register(self):
+        """Handler defaults to auto_register_user when registration_result is None."""
         from handlers.start import send_massage_registration
 
         manager = _make_manager({})
         message = _make_message()
 
-        await send_massage_registration(message, manager)
-
-        manager.start.assert_called_once_with(Register.captcha, mode=StartMode.RESET_STACK)
+        with patch("handlers.start.auto_register_user") as mock_auto_reg:
+            await send_massage_registration(message, manager)
+            mock_auto_reg.assert_called_once_with(message, manager)
 
     async def test_registered_user_goes_to_main_menu(self):
         from handlers.start import send_massage_registration
@@ -130,7 +130,8 @@ class TestSendMassegeRegistration:
 class TestSendMassegeUserStart:
     """Tests for /profile handler — send_massage_user_start."""
 
-    async def test_unregistered_user_redirected_to_register(self):
+    async def test_unregistered_user_calls_auto_register(self):
+        """Unregistered user (/profile) triggers auto-registration."""
         from handlers.start import send_massage_user_start
 
         cache = AsyncMock()
@@ -138,9 +139,9 @@ class TestSendMassegeUserStart:
         manager = _make_manager({"cache": cache})
         message = _make_message(tg_id=999)
 
-        await send_massage_user_start(message, manager)
-
-        manager.start.assert_called_once_with(Register.captcha, mode=StartMode.RESET_STACK)
+        with patch("handlers.start.auto_register_user") as mock_auto_reg:
+            await send_massage_user_start(message, manager)
+            mock_auto_reg.assert_called_once_with(message, manager)
 
     async def test_user_with_trial_zero_goes_to_welcome(self):
         from handlers.start import send_massage_user_start

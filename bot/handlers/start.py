@@ -15,10 +15,10 @@ from services.cache.key_manager import CacheKeyManager
 from services.cache.service import CacheService
 from services.core.data.service import ServiceDataModel
 from services.core.user.utils.saver import SeverUser
+from services.core.user.utils.auto_register import auto_register_user
 from services.scenarios.gift_scenario import GiftActivationScenario
 from states.admin import AdminSearchManagementSG
 from states.main import MainMenu
-from states.registrate import Register
 
 router = Router()
 
@@ -39,8 +39,8 @@ async def send_massage_user_start(
     user_info = await cache.users.get(CacheKeyManager.user(tg_id))
 
     if not user_info:
-        # Незарегистрированный пользователь — направляем на регистрацию
-        await dialog_manager.start(Register.captcha, mode=StartMode.RESET_STACK)
+        # Незарегистрированный пользователь — авторегистрация
+        await auto_register_user(message, dialog_manager)
         return
 
     if user_info.trial == 0:
@@ -75,17 +75,17 @@ async def send_massage_registration(
         "Полученные параметры", type=type_registration, result=result_registration
     )
     if not isinstance(result_registration, dict):
-        await dialog_manager.start(Register.captcha, mode=StartMode.RESET_STACK)
+        await auto_register_user(message, dialog_manager)
         return
     type_registration = result_registration.get("type")
     if type_registration == "unknown_user":
-        await dialog_manager.start(Register.captcha, mode=StartMode.RESET_STACK)
+        await auto_register_user(message, dialog_manager)
     elif result_registration.get("type") == "gift":
         container = dialog_manager.middleware_data.get("container")
         cache = dialog_manager.middleware_data.get("cache")
 
         if not container or not cache:
-            await dialog_manager.start(Register.captcha, mode=StartMode.RESET_STACK)
+            await auto_register_user(message, dialog_manager)
             return
 
         service_model: ServiceDataModel = container.resolve(ServiceDataModel)
@@ -111,7 +111,7 @@ async def send_massage_registration(
             cache = dialog_manager.middleware_data.get("cache")
 
             if not container or not isinstance(cache, CacheService):
-                await dialog_manager.start(Register.captcha, mode=StartMode.RESET_STACK)
+                await auto_register_user(message, dialog_manager)
                 return
 
             pool: asyncpg.Pool = container.resolve(asyncpg.Pool)
@@ -198,8 +198,8 @@ async def send_massage_registration(
                 error_message=str(e),
                 exc_info=True,
             )
-            # Fallback: отправляем на стандартную форму регистрации
-            await dialog_manager.start(Register.captcha, mode=StartMode.RESET_STACK)
+            # Fallback: авторегистрация при ошибке
+            await auto_register_user(message, dialog_manager)
     elif type_registration == "registered_user":
         await dialog_manager.start(MainMenu.main, mode=StartMode.RESET_STACK)
     else:

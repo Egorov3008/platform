@@ -9,7 +9,6 @@ from states import (
     Tariff,
     GiftStates,
     PaymentState,
-    Register,
     KeysInit,
     Instruction,
     UsageRules,
@@ -35,7 +34,6 @@ from .getters.keys import (
 from .getters.payment.form_pay import FormPaymentGetter
 from .getters.payment.setting_payment import SettingsPayment as SettingsPaymentGetter
 from .getters.profile import UserDataGetter
-from .getters.register import CaptchaGetter
 from .getters.tariff import TariffPreviewGetter
 from .getters.admin import (
     AdminStatsGetter,
@@ -73,7 +71,6 @@ from .widgets.keybord.payment.form_pay import PaymentFormKeyboard
 from .widgets.keybord.payment.setting_payment import SettingPaymentKeyboard
 from .widgets.keybord.profile import UserKeyboardBuilder, WelcomeKeyboard
 from .widgets.keybord.profile.min_main import MinMainKeyboard
-from .widgets.keybord.register import CaptchaKeyboard
 from .widgets.keybord.admin.keys_list import AdminKeysListKeyboard, AdminKeyDetailsKeyboard
 from .widgets.keybord.admin.key_delete_confirm import AdminKeyDeleteConfirmKeyboard
 from .widgets.keybord.admin.key_change_date import (
@@ -101,7 +98,6 @@ from .widgets.message.profile import UserMessageBuilder, WelcomeMessage
 from .widgets.message.profile.min_main import MinMainMessage
 from .widgets.message.instruction.choosing_device import InstructionChoosingMessage
 from .widgets.message.instruction.device_step import InstructionDeviceMessage
-from .widgets.message.register import CaptchaMessage
 from .widgets.message.tariff import TariffPreviewMessage
 from .widgets.message.admin import (
     AdminMainMessage,
@@ -284,16 +280,9 @@ keys_windows = [
     },
 ]
 
-# Окна регистрации
+# Окна регистрации (удалены в пользу автоматической регистрации)
 
-register_windows = [
-    {
-        "state": Register.captcha,
-        "message_cls": CaptchaMessage,
-        "keyboard_cls": CaptchaKeyboard,
-        "getter_cls": CaptchaGetter,
-    },
-]
+register_windows = []
 
 # Окна инструкции
 
