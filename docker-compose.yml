@@ -5,7 +5,7 @@ services:
     env_file: ./.env
     network_mode: host
     volumes:
-      - ./.env:/app/../.env:ro
+      - ./.env:/app/.env:ro
       - ./backend:/app
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
@@ -37,7 +37,7 @@ services:
       BACKEND_URL: http://localhost:8000
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]
     volumes:
-      - ./.env:/app/../../.env:ro
+      - ./.env:/app/.env:ro
       - ./web:/app
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
