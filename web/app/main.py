@@ -25,10 +25,14 @@ class CSPMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
         # Allow Telegram Widget iframe and scripts
+        # Note: frame-src controls what iframes CAN be embedded IN this page
         response.headers["Content-Security-Policy"] = (
-            "frame-ancestors 'self' https://oauth.telegram.org; "
-            "script-src 'self' https://telegram.org; "
-            "frame-src 'self' https://oauth.telegram.org"
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-eval' https://telegram.org https://oauth.telegram.org; "
+            "frame-src https://oauth.telegram.org; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' https: data:; "
+            "connect-src 'self' https://oauth.telegram.org https://api.telegram.org"
         )
         return response
 
