@@ -262,57 +262,53 @@ export const Pages = {
     _pluralize,
 
     async login(container) {
-        let botUsername = '';
-        let inviteToken = '';
-        try {
-            const cfg = await API.get('/auth/config');
-            botUsername = cfg.telegram_bot_username || '';
-            inviteToken = cfg.invite_token || '';
-        } catch (_) {}
-
-        const botLink = inviteToken
-            ? `https://t.me/${_esc(botUsername)}?start=${_esc(inviteToken)}`
-            : `https://t.me/${_esc(botUsername)}`;
-
         container.innerHTML = `
         <div class="auth-container">
             <div class="auth-card">
-                <h1>Вход</h1>
-                <p class="subtitle">Зарегистрируйтесь и получите код в Telegram-боте</p>
-                ${botUsername ? `
-                <div class="text-center mb-16">
-                    <p style="color: var(--text-secondary); margin-bottom: 12px; font-size: 0.9rem;">Нет аккаунта? Перейдите в бот и создайте его</p>
-                    <a href="${botLink}" target="_blank" rel="noopener" class="btn btn-primary">Перейти в Telegram бот</a>
+                <h1>Вход в личный кабинет</h1>
+                <p class="subtitle">Авторизуйтесь через Telegram</p>
+
+                <!-- Captcha block -->
+                <div style="background: var(--surface-2); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                    <p id="captcha-question" style="font-size: 16px; font-weight: 600; margin-bottom: 12px; color: var(--text);">Загрузка капчи...</p>
+                    <input type="number" id="captcha-answer" placeholder="Введите ответ" min="0" max="999" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--background); color: var(--text); font-size: 16px;">
                 </div>
-                ` : ''}
-                <form id="loginForm">
-                    <div class="form-group">
-                        <label for="loginCode">Код из бота</label>
-                        <input type="text" id="loginCode" class="form-input" placeholder="ABCD1234" required maxlength="8" autocomplete="off" style="text-transform:uppercase;letter-spacing:0.15em;font-size:1.2rem">
-                    </div>
-                    <button type="submit" class="btn btn-primary" id="loginBtn">Войти</button>
-                </form>
+
+                <!-- Telegram Login Widget -->
+                <div id="telegram-widget-container" style="display: flex; justify-content: center; margin-bottom: 16px;"></div>
+
+                <!-- Error message -->
+                <p id="login-error" style="color: var(--error); display: none; text-align: center; margin-bottom: 12px; font-size: 14px;"></p>
             </div>
         </div>`;
 
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = document.getElementById('loginBtn');
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner"></span>';
+        // Initialize login page (load captcha and mount widget)
+        await Auth.initLoginPage();
+
+        // Define global callback for Telegram widget
+        window.onTelegramAuth = async function(user) {
+            const answerField = document.getElementById('captcha-answer');
+            const answer = parseInt(answerField.value, 10);
+            const errorEl = document.getElementById('login-error');
+
+            if (isNaN(answer)) {
+                errorEl.textContent = 'Введите ответ на капчу';
+                errorEl.style.display = '';
+                return;
+            }
+
             try {
-                const code = document.getElementById('loginCode').value.trim().toUpperCase();
-                await Auth.login(code);
+                await Auth.loginViaTelegram(user, answer);
                 Toast.success('Вы успешно вошли!');
                 const { Router } = window.Router ? { Router: window.Router } : await import('./router.js');
                 Router.navigate('#/dashboard');
             } catch (err) {
-                Toast.error(err.message);
-            } finally {
-                btn.disabled = false;
-                btn.textContent = 'Войти';
+                errorEl.textContent = err.message || 'Ошибка при входе';
+                errorEl.style.display = '';
+                // Reload captcha for retry
+                await Auth._loadCaptcha();
             }
-        });
+        };
     },
 
     async dashboard(container) {
