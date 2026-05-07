@@ -53,13 +53,34 @@ The web layer maintains **only authentication tables** in PostgreSQL:
 
 ### Authentication
 
-JWT-based (python-jose):
+JWT-based (python-jose) with unified Telegram Widget support for new and existing users:
 - **Access + Refresh tokens** stored in HttpOnly cookies (`access_token`, `refresh_token`)
 - **CSRF protection** via non-HttpOnly `csrf_token` cookie + `X-CSRF-Token` header
-- **Login flow** (unchanged):
-  1. Telegram bot generates code → `POST /api/v1/auth/generate-code` (X-Bot-Secret header)
-  2. Web user submits code → `POST /api/v1/auth/login` (local login_codes lookup)
-  3. Cookies set, JWT contains `tg_id` and `is_admin` flag
+- **Login flow** (unified for all users):
+  ```
+  User clicks Telegram Widget on login page
+      ↓
+  POST /api/v1/auth/telegram-callback
+      ├─ Verify CAPTCHA signature
+      ├─ Verify Telegram Widget data signature
+      ├─ Extract tg_id from Telegram data
+      │
+      ├─ GET /users/{tg_id} (to backend) — check if user exists
+      │   ├─ If 404 (new user): POST /users {tg_id} → auto-create in backend
+      │   └─ If 200 (existing user): use existing data from backend
+      │
+      ├─ Generate JWT with tg_id and is_admin flag
+      ├─ Save session in web_users table
+      └─ Return cookies + JWT
+      ↓
+  User logged in (both new and existing paths converge to same result)
+  ```
+
+**Key Design Points:**
+- **New users** (not in backend): automatically created via `POST /users {tg_id}`
+- **Existing users** (from bot): directly use existing data from backend
+- **Same entry point** for both: Telegram Widget (no separate flows)
+- **Transparent to frontend**: Both paths return identical JWT structure
 
 ### WebBackendClient
 
