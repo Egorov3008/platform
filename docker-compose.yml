@@ -58,12 +58,14 @@ services:
         condition: service_healthy
     ports:
       - "8002:8000"
+      - "8443:8443"
     environment:
       BACKEND_URL: http://backend:8000
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    command: bash /app/run.sh
     volumes:
       - ./.env:/app/.env:ro
       - ./web:/app
+      - ./certs:/certs:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
