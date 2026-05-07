@@ -20,6 +20,18 @@ class NoCacheJSMiddleware(BaseHTTPMiddleware):
             response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
         return response
 
+
+class CSPMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        # Allow Telegram Widget iframe and scripts
+        response.headers["Content-Security-Policy"] = (
+            "frame-ancestors 'self' https://oauth.telegram.org; "
+            "script-src 'self' https://telegram.org; "
+            "frame-src 'self' https://oauth.telegram.org"
+        )
+        return response
+
 setup_logging(
     log_level=settings.log_level,
     log_file=settings.log_file or None,
@@ -57,6 +69,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="VPN Web Backend", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(NoCacheJSMiddleware)
+app.add_middleware(CSPMiddleware)
 app.add_middleware(CSRFMiddleware)
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])

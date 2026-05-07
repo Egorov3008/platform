@@ -285,6 +285,21 @@ export const Pages = {
         // Initialize login page (load captcha and mount widget)
         await Auth.initLoginPage();
 
+        // Add enter key listener to captcha answer field
+        const answerField = document.getElementById('captcha-answer');
+        if (answerField) {
+            answerField.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    // Focus message to user: press Telegram button below
+                    document.getElementById('login-error').textContent = 'Нажмите кнопку Telegram ниже →';
+                    document.getElementById('login-error').style.display = '';
+                    setTimeout(() => {
+                        document.getElementById('login-error').style.display = 'none';
+                    }, 2000);
+                }
+            });
+        }
+
         // Define global callback for Telegram widget
         window.onTelegramAuth = async function(user) {
             const answerField = document.getElementById('captcha-answer');
