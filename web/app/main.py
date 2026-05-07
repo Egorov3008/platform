@@ -30,7 +30,8 @@ class CSPMiddleware(BaseHTTPMiddleware):
             "default-src 'self'; "
             "script-src 'self' 'unsafe-eval' https://telegram.org https://oauth.telegram.org; "
             "frame-src https://oauth.telegram.org; "
-            "style-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' https: data:; "
             "connect-src 'self' https://oauth.telegram.org https://api.telegram.org"
         )
