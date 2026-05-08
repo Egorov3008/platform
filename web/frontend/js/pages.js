@@ -269,7 +269,7 @@ export const Pages = {
         <div class="auth-container">
             <div class="auth-card">
                 <h1>Вход по коду</h1>
-                ${botLink ? `<button type="button" class="btn btn-secondary" style="width: 100%; margin-bottom: 16px;" onclick="window.open('${botLink}', '_blank')">Получить код в Telegram-боте</button>` : '<p class="subtitle">Получите код в Telegram-боте командой /start</p>'}
+                ${botLink ? `<button type="button" id="bot-link-btn" class="btn btn-secondary" style="width: 100%; margin-bottom: 16px;">Получить код в Telegram-боте</button>` : '<p class="subtitle">Получите код в Telegram-боте командой /start</p>'}
 
                 <form id="code-login-form" autocomplete="off">
                     <div style="margin-bottom: 16px;">
@@ -297,6 +297,15 @@ export const Pages = {
                 </div>
             </div>
         </div>`;
+
+        if (botLink) {
+            const botBtn = document.getElementById('bot-link-btn');
+            if (botBtn) {
+                botBtn.addEventListener('click', () => {
+                    window.open(botLink, '_blank');
+                });
+            }
+        }
 
         const codeInput = document.getElementById('login-code-input');
         if (codeInput) {
