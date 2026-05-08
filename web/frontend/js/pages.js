@@ -265,65 +265,45 @@ export const Pages = {
         container.innerHTML = `
         <div class="auth-container">
             <div class="auth-card">
-                <h1>Вход в личный кабинет</h1>
-                <p class="subtitle">Авторизуйтесь через Telegram</p>
+                <h1>Вход по коду</h1>
+                <p class="subtitle">Получите код в Telegram-боте командой /start</p>
 
-                <!-- Captcha block -->
-                <div style="background: var(--surface-2); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
-                    <p id="captcha-question" style="font-size: 16px; font-weight: 600; margin-bottom: 12px; color: var(--text);">Загрузка капчи...</p>
-                    <input type="number" id="captcha-answer" placeholder="Введите ответ" min="0" max="999" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--background); color: var(--text); font-size: 16px;">
+                <form id="code-login-form" autocomplete="off">
+                    <div style="margin-bottom: 16px;">
+                        <input
+                            type="text"
+                            id="login-code-input"
+                            placeholder="XXXXXXXX"
+                            maxlength="8"
+                            autocomplete="off"
+                            spellcheck="false"
+                            style="width: 100%; padding: 14px; border: 1px solid var(--border); border-radius: 8px;
+                                   background: var(--background); color: var(--text); font-size: 22px;
+                                   letter-spacing: 6px; text-align: center; text-transform: uppercase; font-weight: 600;"
+                        >
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">Войти</button>
+                </form>
+
+                <p id="code-login-error" style="color: var(--error); display: none; text-align: center; margin-top: 12px; font-size: 14px;"></p>
+
+                <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--border); text-align: center;">
+                    <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 12px;">Новый пользователь? Войдите через Telegram</p>
+                    <div id="tg-widget-strip" style="display: flex; justify-content: center;"></div>
+                    <p id="tg-strip-error" style="color: var(--error); display: none; text-align: center; margin-top: 8px; font-size: 14px;"></p>
                 </div>
-
-                <!-- Telegram Login Widget -->
-                <div id="telegram-widget-container" style="display: flex; justify-content: center; margin-bottom: 16px;"></div>
-
-                <!-- Error message -->
-                <p id="login-error" style="color: var(--error); display: none; text-align: center; margin-bottom: 12px; font-size: 14px;"></p>
             </div>
         </div>`;
 
-        // Initialize login page (load captcha and mount widget)
-        await Auth.initLoginPage();
-
-        // Add enter key listener to captcha answer field
-        const answerField = document.getElementById('captcha-answer');
-        if (answerField) {
-            answerField.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    // Focus message to user: press Telegram button below
-                    document.getElementById('login-error').textContent = 'Нажмите кнопку Telegram ниже →';
-                    document.getElementById('login-error').style.display = '';
-                    setTimeout(() => {
-                        document.getElementById('login-error').style.display = 'none';
-                    }, 2000);
-                }
+        const codeInput = document.getElementById('login-code-input');
+        if (codeInput) {
+            codeInput.addEventListener('input', (e) => {
+                e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
             });
+            codeInput.focus();
         }
 
-        // Define global callback for Telegram widget
-        window.onTelegramAuth = async function(user) {
-            const answerField = document.getElementById('captcha-answer');
-            const answer = parseInt(answerField.value, 10);
-            const errorEl = document.getElementById('login-error');
-
-            if (isNaN(answer)) {
-                errorEl.textContent = 'Введите ответ на капчу';
-                errorEl.style.display = '';
-                return;
-            }
-
-            try {
-                await Auth.loginViaTelegram(user, answer);
-                Toast.success('Вы успешно вошли!');
-                const { Router } = window.Router ? { Router: window.Router } : await import('./router.js');
-                Router.navigate('#/dashboard');
-            } catch (err) {
-                errorEl.textContent = err.message || 'Ошибка при входе';
-                errorEl.style.display = '';
-                // Reload captcha for retry
-                await Auth._loadCaptcha();
-            }
-        };
+        await Auth.initCodeLoginPage();
     },
 
     async codeLogin(container) {
