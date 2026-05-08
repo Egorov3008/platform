@@ -38,7 +38,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./bot/assets/schema_fixed.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U egorov"]
+      test: ["CMD-SHELL", "pg_isready -U egorov -d vpn_bot"]
       interval: 5s
       timeout: 5s
       retries: 5

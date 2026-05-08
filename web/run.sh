@@ -12,8 +12,8 @@ for i in {1..30}; do
   sleep 1
 done
 
-# HTTP on 8002 for local dev
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8002 &
+# HTTP on 8000 (mapped to 8002 on host via docker-compose)
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 &
 # HTTPS on 8443
 exec python -m uvicorn app.main:app \
     --host 0.0.0.0 \
