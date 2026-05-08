@@ -88,7 +88,6 @@ class XUISession:
         self, model_service: ServiceDataModel, loading: LoadingService,
         login_timeout: float = 15.0, login_max_retries: int = 1
     ) -> None:
-        self.server_id = 2
         self._is_authenticated = False
         self.server = None
         self.xui = None
@@ -105,15 +104,22 @@ class XUISession:
             self._initialized = True
 
     async def server_init(self):
-        self.server: Optional[Server] = await self.server_data.get_data(self.server_id)
-        if not self.server:
+        servers = await self.server_data.get_all()
+        if not servers:
             await self.loading.load_server()
-            self.server: Optional[Server] = await self.server_data.get_data(
-                self.server_id
+            servers = await self.server_data.get_all()
+
+        if not servers:
+            raise RuntimeError(
+                "Таблица 'servers' пуста. Добавьте запись сервера перед запуском бота."
             )
-            logger.debug(
-                "Сервер загружен из кеша", server=self.server, server_id=self.server_id
-            )
+
+        self.server = servers[0]
+        logger.debug(
+            "Сервер для работы с XUI выбран",
+            server_name=self.server.server_name,
+            server_id=self.server.id,
+        )
 
         self.xui = AsyncApi(
             host=self.server.api_url,
@@ -420,6 +426,11 @@ class XUISession:
         """Закрывает сессию"""
         self._is_authenticated = False
         # XUI API обычно не требует явного закрытия
+
+    @property
+    def server_id(self) -> int | str:
+        """Обратно-совместимый доступ к server_id текущего сервера"""
+        return self.server.id if self.server else "unknown"
 
 
 def get_timestamp_30_days_ago():

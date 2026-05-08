@@ -148,14 +148,14 @@ class DatabaseSynchronizer:
         failed = 0
 
         # ✅ Использование CacheService через ServiceDataModel
-        server = await self.model_data.servers.get_data(2)
-        if not server:
+        servers = await self.model_data.servers.get_all()
+        if not servers:
             logger.error(
-                "Сервер не найден",
-                server_id=2,
+                "Таблица 'servers' пуста",
                 method="update_traffic_batch"
             )
             return {"total": 0, "successful": 0, "failed": 1}
+        server = servers[0]
 
         session = await self.get_client_session()
 
