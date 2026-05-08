@@ -1,9 +1,8 @@
-import secrets
 import asyncpg
 from fastapi import HTTPException, status
 from app.repositories.web_users import WebUsersRepo
 from app.repositories.login_codes import LoginCodesRepo
-from app.core.security import hash_password, create_access_token, create_refresh_token, decode_token
+from app.core.security import create_access_token, create_refresh_token, decode_token
 from app.core.config import settings
 from app.core.logging import get_logger
 
@@ -11,6 +10,9 @@ logger = get_logger(__name__)
 
 web_users_repo = WebUsersRepo()
 login_codes_repo = LoginCodesRepo()
+
+# Pre-hashed placeholder password for Telegram-authenticated users (never used for verification)
+TELEGRAM_USER_PASSWORD_HASH = "$pbkdf2-sha256$29000$PKf0/h8DAEDIGYOw9l7rXQ$iRnTnCrt9ztGwxILTR.pOQA5o9FE0Bma5vXIzBxqrCs"
 
 
 def _is_admin(tg_id: int | None) -> bool:
@@ -51,7 +53,7 @@ async def login_via_telegram(
         user = await web_users_repo.create(
             conn,
             email=f"tg_{tg_id}@bot.local",
-            password_hash=hash_password(secrets.token_hex(32)),
+            password_hash=TELEGRAM_USER_PASSWORD_HASH,
             tg_id=tg_id,
         )
         logger.info("Создан новый web_users через Telegram-авторизацию для tg_id=%d", tg_id)

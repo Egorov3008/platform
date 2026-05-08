@@ -9,7 +9,7 @@ from jose import JWTError, jwt
 from app.core.config import settings
 from app.schemas.auth import TelegramAuthData
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 _CODE_CHARSET = string.ascii_uppercase + string.digits
 
