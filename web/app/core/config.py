@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     # Backend API configuration
     backend_url: str = os.getenv("BACKEND_URL", "http://localhost:8000")
     admin_api_key: str = ""
+    use_host_backend: bool = os.getenv("USE_HOST_BACKEND", "false").lower() == "true"
 
     # Invite token for registration
     invite_token: str = "changeme"

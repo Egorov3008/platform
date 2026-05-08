@@ -262,11 +262,14 @@ export const Pages = {
     _pluralize,
 
     async login(container) {
+        const cfg = await API.get('/auth/config').catch(() => ({}));
+        const botLink = cfg.telegram_bot_username ? `https://t.me/${cfg.telegram_bot_username}` : null;
+
         container.innerHTML = `
         <div class="auth-container">
             <div class="auth-card">
                 <h1>Вход по коду</h1>
-                <p class="subtitle">Получите код в Telegram-боте командой /start</p>
+                ${botLink ? `<button type="button" class="btn btn-secondary" style="width: 100%; margin-bottom: 16px;" onclick="window.open('${botLink}', '_blank')">Получить код в Telegram-боте</button>` : '<p class="subtitle">Получите код в Telegram-боте командой /start</p>'}
 
                 <form id="code-login-form" autocomplete="off">
                     <div style="margin-bottom: 16px;">

@@ -1,31 +1,11 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    env_file: ./.env
-    environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./bot/assets/schema_fixed.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-
   backend:
     build: ./backend
     restart: unless-stopped
+    network_mode: host
     env_file: ./.env
-    depends_on:
-      postgres:
-        condition: service_healthy
-    ports:
-      - "8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./.env:/app/.env:ro
       - ./backend:/app
@@ -39,35 +19,50 @@ services:
   bot:
     build: ./bot
     restart: unless-stopped
+    network_mode: host
     env_file: ./.env
-    depends_on:
-      backend:
-        condition: service_healthy
     volumes:
       - ./.env:/app/.env:ro
       - ./bot/logs:/app/logs
       - ./bot/logs_error:/app/logs_error
       - ./bot/video_instructions:/app/video_instructions:ro
 
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: egorov
+      POSTGRES_PASSWORD: HG8ntEEVDI7Oh/Rs
+      POSTGRES_DB: vpn_bot
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./bot/assets/schema_fixed.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U egorov"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   web:
     build: ./web
     restart: unless-stopped
     env_file: ./.env
-    depends_on:
-      backend:
-        condition: service_healthy
     ports:
       - "8002:8000"
       - "8443:8443"
     environment:
       BACKEND_URL: http://backend:8000
+      DATABASE_URL: postgresql://egorov:HG8ntEEVDI7Oh%2FRs@postgres:5432/vpn_bot
     command: bash /app/run.sh
     volumes:
       - ./.env:/app/.env:ro
       - ./web:/app
       - ./certs:/certs:ro
+    depends_on:
+      - backend
+      - postgres
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
       interval: 10s
       timeout: 5s
       retries: 5

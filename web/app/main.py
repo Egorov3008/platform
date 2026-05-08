@@ -53,9 +53,12 @@ async def lifespan(app: FastAPI):
     logger.info("Запуск приложения VPN Web Backend")
 
     # Initialize backend HTTP client
-    backend_client = httpx.AsyncClient(base_url=settings.backend_url, timeout=30.0, follow_redirects=True)
+    backend_base_url = settings.backend_url
+    if settings.use_host_backend and backend_base_url.startswith("http://backend"):
+        backend_base_url = backend_base_url.replace("http://backend", "http://host.docker.internal")
+    backend_client = httpx.AsyncClient(base_url=backend_base_url, timeout=30.0, follow_redirects=True)
     set_backend_http_client(backend_client)
-    logger.info(f"Backend HTTP client initialized: {settings.backend_url}")
+    logger.info(f"Backend HTTP client initialized: {backend_base_url}")
 
     # Initialize auth DB pool (login_codes, web_users)
     await create_pool()
