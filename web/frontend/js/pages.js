@@ -263,7 +263,7 @@ export const Pages = {
 
     async login(container) {
         const cfg = await API.get('/auth/config').catch(() => ({}));
-        const botLink = cfg.telegram_bot_username ? `https://t.me/${cfg.telegram_bot_username}` : null;
+        const botLink = cfg.telegram_bot_username ? `https://t.me/${cfg.telegram_bot_username}${cfg.invite_token ? `?start=${cfg.invite_token}` : ''}` : null;
 
         container.innerHTML = `
         <div class="auth-container">

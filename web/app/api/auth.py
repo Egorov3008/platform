@@ -197,4 +197,7 @@ async def refresh(request: Request, response: Response):
 
 @router.get("/config")
 async def config():
-    return {"telegram_bot_username": settings.telegram_bot_username}
+    return {
+        "telegram_bot_username": settings.telegram_bot_username,
+        "invite_token": settings.invite_token
+    }
