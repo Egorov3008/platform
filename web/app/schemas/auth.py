@@ -3,6 +3,14 @@ from typing import Optional
 from datetime import datetime
 
 
+class LoginCodeRequest(BaseModel):
+    code: str
+
+
+class TelegramOnlyRequest(BaseModel):
+    telegram_data: "TelegramAuthData"
+
+
 class UserInfoResponse(BaseModel):
     id: int
     tg_id: Optional[int] = None

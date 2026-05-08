@@ -5,6 +5,7 @@ import { Logger } from './logger.js';
 export const Router = {
     routes: {
         '#/login': { page: 'login', auth: false },
+        '#/code-login': { page: 'codeLogin', auth: false },
         '#/dashboard': { page: 'dashboard', auth: true },
         '#/tariffs': { page: 'tariffs', auth: false },
         '#/payments': { page: 'payments', auth: true },
@@ -79,6 +80,7 @@ export const Router = {
         const { Pages } = await import('./pages.js?v=2');
         const renderers = {
             login: Pages.login,
+            codeLogin: Pages.codeLogin,
             dashboard: Pages.dashboard,
             tariffs: Pages.tariffs,
             payments: Pages.payments,

@@ -3,17 +3,66 @@ import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from httpx import HTTPStatusError
-from app.core.dependencies import get_current_user, get_conn, get_backend_client
+from app.core.dependencies import get_current_user, get_conn, get_backend_client, get_backend_client_no_auth
 from app.core.security import set_auth_cookies, clear_auth_cookies, create_access_token, create_refresh_token, verify_telegram_data
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.captcha import generate_captcha, verify_captcha, CaptchaError
-from app.schemas.auth import UserInfoResponse, TelegramCallbackRequest, CaptchaResponse
+from app.schemas.auth import UserInfoResponse, TelegramCallbackRequest, TelegramOnlyRequest, LoginCodeRequest, CaptchaResponse
 from app.services import auth as auth_service
 from app.api.backend_client import WebBackendClient
 
 router = APIRouter()
 logger = get_logger(__name__)
+
+
+@router.post("/login")
+async def login(
+    body: LoginCodeRequest,
+    response: Response,
+    conn: asyncpg.Connection = Depends(get_conn),
+):
+    access_token, refresh_token = await auth_service.login_with_code(conn, body.code)
+    set_auth_cookies(response, access_token, refresh_token)
+    return {"message": "ok"}
+
+
+@router.post("/telegram-login")
+async def telegram_login(
+    request: TelegramOnlyRequest,
+    response: Response,
+    conn: asyncpg.Connection = Depends(get_conn),
+    backend_client: WebBackendClient = Depends(get_backend_client_no_auth),
+):
+    """Telegram Widget login without CAPTCHA — for the code-login page bottom strip."""
+    try:
+        tg_data = verify_telegram_data(request.telegram_data)
+        tg_id = tg_data.get("id")
+        if not tg_id:
+            raise HTTPException(status_code=400, detail="Invalid Telegram data: missing user ID")
+
+        user = None
+        try:
+            user = await backend_client.get_user(tg_id)
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                try:
+                    user = await backend_client.create_user(tg_id)
+                except HTTPStatusError as create_error:
+                    raise HTTPException(status_code=create_error.response.status_code, detail="Failed to register user")
+            else:
+                raise HTTPException(status_code=503, detail="Service unavailable")
+
+        access_token, refresh_token = await auth_service.login_via_telegram(conn, tg_id, user.is_admin)
+        set_auth_cookies(response, access_token, refresh_token)
+        logger.info(f"✓ Telegram login (no captcha): tg_id={tg_id}")
+        return {"message": "ok", "user": {"tg_id": tg_id, "is_admin": user.is_admin}}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in telegram_login: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/captcha", response_model=CaptchaResponse)

@@ -65,7 +65,6 @@ export const Auth = {
     },
 
     async loginViaTelegram(telegramData, captchaAnswer) {
-        // POST to /telegram-callback with captcha and telegram data
         await API.post('/auth/telegram-callback', {
             telegram_data: telegramData,
             captcha_token: this.__captchaToken,
@@ -73,6 +72,79 @@ export const Auth = {
             captcha_answer: captchaAnswer,
         });
         await this.init();
+    },
+
+    async loginWithCode(code) {
+        await API.post('/auth/login', { code });
+        await this.init();
+    },
+
+    async loginViaTelegramNoCaptcha(telegramData) {
+        await API.post('/auth/telegram-login', { telegram_data: telegramData });
+        await this.init();
+    },
+
+    async initCodeLoginPage() {
+        const cfg = await API.get('/auth/config').catch(() => ({}));
+        this._mountTelegramWidgetTo('tg-widget-strip', cfg.telegram_bot_username, 'onTelegramAuthStrip');
+
+        const form = document.getElementById('code-login-form');
+        if (form) {
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const codeInput = document.getElementById('login-code-input');
+                const errorEl = document.getElementById('code-login-error');
+                const code = (codeInput.value || '').trim().toUpperCase();
+                if (!code || code.length !== 8) {
+                    errorEl.textContent = 'Введите 8-значный код';
+                    errorEl.style.display = '';
+                    return;
+                }
+                errorEl.style.display = 'none';
+                try {
+                    await this.loginWithCode(code);
+                    const { Router } = await import('./router.js');
+                    Router.navigate('#/dashboard');
+                } catch (err) {
+                    errorEl.textContent = err.message || 'Неверный или просроченный код';
+                    errorEl.style.display = '';
+                    codeInput.value = '';
+                    codeInput.focus();
+                }
+            });
+        }
+
+        window.onTelegramAuthStrip = async (user) => {
+            const errorEl = document.getElementById('tg-strip-error');
+            try {
+                await this.loginViaTelegramNoCaptcha(user);
+                const { Router } = await import('./router.js');
+                Router.navigate('#/dashboard');
+            } catch (err) {
+                if (errorEl) {
+                    errorEl.textContent = err.message || 'Ошибка при входе через Telegram';
+                    errorEl.style.display = '';
+                }
+            }
+        };
+    },
+
+    _mountTelegramWidgetTo(containerId, botUsername, callbackName) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        if (!botUsername) {
+            container.innerHTML = '<div style="color: var(--error); text-align: center; padding: 8px;">Telegram недоступен</div>';
+            return;
+        }
+        container.innerHTML = '';
+        const script = document.createElement('script');
+        script.async = true;
+        script.src = 'https://telegram.org/js/telegram-widget.js?22';
+        script.setAttribute('data-telegram-login', botUsername);
+        script.setAttribute('data-size', 'medium');
+        script.setAttribute('data-onauth', callbackName);
+        script.setAttribute('data-request-access', 'write');
+        container.appendChild(script);
     },
 
     async refresh() {
