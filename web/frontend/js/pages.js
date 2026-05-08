@@ -306,51 +306,6 @@ export const Pages = {
         await Auth.initCodeLoginPage();
     },
 
-    async codeLogin(container) {
-        container.innerHTML = `
-        <div class="auth-container">
-            <div class="auth-card">
-                <h1>Вход по коду</h1>
-                <p class="subtitle">Получите код в Telegram-боте командой /start</p>
-
-                <form id="code-login-form" autocomplete="off">
-                    <div style="margin-bottom: 16px;">
-                        <input
-                            type="text"
-                            id="login-code-input"
-                            placeholder="XXXXXXXX"
-                            maxlength="8"
-                            autocomplete="off"
-                            spellcheck="false"
-                            style="width: 100%; padding: 14px; border: 1px solid var(--border); border-radius: 8px;
-                                   background: var(--background); color: var(--text); font-size: 22px;
-                                   letter-spacing: 6px; text-align: center; text-transform: uppercase; font-weight: 600;"
-                        >
-                    </div>
-                    <button type="submit" class="btn btn-primary" style="width: 100%;">Войти</button>
-                </form>
-
-                <p id="code-login-error" style="color: var(--error); display: none; text-align: center; margin-top: 12px; font-size: 14px;"></p>
-
-                <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--border); text-align: center;">
-                    <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 12px;">Новый пользователь? Войдите через Telegram</p>
-                    <div id="tg-widget-strip" style="display: flex; justify-content: center;"></div>
-                    <p id="tg-strip-error" style="color: var(--error); display: none; text-align: center; margin-top: 8px; font-size: 14px;"></p>
-                </div>
-            </div>
-        </div>`;
-
-        const codeInput = document.getElementById('login-code-input');
-        if (codeInput) {
-            codeInput.addEventListener('input', (e) => {
-                e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-            });
-            codeInput.focus();
-        }
-
-        await Auth.initCodeLoginPage();
-    },
-
     async dashboard(container) {
         container.innerHTML = `<div class="loading-page page-loading"><div class="spinner"></div></div>`;
 
