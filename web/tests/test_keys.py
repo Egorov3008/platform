@@ -160,7 +160,7 @@ async def test_renew_key_with_tg_id(client):
     assert resp.status_code == 200
     data = resp.json()
     assert data["email"] == "test@example.com"
-    client.mock_backend.renew_key.assert_called_once_with("test@example.com", 1, months=1)
+    client.mock_backend.renew_key.assert_called_once_with("test@example.com", 123, 1, months=1)
 
 
 @pytest.mark.asyncio
