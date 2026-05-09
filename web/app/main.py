@@ -8,7 +8,7 @@ import httpx
 from app.core.database import create_pool, close_pool, get_pool
 from app.core.logging import setup_logging, get_logger
 from app.core.csrf import CSRFMiddleware
-from app.api import auth, keys, tariffs, payments, admin
+from app.api import auth, keys, tariffs, payments, admin, users
 from app.core.config import settings
 from app.core.dependencies import set_backend_http_client
 
@@ -85,6 +85,7 @@ app.include_router(keys.router, prefix="/api/v1/keys", tags=["keys"])
 app.include_router(tariffs.router, prefix="/api/v1/tariffs", tags=["tariffs"])
 app.include_router(payments.router, prefix="/api/v1/payments", tags=["payments"])
 app.include_router(admin.router, prefix="/api/v1/admin", tags=["admin"])
+app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
 
 
 @app.get("/health")
