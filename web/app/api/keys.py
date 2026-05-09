@@ -65,6 +65,26 @@ async def create_key(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Backend error")
 
 
+@router.post("/trial", response_model=KeyResponse)
+async def create_trial_key(
+    backend: WebBackendClient = Depends(get_backend_client),
+    current_user: dict = Depends(get_current_user),
+):
+    tg_id = _require_tg_id(current_user)
+    logger.info("POST /keys/trial: создание пробного ключа", extra={"tg_id": tg_id})
+    try:
+        key_data = await backend.create_trial_key()
+        logger.info("POST /keys/trial: пробный ключ создан", extra={"tg_id": tg_id, "email": key_data.get("email")})
+        return KeyResponse(**key_data)
+    except Exception as e:
+        logger.error(
+            "POST /keys/trial: ошибка",
+            extra={"error": str(e), "tg_id": tg_id, "error_type": type(e).__name__},
+            exc_info=True,
+        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Backend error")
+
+
 @router.get("/{email:path}", response_model=KeyResponse)
 async def get_key(
     email: str,

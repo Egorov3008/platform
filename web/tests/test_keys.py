@@ -161,3 +161,37 @@ async def test_renew_key_with_tg_id(client):
     data = resp.json()
     assert data["email"] == "test@example.com"
     client.mock_backend.renew_key.assert_called_once_with("test@example.com", 1, months=1)
+
+
+@pytest.mark.asyncio
+async def test_create_trial_key_success(client):
+    client.mock_backend.create_trial_key = AsyncMock(return_value={
+        "client_id": "trial-id",
+        "email": "trial@123.vpn",
+        "key": "https://sub.example.com/trial",
+        "expiry_time": 9999999999000,
+        "tariff_id": 10,
+        "name_tariff": "Пробный",
+        "amount": 0,
+        "period": 30,
+        "used_traffic": 0,
+        "total_gb": 0,
+    })
+    client.cookies.set("access_token", make_auth_token(tg_id=123))
+
+    resp = await client.post("/api/v1/keys/trial")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["email"] == "trial@123.vpn"
+    client.mock_backend.create_trial_key.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_create_trial_key_requires_tg_id(client):
+    token = create_access_token({"sub": "1", "tg_id": None, "is_admin": False})
+    client.cookies.set("access_token", token)
+
+    resp = await client.post("/api/v1/keys/trial")
+
+    assert resp.status_code == 403
