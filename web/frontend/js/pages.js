@@ -322,9 +322,10 @@ export const Pages = {
         container.innerHTML = `<div class="loading-page page-loading"><div class="spinner"></div></div>`;
 
         try {
-            const [keys, tariffs] = await Promise.all([
+            const [keys, tariffs, user] = await Promise.all([
                 API.get('/keys/').catch(() => []),
                 API.get('/tariffs/').catch(() => []),
+                API.get('/users/me').catch(() => null),
             ]);
 
             const now = Date.now() / 1000;
@@ -348,6 +349,7 @@ export const Pages = {
                     <div class="card key-card" data-client-id="${k.client_id}">
                         <div class="key-card-header">
                             <h3>${_esc(k.name_tariff || k.email || 'VPN ключ')}</h3>
+                            ${k.is_trial ? '<span class="key-badge trial">Пробный</span>' : ''}
                             <span class="key-badge ${badgeClass}">${badgeText}</span>
                         </div>
                         <div class="key-meta">
@@ -358,10 +360,6 @@ export const Pages = {
                             <div class="key-meta-row">
                                 <span>Истекает</span>
                                 <strong>${expiryDate ? expiryDate.toLocaleDateString('ru-RU') : '—'}</strong>
-                            </div>
-                            <div class="key-meta-row">
-                                <span>Трафик</span>
-                                <strong>${trafficStr}</strong>
                             </div>
                         </div>
                         <div class="key-value">
@@ -399,7 +397,67 @@ export const Pages = {
                 html += '</div>';
             }
 
+            if (!keys || keys.length === 0) {
+                const trialTariff = tariffs ? tariffs.find(t => t.amount === 0) : null;
+                const trialAvailable = user && user.trial === 0;
+
+                let trialBlockHtml = '';
+                if (trialAvailable) {
+                    const period = trialTariff ? `${trialTariff.period} дней` : '30 дней';
+                    const devices = trialTariff ? `${trialTariff.limit_ip} ${trialTariff.limit_ip === 1 ? 'устройство' : 'устройства'}` : '1 устройство';
+                    const traffic = trialTariff
+                        ? (trialTariff.traffic_limit >= 1024 ? `${(trialTariff.traffic_limit / 1024).toFixed(0)} ТБ` : trialTariff.traffic_limit > 0 ? `${trialTariff.traffic_limit} ГБ` : 'Безлимит')
+                        : 'Безлимит';
+
+                    trialBlockHtml = `
+                    <div class="trial-block">
+                        <div class="trial-block-header">
+                            <span class="trial-avail-badge">🎁 Бесплатно</span>
+                            <span class="trial-block-name">Пробный период</span>
+                        </div>
+                        <div class="trial-features">
+                            <span class="trial-feat">${_esc(period)}</span>
+                            <span class="trial-feat">${_esc(devices)}</span>
+                            <span class="trial-feat">${_esc(traffic)}</span>
+                        </div>
+                        <button class="btn-trial" id="btn-get-trial">Получить пробный ключ</button>
+                        <p class="trial-note">Доступно только один раз</p>
+                    </div>`;
+                }
+
+                const emptyDesc = trialAvailable
+                    ? 'Попробуйте VPN бесплатно — или выберите тариф ниже'
+                    : 'Выберите тариф ниже, чтобы подключиться к VPN';
+
+                html = `
+                <div class="section-header"><h2>Мои ключи</h2></div>
+                <div class="empty-card" style="margin-bottom:24px;">
+                    <div class="empty-card-icon">🔑</div>
+                    <div class="empty-card-title">У вас нет активных ключей</div>
+                    <div class="empty-card-desc">${_esc(emptyDesc)}</div>
+                    ${trialBlockHtml}
+                </div>`;
+            }
             container.innerHTML = html;
+
+            // Bind trial key button
+            const trialBtn = container.querySelector('#btn-get-trial');
+            if (trialBtn) {
+                trialBtn.addEventListener('click', async () => {
+                    trialBtn.disabled = true;
+                    trialBtn.textContent = 'Создаём…';
+                    try {
+                        await API.post('/keys/trial', {});
+                        Toast.success('Пробный ключ создан!');
+                        const { Router } = window.Router ? { Router: window.Router } : await import('./router.js');
+                        Router.render('dashboard');
+                    } catch (err) {
+                        Toast.error(err.message || 'Ошибка при создании ключа');
+                        trialBtn.disabled = false;
+                        trialBtn.textContent = 'Получить пробный ключ';
+                    }
+                });
+            }
 
             // Bind copy buttons
             container.querySelectorAll('.copy-btn').forEach(btn => {
