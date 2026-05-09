@@ -168,6 +168,24 @@ class WebBackendClient:
             self._log_error(method, path, e, resp.status_code if 'resp' in locals() else None)
             raise
 
+    async def create_trial_key(self) -> dict:
+        """POST /api/v1/keys/trial - Create a free trial VPN key."""
+        method, path = "POST", "/api/v1/keys/trial"
+        try:
+            await self._log_request(method, path, params=self._get_params())
+            resp = await self._client.post(
+                path,
+                headers=self._get_headers(),
+                params=self._get_params(),
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            self._log_response(method, path, resp.status_code, len(str(data)))
+            return data
+        except Exception as e:
+            self._log_error(method, path, e, resp.status_code if 'resp' in locals() else None)
+            raise
+
     async def delete_key(self, email: str) -> None:
         """DELETE /api/v1/keys/{email} - Delete a VPN key."""
         method, path = "DELETE", f"/api/v1/keys/{email}"
