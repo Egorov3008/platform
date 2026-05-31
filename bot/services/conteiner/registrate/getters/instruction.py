@@ -16,8 +16,8 @@ from dialogs.windows.widgets.message.instruction.choosing_device import (
 from dialogs.windows.widgets.message.instruction.device_step import (
     InstructionDeviceMessage,
 )
+from api.backend_client import BackendAPIClient
 from services.conteiner.protocol import ContainerProtocol
-from services.core.data.service import ServiceDataModel
 from services.scenarios.create_first_key_scenario import CreateFerstKeyScenario
 
 
@@ -25,7 +25,7 @@ class InstructionRegistrar(ContainerProtocol):
     def register_dependencies(self, container: Container) -> None:
         def build_device_keyboard(cls):
             return cls(
-                model_service=container.resolve(ServiceDataModel),
+                backend_client=container.resolve(BackendAPIClient),
                 create_trial_key=container.resolve(CreateFerstKeyScenario),
             )
 

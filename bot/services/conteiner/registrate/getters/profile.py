@@ -8,7 +8,6 @@ from dialogs.windows.widgets.message.profile.main import UserMessageBuilder
 from dialogs.windows.widgets.message.profile.welcom import WelcomeMessage
 from api.backend_client import BackendAPIClient
 from services.conteiner.protocol import ContainerProtocol
-from services.core.data.service import ServiceDataModel
 from services.core.gift.repositories.checker import CheckerGiftLink
 from services.core.user.utils.checked_admin import CheckedUser
 from services.scenarios.create_first_key_scenario import CreateFerstKeyScenario
@@ -28,7 +27,6 @@ class ProfileRegistrar(ContainerProtocol):
 
         def build_user_keyboard():
             return UserKeyboardBuilder(
-                model_service=container.resolve(ServiceDataModel),
                 create_trial_key=container.resolve(CreateFerstKeyScenario),
             )
 

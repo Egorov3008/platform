@@ -1,9 +1,5 @@
 """KeyboardBuilder для админ-диалога генерации ключа."""
 
-from typing import Optional
-
-import asyncpg
-
 from aiogram.types import CallbackQuery
 from aiogram_dialog import DialogManager, StartMode
 from aiogram_dialog.widgets.kbd import (
@@ -18,13 +14,9 @@ from aiogram_dialog.widgets.kbd import (
 from aiogram_dialog.widgets.input import TextInput
 from aiogram_dialog.widgets.text import Const, Format
 
+from api.backend_client import BackendAPIClient
 from dialogs.windows.base import KeyboardBuilder
 from getters.on_click.admin_generate_key import on_tg_id_entered, error_gen_tg_id
-from models import Inbound
-from services.cache.key_manager import CacheKeyManager
-from services.cache.service import CacheService
-from services.core.keys.utils.create_key import CreateKey
-from services.core.user.utils.saver import SeverUser
 from states.admin import AdminManager, AdminGenerateKeySG
 from logger import logger
 
@@ -103,107 +95,39 @@ class GenKeyConfirmKeyboard(KeyboardBuilder):
     async def _on_generate(
         self, callback: CallbackQuery, button, dialog_manager: DialogManager, **kwargs
     ):
-        """Обработчик генерации ключа."""
+        """Обработчик генерации ключа через backend API."""
         try:
             tg_id = dialog_manager.dialog_data.get("tg_id")
-            user_exists = dialog_manager.dialog_data.get("user_exists", False)
-
             if not tg_id:
                 await callback.answer("❌ ID пользователя не найден", show_alert=True)
                 return
 
             container = dialog_manager.middleware_data.get("container")
-            cache: Optional[CacheService] = dialog_manager.middleware_data.get("cache")
-            pool = container.resolve(asyncpg.Pool)
-
-            if not all([container, cache, pool]):
-                await callback.answer(
-                    "❌ Ошибка: не удалось получить сервисы", show_alert=True
-                )
+            if not container:
+                await callback.answer("❌ Ошибка: не удалось получить сервисы", show_alert=True)
                 return
 
-            # Получаем выбранный inbound
+            backend = container.resolve(BackendAPIClient)
+
             widget_data = dialog_manager.current_context().widget_data
             selected_inbound_id = widget_data.get("gen_inbound_radio")
-            if not selected_inbound_id:
-                await callback.answer(
-                    "❌ Пожалуйста, выберите подключение", show_alert=True
-                )
-                return
-
-            all_inbounds = await cache.inbounds.all()
-            if not isinstance(all_inbounds, list):
-                all_inbounds = [all_inbounds] if all_inbounds else []
-
-            selected_inbound: Optional[Inbound] = None
-            for inbound in all_inbounds:
-                if isinstance(inbound, Inbound) and str(inbound.inbound_id) == str(
-                    selected_inbound_id
-                ):
-                    selected_inbound = inbound
-                    break
-
-            if not selected_inbound:
-                await callback.answer(
-                    "❌ Выбранное подключение не найдено", show_alert=True
-                )
-                return
-
-            server_id = selected_inbound.server_id
-
-            # Получаем выбранный тариф
             selected_tariff_id = widget_data.get("gen_tariff_radio")
             if not selected_tariff_id:
                 await callback.answer("❌ Пожалуйста, выберите тариф", show_alert=True)
                 return
 
-            tariff_cache_key = CacheKeyManager.tariff(int(selected_tariff_id))
-            tariff = await cache.tariffs.get(tariff_cache_key)
-
-            if not tariff:
-                await callback.answer("❌ Тариф не найден в кеше", show_alert=True)
-                return
-
-            # Если пользователь не существует — создаём
-            if not user_exists:
-                saver = container.resolve(SeverUser)
-                new_user = await saver.register_user(
-                    pool, tg_id=tg_id, server_id=server_id
-                )
-                cache_key = CacheKeyManager.user(tg_id)
-                await cache.users.set(cache_key, new_user)
-                logger.info(
-                    f"Пользователь {tg_id} создан админом при генерации ключа",
-                    server_id=server_id,
-                )
-
-            # Сохраняем temporary_inbound для FormConnectionData
-            await cache.users.set(
-                CacheKeyManager.temporary_inbound(tg_id), str(selected_inbound_id)
-            )
-
-            # Генерируем ключ
-            create_key = container.resolve(CreateKey)
-            result = await create_key.proces(
+            result = await backend.admin_generate_key(
                 tg_id=tg_id,
-                tariff=tariff,
-                server_id=server_id,
-                conn=pool,
+                tariff_id=int(selected_tariff_id),
+                inbound_id=int(selected_inbound_id) if selected_inbound_id else None,
             )
 
             if not result:
                 await callback.answer("❌ Ошибка при создании ключа", show_alert=True)
                 return
 
-            # Сохраняем результат в dialog_data
             dialog_manager.dialog_data["result"] = result
-
-            logger.info(
-                "Админ успешно сгенерировал ключ",
-                tg_id=tg_id,
-                email=result.get("email"),
-            )
-
+            logger.info("Админ сгенерировал ключ через backend", tg_id=tg_id, email=result.get("email"))
             await dialog_manager.switch_to(AdminGenerateKeySG.result)
 
         except Exception as e:

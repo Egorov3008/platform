@@ -66,7 +66,7 @@ def _make_scenario(
     create_key = AsyncMock()
     _key_result = create_key_result or {
         "public_link": "vpn://test_key",
-        "link_to_connect": "https://tds-pro.space/vless/vpn://test_key",
+        "link_to_connect": "vpn://test_key",
         "email": "test@555001.example.com",
         "days": 30,
     }

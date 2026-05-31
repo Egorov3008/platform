@@ -1,11 +1,11 @@
 import punq
 from punq import Container
 
+from api.backend_client import BackendAPIClient
 from dialogs.windows.getters.gift.main import MainGetter
 from dialogs.windows.widgets.keybord.gift.main import GiftMainKeyboard
 from dialogs.windows.widgets.message.gift.main import GiftMainMessage
 from services.conteiner.protocol import ContainerProtocol
-from services.core.data.service import ServiceDataModel
 from services.core.gift.repositories.gen_url import GiftUrlGenerator
 
 
@@ -16,7 +16,7 @@ class GiftRegistrar(ContainerProtocol):
 
         def build_main_getter():
             return MainGetter(
-                model_data=container.resolve(ServiceDataModel),
+                backend=container.resolve(BackendAPIClient),
                 url_service=container.resolve(GiftUrlGenerator),
             )
 

@@ -1,13 +1,13 @@
 """Геттер для превью массового продления ключей."""
 
 from datetime import datetime, timezone
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 
 from aiogram_dialog import DialogManager
 
+from api.backend_client import BackendAPIClient
 from dialogs.windows.base import DataGetter
-from models import Key
-from services.cache.service import CacheService
+from models.keys.key import Key
 from services.core.keys.segmentation import KeySegmentationService
 from logger import logger
 
@@ -20,18 +20,12 @@ class AdminMassRenewalPreviewGetter(DataGetter):
     и формирует превью-отчёт.
     """
 
-    def __init__(self, cache: CacheService):
-        self.cache = cache
+    def __init__(self, backend: BackendAPIClient):
+        self.backend = backend
 
     async def get_data(self, dialog_manager: DialogManager, **kwargs) -> Dict[str, Any]:
         """
         Получить данные для превью массового продления.
-
-        Возвращает:
-        - preview_message: форматированное сообщение с превью
-        - keys_to_renew: список ключей для продления
-        - days_to_add: количество дней для продления
-        - segment: выбранный сегмент
         """
         try:
             segment = dialog_manager.dialog_data.get("selected_segment")
@@ -46,12 +40,9 @@ class AdminMassRenewalPreviewGetter(DataGetter):
                     "total_keys": 0,
                 }
 
-            # Получаем все ключи
-            all_keys = await self.cache.keys.all()
-            if not isinstance(all_keys, list):
-                all_keys = [all_keys] if all_keys else []
+            raw_keys = await self.backend.admin_list_keys()
+            all_keys = [Key.from_backend(k) for k in raw_keys]
 
-            # Фильтруем по сегменту
             segmentation = KeySegmentationService()
             keys_to_renew = await self._filter_by_segment(
                 segmentation, all_keys, segment
@@ -59,7 +50,6 @@ class AdminMassRenewalPreviewGetter(DataGetter):
 
             dialog_manager.dialog_data["keys_to_renew"] = keys_to_renew
 
-            # Формируем превью-сообщение
             preview_message = self._build_preview_message(
                 keys_to_renew, days, segment
             )
@@ -104,7 +94,6 @@ class AdminMassRenewalPreviewGetter(DataGetter):
         elif segment == "active":
             return await segmentation.get_active(keys)
         elif segment == "all":
-            # Исключаем trial и expired
             now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
             return [k for k in keys if k.expiry_time >= now_ms]
         else:

@@ -1,15 +1,10 @@
 import traceback
-from typing import Any, Optional
+from typing import Optional
 
-from datetime import timedelta
 from aiogram_dialog import StartMode, DialogManager
 
+from api.backend_client import BackendAPIClient
 from logger import logger
-from models import GiftLink
-from services.cache.key_manager import CacheKeyManager
-from services.cache.service import CacheService
-from services.core.data.service import ServiceDataModel
-from services.core.user.utils.saver import SeverUser
 from services.scenarios.factory_scenario import ScenarioFactory
 from states.gift import GiftStates
 from states.instruction import Instruction
@@ -17,27 +12,19 @@ from states.instruction import Instruction
 
 class GiftActivationScenario(ScenarioFactory):
     """
-    Оркестратор сценария активации подарка.
-    Управляет потоком: проверка → активация → выдача ключа.
+    Оркестратор сценария активации подарка через backend API.
+    Управляет потоком: проверка → регистрация → выбор устройства.
     """
 
     def __init__(
         self,
         dialog_manager: DialogManager,
-        service_model: ServiceDataModel,
-        saver: SeverUser,
-        cache: CacheService,
+        backend_client: BackendAPIClient,
     ):
         super().__init__(dialog_manager)
-        self.service_model = service_model
-        self.saver = saver
-        self.cache = cache
-
-        # Извлекаем зависимости в конструкторе
-        self._gift_data = service_model.gifts
+        self.backend = backend_client
         self._token: Optional[str] = None
         self._type: Optional[str] = None
-        self._conn: Optional[Any] = None
 
     async def can_handle(self) -> bool:
         await self.get_data()
@@ -49,13 +36,47 @@ class GiftActivationScenario(ScenarioFactory):
 
         user_id = self.dialog_manager.event.from_user.id
         try:
-            # 1. Получаем GiftLink по токену
-            gift: Optional[GiftLink] = await self._get_gift(self._token)
+            if not self._token:
+                await self.dialog_manager.start(
+                    GiftStates.error, mode=StartMode.RESET_STACK
+                )
+                return
 
-            # 2. Проверяем, уже ли использован
-            if not await self._process_checked_gift(gift):
-                # 3. Активируем подарок
-                await self._process_success(user_id, gift)
+            # 1. Проверяем gift по токену через backend
+            gift = await self.backend.get_gift_by_token(self._token)
+            if not gift:
+                await self.dialog_manager.start(
+                    GiftStates.error, mode=StartMode.RESET_STACK
+                )
+                return
+
+            # 2. Проверяем, не использован ли уже
+            if gift.get("redeemed_at") or gift.get("recipient_tg_id"):
+                await self.dialog_manager.start(
+                    GiftStates.already_used, mode=StartMode.RESET_STACK
+                )
+                return
+
+            # 3. Убеждаемся, что пользователь зарегистрирован
+            user = await self.backend.get_user(user_id)
+            if not user:
+                from_user = self.dialog_manager.event.from_user
+                payload = {
+                    "tg_id": user_id,
+                    "username": getattr(from_user, "username", None),
+                    "first_name": getattr(from_user, "first_name", None),
+                    "last_name": getattr(from_user, "last_name", None),
+                    "language_code": getattr(from_user, "language_code", None),
+                    "server_id": 2,
+                }
+                user = await self.backend.admin_register_user(payload)
+
+            # 4. Переходим к выбору устройства, передавая gift_token
+            await self.dialog_manager.start(
+                Instruction.choosing_device,
+                mode=StartMode.RESET_STACK,
+                data={"gift_token": self._token},
+            )
 
         except Exception as e:
             logger.error(
@@ -65,26 +86,6 @@ class GiftActivationScenario(ScenarioFactory):
                 traceback=traceback.format_exc(),
             )
             await self.dialog_manager.start(GiftStates.error)
-
-    async def _get_gift(self, token) -> Optional[GiftLink]:
-        """Получаем GiftLink по токену."""
-        if not token:
-            raise ValueError("Токен не передан")
-        return await self._gift_data.get_by(token=token)
-
-    async def _process_checked_gift(self, gift_link: Optional[GiftLink]) -> Any:
-        """Обработка уже использованного или ненайденного подарка."""
-        if not gift_link:
-            await self.dialog_manager.start(
-                GiftStates.error, mode=StartMode.RESET_STACK
-            )
-            return True
-        if not gift_link.is_redeemable():
-            await self.dialog_manager.start(
-                GiftStates.already_used, mode=StartMode.RESET_STACK
-            )
-            return True
-        return False
 
     async def get_data(self):
         """Извлекает данные из middleware_data."""
@@ -96,21 +97,3 @@ class GiftActivationScenario(ScenarioFactory):
 
         self._token = registration_result.get("token")
         self._type = registration_result.get("type")
-        self._conn = self.dialog_manager.middleware_data.get("session")
-
-    async def _process_success(self, user_id: int, gift: GiftLink):
-        """Обработка успешной активации подарка."""
-
-        user = await self.saver.register_user(self._conn, tg_id=user_id, server_id=2)
-
-        # Добавляем пользователя в кеш после создания в БД
-        await self.cache.users.set(CacheKeyManager.user(user_id), user)
-
-        data = {"gift_status": True, "gift": gift}
-
-        await self.cache.gifts.temporary_set(
-            CacheKeyManager.gift_activation(user_id), ttl=timedelta(minutes=30), **data
-        )
-        await self.dialog_manager.start(
-            Instruction.choosing_device, mode=StartMode.RESET_STACK
-        )

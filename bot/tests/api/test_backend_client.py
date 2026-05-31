@@ -34,7 +34,7 @@ def make_response(status_code: int, json_data=None):
 
 
 @pytest.mark.asyncio
-async def test_get_user_returns_user_on_200(client, mock_http):
+async def test_get_user_returns_dict_on_200(client, mock_http):
     mock_http.get = AsyncMock(return_value=make_response(200, {
         "tg_id": 123, "username": "user", "first_name": "Test",
         "balance": 0.0, "trial": 0, "server_id": 2,
@@ -42,10 +42,10 @@ async def test_get_user_returns_user_on_200(client, mock_http):
     }))
     result = await client.get_user(123)
     assert result is not None
-    assert isinstance(result, BackendUser)
-    assert result.tg_id == 123
-    assert result.username == "user"
-    mock_http.get.assert_called_once_with("/api/v1/users/123")
+    assert isinstance(result, dict)
+    assert result["tg_id"] == 123
+    assert result["username"] == "user"
+    mock_http.get.assert_called_once_with("/api/v1/admin/users/123")
 
 
 @pytest.mark.asyncio

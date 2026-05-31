@@ -5,8 +5,6 @@ from aiogram_dialog.widgets.text import Const
 from config import SUPPORT_CHAT_URL
 from dialogs.windows.base import KeyboardBuilder
 
-from models import User
-from services.core.data.service import ServiceDataModel
 from services.scenarios.create_first_key_scenario import CreateFerstKeyScenario
 from states import KeysInit, GiftStates, UsageRules, AdminManager, ReferralSistem
 from states.instruction import Instruction
@@ -16,9 +14,8 @@ from states.tariff import Tariff
 
 class UserKeyboardBuilder(KeyboardBuilder):
     def __init__(
-        self, model_service: ServiceDataModel, create_trial_key: CreateFerstKeyScenario
+        self, create_trial_key: CreateFerstKeyScenario
     ):
-        self.user_service = model_service.users
         self.create_trial_key = create_trial_key
 
     def build(self):

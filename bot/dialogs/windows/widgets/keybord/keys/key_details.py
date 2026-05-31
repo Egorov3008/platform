@@ -9,7 +9,6 @@ from api.backend_client import BackendAPIClient
 from config import SUPPORT_CHAT_URL, DOWNLOAD_IOS, DOWNLOAD_ANDROID
 from dialogs.windows.base import KeyboardBuilder
 from models import Tariff
-from services.core.data.service import ServiceDataModel
 from states.key import KeysInit
 from states.payment import PaymentState
 
@@ -17,8 +16,7 @@ from states.payment import PaymentState
 class KeyDetailsKeyboard(KeyboardBuilder):
     """Клавиатура окна детального просмотра ключа."""
 
-    def __init__(self, model_data: ServiceDataModel, backend_client: BackendAPIClient):
-        self.tariff_data = model_data.tariffs
+    def __init__(self, backend_client: BackendAPIClient):
         self._backend = backend_client
 
     async def _on_trial_renewal_click(
@@ -54,15 +52,21 @@ class KeyDetailsKeyboard(KeyboardBuilder):
             await callback.answer("❌ Ключ не найден", show_alert=True)
             return
 
-        tariff: Optional[Tariff] = await self.tariff_data.get_data(key_data.get("tariff_id"))
+        tariff_dict = await self._backend.get_tariff(key_data.get("tariff_id"))
+        if not tariff_dict:
+            await callback.answer("❌ Тариф не найден", show_alert=True)
+            return
+
+        tariff = Tariff.from_dict(tariff_dict)
 
         await dialog_manager.start(
             PaymentState.setting_pay,
             data={
                 "email": email,
                 "payment_type": f"renew_key|{email}",
-                "amount": float(tariff.amount if tariff else 0),
+                "amount": float(tariff.amount),
                 "tariff": tariff,
+                "number_of_months": 1,
             },
         )
 

@@ -4,7 +4,7 @@ Guidance for Claude Code when working with this repository.
 
 ## Project Overview
 
-Telegram bot (aiogram 3 + aiogram-dialog) for managing VPN subscriptions via the 3x-ui panel. Handles user registration, VPN key lifecycle, payments (YooKassa), gift links, referral system, tariffs, and admin functions. Written in Python 3.11, fully async.
+Telegram bot (aiogram 3 + aiogram-dialog) for managing VPN subscriptions. The bot is now a **pure UI layer** — all business logic (keys, payments, cache sync, notifications, analytics) lives in the backend API. The bot communicates with the backend exclusively via `BackendAPIClient` (`api/backend_client.py`). Handles user registration, VPN key lifecycle, gift links, referral system, tariffs, and admin functions. Written in Python 3.11, fully async.
 
 ## Commands
 
@@ -43,30 +43,35 @@ See [docs/modules.md](docs/modules.md) for detailed architecture.
 **This order is critical:**
 
 ```
-DatabaseMiddleware 
-  → CacheMiddleware 
-    → XUIMiddleware 
-      → RegistrationUsersMiddleware 
-        → LoggingMiddleware 
-          → DialogExceptionHandlerMiddleware
+DependencyInjectionMiddleware  → data["container"]
+  → CacheMiddleware            → data["cache"]
+    → RegistrationUsersMiddleware → data["registration_result"]
+      → AdminSearchMiddleware
+        → SubscriptionMiddleware
+          → LoggingMiddleware
+            → DialogExceptionHandlerMiddleware
 ```
 
-Each middleware injects services into `data` dict: `data["session"]`, `data["cache"]`, `data["xui_session"]`, `data["registration_result"]`.
+Each middleware injects services into `data` dict: `data["container"]`, `data["cache"]`, `data["registration_result"]`. `DatabaseMiddleware` and `XUIMiddleware` were removed — the bot no longer accesses the database or 3x-UI panel directly.
 
 ### Dependency Injection (punq)
 
 Container created once via `services/conteiner/app.py:get_container()`. Services registered in `services/conteiner/registrate/`:
-- `core/` — CoreService, Cache, Users, Keys, Gift, Tariff, Payment
+- `core/` — CoreService, Cache, BackendAPIClient, Gift, Tariff, Registration
 - `getters/` — Dialog data getters
 - `scenario/` — Business scenarios
 
 Pattern: `container.register(Cls, factory=build_fn, scope=punq.Scope.singleton)`
 
+**Note:** `Payment`, `Keys` (creation/renewal), and `Users` data services were removed from the bot's DI container. Use `BackendAPIClient` for all backend operations.
+
 ### Data Access
 
-Two-tier architecture: `CacheService` (in-memory with TTL) → `DataService` (asyncpg repositories) → `BaseRepository[T]` (generic CRUD).
+The bot no longer accesses the database directly. All business data is fetched from the **backend API** via `BackendAPIClient` (`api/backend_client.py`).
 
-Entry point: `ServiceDataModel` (wraps both tiers). Entities: `.users`, `.keys`, `.servers`, `.tariffs`, `.gifts`, `.inbounds`, `.payments`, `.stocks`.
+`CacheService` (in-memory with TTL) is still used locally for caching data fetched from the backend: users, keys, tariffs, servers, inbounds, stocks.
+
+Entry point for legacy getters: `ServiceDataModel` (wraps cache + backend client). Entities: `.users`, `.keys`, `.servers`, `.tariffs`, `.gifts`, `.inbounds`, `.payments`, `.stocks`.
 
 **See:** [docs/database.md](docs/database.md), [docs/MODELS_MODULE.md](docs/MODELS_MODULE.md)
 
@@ -82,29 +87,46 @@ Request routing in `handlers/` (start, admin, instructions, keys). FSM states in
 
 **See:** [docs/STATES_MODULE.md](docs/STATES_MODULE.md)
 
-### Key Business Services
+### Key Business Services (UI Layer Only)
 
-- **keys/** — CreateKey, KeyRenewal, KeyUpdater, ExpiryCalculator, FormationKey
-- **payment/** — PaymentProcessor, PaymentRouter
-- **user/** — SaturationUser, TrialService, DeleteUser, CheckedUser
+Business logic has moved to the backend. The bot retains only lightweight UI helpers:
+
+- **keys/** — Key view/formatting helpers (no direct 3x-UI access)
+- **user/** — TrialService, SaturationUser, CheckedUser (local cache helpers)
 - **gift/** — GiftLinkProvider, TokenGen, CheckerGiftLink
-- **segmentation/** — UserSegmenter, SegmentationManager
+- **segmentation/** — UserSegmenter, SegmentationManager (admin reporting)
+- **price/** — Price formatting helpers
+- **referral/** — Referral link generators
+- **stock/** — Stock/discount helpers
 
-**See:** [docs/services.md](docs/services.md), [docs/PAYMENTS_MODULE.md](docs/PAYMENTS_MODULE.md), [docs/REGISTRATION_MODULE.md](docs/REGISTRATION_MODULE.md)
+**Removed from bot** (now in backend only):
+- `services/core/payment/` — PaymentProcessor, PaymentRouter
+- `services/core/keys/utils/` — CreateKey, KeyRenewal, KeyUpdater, FormationKey
+- `services/synchron/` — Cache sync, panel sync, traffic updates
+- `services/notification/` — Notification funnels
+- `services/analytics/` — All analytics modules
+- `services/metrics/collectors/` — Metric collectors
+- `payments/` — YooKassa webhook server
+- `client.py` — 3x-UI panel client
+
+**See:** [docs/services.md](docs/services.md), [docs/REGISTRATION_MODULE.md](docs/REGISTRATION_MODULE.md)
 
 ### External Integrations
 
-- **3x-ui panel** — `client.py:XUISession` wraps `py3xui.AsyncApi`
-- **YooKassa** — Webhook server in `payments/payments_webhook.py`
-- **Database** — PostgreSQL via asyncpg pool
+- **Backend API** — `api/backend_client.py:BackendAPIClient` is the bot's sole source of truth for all business operations (keys, payments, users, tariffs).
+- **3x-ui panel** — No direct access. Backend handles all 3x-UI operations via `backend/client.py`.
+- **YooKassa** — No direct access. Backend handles payment webhooks.
+- **Database** — No direct access. Cache is populated from backend API responses.
 
 ### Background Tasks
 
-`BackgroundTaskManager` in `tasks.py`: cache sync (every 3h), notification funnels (every 1h), webhook server.
+All background tasks (cache sync, panel sync, notification funnels) have moved to `backend/background/scheduler.py`.
+
+The bot's `BackgroundTaskManager` (`tasks.py`) is now a no-op stub retained for startup/shutdown compatibility. It logs that no active background tasks are running.
 
 ### Registration Flow
 
-`RegistrationUsersMiddleware` → `RegistrationFactory` (GiftRegistration, ReferralRegistration) → result in `data["registration_result"]`.
+`RegistrationUsersMiddleware` first checks the **backend API** (`BackendAPIClient.get_user()`) to see if the user is already registered. If found, registration is skipped. Otherwise, it falls back to `RegistrationFactory` (GiftRegistration, ReferralRegistration) → result in `data["registration_result"]`.
 
 ## Configuration
 

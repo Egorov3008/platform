@@ -1,4 +1,5 @@
-import asyncpg
+from typing import Any
+
 from py3xui import AsyncApi
 
 from logger import logger
@@ -6,12 +7,12 @@ from logger import logger
 
 class DatabaseLogger:
     """Утилиты для логирования работы с базой данных"""
-    
+
     # Порог медленного запроса (мс)
     SLOW_QUERY_THRESHOLD_MS = 1000  # 1 секунда
 
     @staticmethod
-    async def log_connection(pool: asyncpg.Pool, **extra):
+    async def log_connection(pool: Any, **extra):
         """Логирование подключения к БД"""
         await logger.info(
             "Database connection established",

@@ -9,10 +9,10 @@ from aiogram_dialog import DialogManager
 from aiogram_dialog.widgets.input import TextInput
 from aiogram_dialog.widgets.kbd import Button
 
-from services.cache.service import CacheService
+from api.backend_client import BackendAPIClient
+from models.keys.key import Key
 from services.core.keys.segmentation import KeySegmentationService
 from services.core.keys.admin_report import KeyAdminReport
-from services.core.segmentation.key_model import KeySegment
 from logger import logger
 from states import AdminMassRenewal
 
@@ -23,27 +23,27 @@ class AdminKeysHandler:
     def __init__(self):
         self.report = KeyAdminReport()
 
+    async def _fetch_keys(self, dialog_manager: DialogManager) -> list[Key]:
+        """Fetch all keys from backend API and convert to Key models."""
+        container = dialog_manager.middleware_data.get("container")
+        backend = container.resolve(BackendAPIClient) if container else None
+        if not backend:
+            return []
+        raw_keys = await backend.admin_list_keys()
+        return [Key.from_backend(k) for k in raw_keys]
+
     async def on_click_24h_keys(
         self, callback: CallbackQuery, button: Button, dialog_manager: DialogManager
     ):
         """Показать ключи, истекающие в 24 часа (включая ACTIVE)."""
         try:
-            # Получаем все ключи
             all_keys = dialog_manager.dialog_data.get("all_keys")
             if not all_keys:
-                cache: Optional[CacheService] = dialog_manager.middleware_data.get("cache")
-                if not cache:
-                    await callback.answer("❌ Кеш недоступен", show_alert=True)
-                    return
-                all_keys = await cache.keys.all()
-                if not isinstance(all_keys, list):
-                    all_keys = [all_keys] if all_keys else []
+                all_keys = await self._fetch_keys(dialog_manager)
 
-            # Фильтруем ключи, истекающие в 24 часа (независимо от сегмента)
             segmentation = KeySegmentationService()
             expiring_24h = await segmentation.get_expiring_24h(all_keys)
 
-            # Сохранить в dialog_data
             dialog_manager.dialog_data["current_segment"] = "expiring_24h"
             dialog_manager.dialog_data["filtered_keys"] = expiring_24h
 
@@ -56,9 +56,7 @@ class AdminKeysHandler:
                     f"⏰ Найдено ключей: {len(expiring_24h)}. Выберите ключ из списка ниже.",
                     show_alert=True,
                 )
-                # Переходим на окно списка ключей
                 from states import AdminManager
-
                 await dialog_manager.switch_to(AdminManager.key_list)
             logger.info("Показаны ключи, истекающие в 24ч", count=len(expiring_24h))
 
@@ -73,22 +71,13 @@ class AdminKeysHandler:
     ):
         """Показать истёкшие ключи."""
         try:
-            # Получаем все ключи
             all_keys = dialog_manager.dialog_data.get("all_keys")
             if not all_keys:
-                cache: Optional[CacheService] = dialog_manager.middleware_data.get("cache")
-                if not cache:
-                    await callback.answer("❌ Кеш недоступен", show_alert=True)
-                    return
-                all_keys = await cache.keys.all()
-                if not isinstance(all_keys, list):
-                    all_keys = [all_keys] if all_keys else []
+                all_keys = await self._fetch_keys(dialog_manager)
 
-            # Фильтруем просроченные ключи (независимо от сегмента)
             segmentation = KeySegmentationService()
             expired = await segmentation.get_expired(all_keys)
 
-            # Сохранить в dialog_data
             dialog_manager.dialog_data["current_segment"] = "expired"
             dialog_manager.dialog_data["filtered_keys"] = expired
 
@@ -99,9 +88,7 @@ class AdminKeysHandler:
                     f"🔴 Найдено ключей: {len(expired)}. Выберите ключ из списка ниже.",
                     show_alert=True,
                 )
-                # Переходим на окно списка ключей
                 from states import AdminManager
-
                 await dialog_manager.switch_to(AdminManager.key_list)
             logger.info("Показаны истёкшие ключи", count=len(expired))
 
@@ -116,19 +103,10 @@ class AdminKeysHandler:
     ):
         """Показать все ключи."""
         try:
-            # Используем сохранённые ключи из AdminStatsGetter
             all_keys = dialog_manager.dialog_data.get("all_keys")
             if not all_keys:
-                # Fallback: получить из кеша
-                cache: Optional[CacheService] = dialog_manager.middleware_data.get("cache")
-                if not cache:
-                    await callback.answer("❌ Кеш недоступен", show_alert=True)
-                    return
-                all_keys = await cache.keys.all()
-                if not isinstance(all_keys, list):
-                    all_keys = [all_keys] if all_keys else []
+                all_keys = await self._fetch_keys(dialog_manager)
 
-            # Сохранить в dialog_data
             dialog_manager.dialog_data["current_segment"] = "all"
             dialog_manager.dialog_data["filtered_keys"] = all_keys
 
@@ -139,9 +117,7 @@ class AdminKeysHandler:
                     f"🔹 Найдено ключей: {len(all_keys)}. Выберите ключ из списка ниже.",
                     show_alert=True,
                 )
-                # Переходим на окно списка ключей
                 from states import AdminManager
-
                 await dialog_manager.switch_to(AdminManager.key_list)
             logger.info("Показаны все ключи", count=len(all_keys))
 
@@ -162,7 +138,6 @@ class AdminKeysHandler:
                 await callback.answer("❌ Ключи не загружены", show_alert=True)
                 return
 
-            # Найти выбранный ключ по email
             selected_key = None
             for key in filtered_keys:
                 if key.email == item_id:
@@ -173,7 +148,6 @@ class AdminKeysHandler:
                 await callback.answer("❌ Ключ не найден", show_alert=True)
                 return
 
-            # Сохранить выбранный ключ в dialog_data
             manager.dialog_data["selected_key"] = selected_key
             manager.dialog_data["selected_key_email"] = selected_key.email
 

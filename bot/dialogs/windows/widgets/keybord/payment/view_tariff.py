@@ -1,5 +1,4 @@
 from typing import Optional
-from datetime import timedelta
 from aiogram.types import CallbackQuery
 from aiogram_dialog import DialogManager, ShowMode
 from aiogram_dialog.widgets.kbd import Column, Select, Cancel
@@ -7,17 +6,11 @@ from aiogram_dialog.widgets.text import Const
 from dialogs.windows.base import GenericSelectBuilder, KeyboardBuilder
 from logger import logger
 from models import Tariff
-from services.cache.service import CacheService
-from services.core.data.service import ServiceDataModel
 from states.payment import PaymentState
 
 
 class TariffSelectBuilder(KeyboardBuilder):
     """"""
-
-    def __init__(self, model_service: ServiceDataModel, cache_service: CacheService):
-        self.tariff_data = model_service.tariffs
-        self.cache = cache_service.tariffs
 
     async def _on_tariff_selected(
         self,
@@ -31,7 +24,8 @@ class TariffSelectBuilder(KeyboardBuilder):
         data = dialog_manager.dialog_data
         start_data = dialog_manager.start_data or {}
 
-        tariff_data = await self.cache.temporary_get(f"set_tariff_{item_id}")
+        processed_tariffs = data.get("processed_tariffs", {})
+        tariff_data = processed_tariffs.get(item_id)
 
         if not tariff_data:
             await callback.answer("❌ Тарифы не найден", show_alert=True)
@@ -74,18 +68,12 @@ class TariffSelectBuilder(KeyboardBuilder):
 
         dialog_manager.dialog_data.update(update)
 
-        # Для продления ключа сохраняем выбранный tariff_id в кеш
+        # Для продления ключа сохраняем выбранный tariff_id в dialog_data
         if email:
-            renewal_cache_key = f"renewal_tariff_{email}"
-            await self.cache.temporary_set(
-                renewal_cache_key,
-                ttl=timedelta(minutes=15),
-                tariff_id=int(item_id),
-            )
+            dialog_manager.dialog_data[f"renewal_tariff_{email}"] = int(item_id)
             logger.info(
-                "[Цена:TariffSelect] Выбранный тариф сохранён в кеш для продления",
+                "[Цена:TariffSelect] Выбранный тариф сохранён в dialog_data для продления",
                 email=email,
-                renewal_cache_key=renewal_cache_key,
                 tariff_id=item_id,
             )
 

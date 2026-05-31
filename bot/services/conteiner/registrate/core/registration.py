@@ -1,10 +1,10 @@
 import punq
 from punq import Container
 
+from api.backend_client import BackendAPIClient
 from registration.registration_factory import RegistrationFactory
 from registration.gift_registration import GiftRegistration
 from registration.referral_registration import ReferralRegistration
-from services.core.data.service import ServiceDataModel
 from services.conteiner.protocol import ContainerProtocol
 
 
@@ -13,10 +13,10 @@ class RegistrationRegistrar(ContainerProtocol):
 
     def register_dependencies(self, container: Container) -> None:
         def build_gift_registration():
-            return GiftRegistration(service=container.resolve(ServiceDataModel))
+            return GiftRegistration(backend=container.resolve(BackendAPIClient))
 
         def build_referral_registration():
-            return ReferralRegistration(service=container.resolve(ServiceDataModel))
+            return ReferralRegistration(backend=container.resolve(BackendAPIClient))
 
         def build_registration_factory():
             return RegistrationFactory()

@@ -1,11 +1,9 @@
 """Клавиатура для изменения даты истечения ключа."""
 
-import asyncio
 import calendar
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
-import asyncpg
 from aiogram.types import CallbackQuery
 from aiogram_dialog import DialogManager, StartMode
 from aiogram_dialog.widgets.kbd import (
@@ -18,14 +16,9 @@ from aiogram_dialog.widgets.kbd import (
 )
 from aiogram_dialog.widgets.text import Const
 
+from api.backend_client import BackendAPIClient
 from dialogs.windows.base import KeyboardBuilder
 from logger import logger
-from services.cache.key_manager import CacheKeyManager
-from services.core.data.service import ServiceDataModel
-from services.conteiner.app import get_container
-from services.core.keys.utils.reset import KeyResetter
-from client import XUISession
-from models import Key
 from states import AdminKeyChangeDateSG, AdminManager
 
 
@@ -48,9 +41,7 @@ class AdminKeyChangeDateKeyboard(KeyboardBuilder):
     ):
         """Обработчик выбора даты в календаре."""
         try:
-            # Сохранить выбранную дату в dialog_data
             manager.dialog_data["selected_date"] = selected_date
-            # Перейти на окно подтверждения
             await manager.switch_to(AdminKeyChangeDateSG.confirm)
         except Exception as e:
             logger.error("Ошибка при выборе даты", error=str(e), exc_info=True)
@@ -83,7 +74,7 @@ class AdminKeyChangeDateConfirmKeyboard(KeyboardBuilder):
         manager: DialogManager,
         **kwargs,
     ):
-        """Подтвердить изменение даты истечения."""
+        """Подтвердить изменение даты истечения через backend API."""
         email = manager.start_data.get("email")
         selected_date = manager.dialog_data.get("selected_date")
 
@@ -92,77 +83,36 @@ class AdminKeyChangeDateConfirmKeyboard(KeyboardBuilder):
             return
 
         try:
-            # Получить зависимости
-            cache = manager.middleware_data.get("cache")
-            xui_session: XUISession = manager.middleware_data.get("xui_session")
-
-            if not cache or not xui_session:
+            container = manager.middleware_data.get("container")
+            if not container:
                 await callback.answer("❌ Сервис недоступен", show_alert=True)
                 return
 
-            # Получить ключ из кеша
-            key: Optional[Key] = await cache.keys.get(CacheKeyManager.key(email))
+            backend = container.resolve(BackendAPIClient)
 
-            if not key:
-                await callback.answer("❌ Ключ не найден", show_alert=True)
-                return
-
-            # Получить контейнер и сервис данных
-            container = manager.middleware_data.get("container")
-            if not container:
-                logger.error(
-                    "Экземпляр контейнера отсутсвует в мидлвари",
-                    user_id=callback.from_user.id if hasattr(callback, "from_user") else None,
-                    handler="key_change_date"
-                )
-                await callback.answer("❌ Контейнер не инициализирован", show_alert=True)
-                return
-
-            model_data: ServiceDataModel = container.resolve(ServiceDataModel)
-            pool: asyncpg.Pool = container.resolve(asyncpg.Pool)
-
-            # Конвертировать date в datetime с UTC и обновить дату истечения (миллисекунды)
             if not isinstance(selected_date, datetime):
-                # Если это date, а не datetime, то конвертировать в datetime
                 selected_date = datetime.combine(selected_date, datetime.min.time())
             if selected_date.tzinfo is None:
                 selected_date = selected_date.replace(tzinfo=timezone.utc)
             expiry_ms = int(selected_date.timestamp() * 1000)
-            key.expiry_time = expiry_ms
 
-            # Обновить в XUI, DB и кеше параллельно
-            logger.debug("Обновление даты истечения ключа", email=email, new_date=selected_date)
-            results = await asyncio.gather(
-                xui_session.extend_client_key(key),
-                model_data.keys.update(pool, key, {"email": key.email}),
-                cache.keys.set(CacheKeyManager.key(email), key),
-                return_exceptions=True,
-            )
-
-            errors = [r for r in results if isinstance(r, Exception)]
-            if errors:
-                logger.error("Ошибки при обновлении даты ключа", email=email, errors=errors)
-
-            # Сбросить флаги уведомлений и трафик через KeyResetter
-            resetter: KeyResetter = container.resolve(KeyResetter)
-            await resetter.reset_key_after_renewal(pool, key)
+            success = await backend.admin_change_key_date(email, expiry_ms)
+            if not success:
+                await callback.answer("❌ Не удалось обновить дату", show_alert=True)
+                return
 
             logger.info(
-                "Дата истечения ключа обновлена",
+                "Дата истечения ключа обновлена через backend",
                 email=email,
-                new_date=selected_date.strftime("%d.%m.%Y")
+                new_date=selected_date.strftime("%d.%m.%Y"),
             )
             await callback.answer(
                 f"✅ Дата истечения обновлена на {selected_date.strftime('%d.%m.%Y')}",
                 show_alert=True,
             )
 
-            # Вернуться к деталям ключа с обновлёнными данными
-            await manager.start(
-                AdminManager.key_details,
-                data={"selected_key": key},
-                mode=StartMode.RESET_STACK,
-            )
+            # Вернуться в список ключей
+            await manager.start(AdminManager.key_list, mode=StartMode.RESET_STACK)
 
         except Exception as e:
             logger.error(

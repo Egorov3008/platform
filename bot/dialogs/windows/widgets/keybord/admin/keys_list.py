@@ -1,7 +1,5 @@
 """Клавиатуры для окон списка и деталей ключей админ-панели."""
 
-from typing import Optional
-
 from aiogram.types import CallbackQuery
 from aiogram_dialog import DialogManager
 from aiogram_dialog.widgets.kbd import (
@@ -16,14 +14,9 @@ from aiogram_dialog.widgets.kbd import (
 )
 from aiogram_dialog.widgets.text import Const
 
-from client import XUISession
+from api.backend_client import BackendAPIClient
 from dialogs.windows.base import KeyboardBuilder
 from states import AdminManager, AdminKeyDeleteSG, AdminKeyChangeDateSG, AdminKeyChangeTariffSG
-from services.cache.service import CacheService
-from services.cache.key_manager import CacheKeyManager
-from services.core.data.service import ServiceDataModel
-from services.core.keys.utils.reset import KeyResetter
-from services.core.keys.utils.calculator import ExpiryCalculator
 from logger import logger
 
 from widgets.keybord import key_selector
@@ -114,7 +107,7 @@ class AdminKeyDetailsKeyboard(KeyboardBuilder):
 
     @staticmethod
     async def _on_renew_key(callback: CallbackQuery, button, manager: DialogManager):
-        """Продлить ключ на 30 дней."""
+        """Продлить ключ на 30 дней через backend API."""
         selected_key = manager.dialog_data.get("selected_key")
 
         if not selected_key:
@@ -122,73 +115,31 @@ class AdminKeyDetailsKeyboard(KeyboardBuilder):
             return
 
         try:
-            cache: Optional[CacheService] = manager.middleware_data.get("cache")
-            xui_session: Optional[XUISession] = manager.middleware_data.get("xui_session")
             container = manager.middleware_data.get("container")
-
-            if not cache:
-                await callback.answer("❌ Кеш недоступен", show_alert=True)
+            if not container:
+                await callback.answer("❌ Сервис недоступен", show_alert=True)
                 return
 
+            backend = container.resolve(BackendAPIClient)
             days_to_add = 30
 
-            # Вычислить новую дату истечения с учётом текущего состояния ключа
-            if container:
-                expiry_calculator: ExpiryCalculator = container.resolve(ExpiryCalculator)
-                new_expiry_ms = expiry_calculator.key_duration(selected_key, days_to_add)
-            else:
-                # Fallback при недоступности контейнера
-                new_expiry_ms = selected_key.expiry_time + (days_to_add * 24 * 3600 * 1000)
+            # Вычислить новую дату истечения
+            from datetime import datetime, timezone
+            now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+            old_expiry = selected_key.expiry_time
+            base_expiry = max(old_expiry, now_ms)
+            new_expiry_ms = base_expiry + (days_to_add * 24 * 3600 * 1000)
 
-            # Обновить объект ключа с новой датой истечения
-            selected_key.expiry_time = new_expiry_ms
-
-            # Обновить ключ в XUI-панели
-            if xui_session:
-                try:
-                    await xui_session.extend_client_key(selected_key)
-                except Exception as xui_error:
-                    logger.warning(
-                        "Не удалось обновить ключ в XUI-панели при продлении",
-                        email=selected_key.email,
-                        error=str(xui_error),
-                    )
-            else:
-                logger.warning("XUI-сессия недоступна при продлении ключа", email=selected_key.email)
-
-            # Сохранить обновлённый ключ в кеш
-            keys_manager = CacheKeyManager()
-            await cache.keys.set(keys_manager.key(selected_key.email), selected_key)
-
-            # Обновить данные в БД через сервисный слой и сбросить флаги
-            if container:
-                try:
-                    pool = container.resolve("asyncpg.Pool")
-                    model_data = container.resolve("ServiceDataModel")
-
-                    # Обновляем ключ в БД
-                    await model_data.keys.update(pool, selected_key, {"email": selected_key.email})
-
-                    # Сбросить флаги уведомлений и трафик через KeyResetter
-                    resetter: KeyResetter = container.resolve(KeyResetter)
-                    await resetter.reset_key_after_renewal(pool, selected_key)
-
-                    logger.info(
-                        "БД обновлена: expiry_time и флаги сброшены",
-                        email=selected_key.email,
-                        new_expiry_ms=new_expiry_ms,
-                    )
-                except Exception as db_error:
-                    logger.warning(
-                        "Не удалось обновить БД при продлении",
-                        email=selected_key.email,
-                        error=str(db_error),
-                    )
+            success = await backend.admin_change_key_date(selected_key.email, new_expiry_ms)
+            if not success:
+                await callback.answer("❌ Не удалось продлить ключ", show_alert=True)
+                return
 
             logger.info(
-                f"Ключ {selected_key.email} продлён на {days_to_add} дней администратором"
+                "Ключ продлён администратором через backend",
+                email=selected_key.email,
+                days=days_to_add,
             )
-
             await callback.answer(
                 f"✅ Ключ {selected_key.email} продлён на {days_to_add} дней",
                 show_alert=True,

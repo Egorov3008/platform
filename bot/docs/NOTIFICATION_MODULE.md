@@ -1,4 +1,8 @@
-# Notification Module (`services/notification/`)
+# Notification Module (`services/notification/`) ❌ Переехал в backend
+
+> ⚠️ **ВАЖНО:** Весь модуль `services/notification/` (воронки, менеджер, message_builder, keyboard_builder, rate_limiter, routing)
+> **удалён из бота** и переехал в `backend/`. Воронки запускаются через `backend/background/scheduler.py` (APScheduler, каждый час).
+> Бот по-прежнему получает уведомления через `backend/bot_project.py` (httpx → Bot API).
 
 ## 📖 Оглавление
 

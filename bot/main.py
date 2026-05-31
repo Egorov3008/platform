@@ -2,7 +2,6 @@ import asyncio
 import signal
 import sys
 
-import asyncpg
 from aiogram import Bot
 from aiogram.exceptions import TelegramNetworkError, TelegramRetryAfter, TelegramAPIError
 from aiogram_dialog import setup_dialogs
@@ -15,16 +14,11 @@ from bot_project import bot, dp, set_bot_commands
 from handlers import router
 from dialogs import setup_dialog_router
 from logger import logger, setup_logging
-from middlewares.xui_middleware import XUIMiddleware
-from middlewares.database_mw import DatabaseMiddleware
 from middlewares.dependency_injection import DependencyInjectionMiddleware
 from middlewares.logging_middleware import LoggingMiddleware
 from middlewares.registration_users import RegistrationUsersMiddleware
 from services.cache.service import CacheService
-from services.cache.loader import LoadingService
-from config import METRICS_PORT
 from middlewares.cache_middleware import CacheMiddleware
-from services.metrics.setup import init_metrics
 
 
 class WatchdogService:
@@ -81,19 +75,6 @@ async def on_startup():
     cache_service = container.resolve(CacheService)
     await cache_service.start()
     logger.info("CacheService запущен")
-
-    # Загружаем данные в кеш
-    loader = container.resolve(LoadingService)
-    await loader.loading()
-    logger.info("Кэш успешно загружен из БД")
-
-    # # Инициализируем Prometheus метрики
-    # pool = container.resolve(asyncpg.Pool)
-    # await init_metrics(
-    #     pool=pool,
-    #     cache_storage=cache_service.storage,
-    #     metrics_port=METRICS_PORT,
-    # )
 
     # Запускаем фоновые задачи
     asyncio.create_task(task_manager.start_all_tasks(container, bot))
@@ -174,17 +155,9 @@ async def setup_middlewares():
     dp.message.middleware(di_middleware)
     dp.callback_query.middleware(di_middleware)
 
-    # Регистрируем мидлвари
-    database_middleware = DatabaseMiddleware()
-    dp.update.middleware(database_middleware)
-    dp.message.middleware(database_middleware)
-    dp.callback_query.middleware(database_middleware)
-
     # CacheMiddleware
     cache_middleware = container.resolve(CacheMiddleware)
     dp.update.middleware(cache_middleware)
-
-    dp.update.middleware(XUIMiddleware())
 
     registration_middleware = RegistrationUsersMiddleware()
     dp.update.middleware(registration_middleware)
@@ -223,10 +196,6 @@ async def on_shutdown():
     cache_service: CacheService = container.resolve(CacheService)
     await cache_service.stop()
     logger.info("CacheService остановлен")
-
-    pool: asyncpg.Pool = container.resolve(asyncpg.Pool)
-    await pool.close()
-    logger.info("Пул БД закрыт")
 
     # Сбрасываем контейнер для создания нового при следующем запуске
     from services.conteiner.app import _container

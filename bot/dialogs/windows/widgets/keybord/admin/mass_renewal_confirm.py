@@ -1,22 +1,15 @@
 """Клавиатура подтверждения массового продления."""
 
-import asyncio
 from typing import Any
 
-import asyncpg
 from aiogram.types import CallbackQuery
 from aiogram_dialog import DialogManager, StartMode
 from aiogram_dialog.widgets.kbd import Button, SwitchTo, Cancel, Column
 from aiogram_dialog.widgets.text import Const
 
-from client import XUISession
+from api.backend_client import BackendAPIClient
 from dialogs.windows.base import KeyboardBuilder
 from logger import logger
-from services.cache.service import CacheService
-from services.conteiner.app import get_container
-from services.core.data.service import ServiceDataModel
-from services.core.keys.mass_renewal import MassKeyRenewal
-from services.core.keys.utils.reset import KeyResetter
 from states import AdminManager, AdminMassRenewal
 
 
@@ -45,7 +38,7 @@ class AdminMassRenewalConfirmKeyboard(KeyboardBuilder):
         manager: DialogManager,
         **kwargs,
     ):
-        """Подтвердить массовое продление."""
+        """Подтвердить массовое продление через backend API."""
         try:
             keys_to_renew = manager.dialog_data.get("keys_to_renew", [])
             days = manager.dialog_data.get("renewal_days", 0)
@@ -57,48 +50,32 @@ class AdminMassRenewalConfirmKeyboard(KeyboardBuilder):
                 )
                 return
 
-            cache: CacheService = manager.middleware_data.get("cache")
-            xui_session: XUISession = manager.middleware_data.get("xui_session")
             container = manager.middleware_data.get("container")
-
-            if not cache or not xui_session or not container:
-                await callback.answer(
-                    "❌ Сервисы недоступны",
-                    show_alert=True,
-                )
+            if not container:
+                await callback.answer("❌ Сервисы недоступны", show_alert=True)
                 return
 
-            pool: asyncpg.Pool = container.resolve(asyncpg.Pool)
-            resetter: KeyResetter = container.resolve(KeyResetter)
+            backend = container.resolve(BackendAPIClient)
 
-            # Создаём сервис массового продления
-            renewal_service = MassKeyRenewal(
-                xui_session=xui_session,
-                cache=cache,
-                resetter=resetter,
-            )
-
-            # Отправляем сообщение о начале процесса
             await callback.message.answer(
                 f"⏳ Начинаю массовое продление {len(keys_to_renew)} ключей на {days} дней..."
             )
 
-            # Выполняем продление
-            report = await renewal_service.renew_keys(
-                pool=pool,
-                keys=keys_to_renew,
-                days=days,
-            )
+            emails = [k.email for k in keys_to_renew]
+            result = await backend.admin_mass_renew(emails=emails, days=days)
 
-            # Отправляем отчёт
-            await callback.message.answer(
-                report.format_details(),
-                parse_mode="HTML",
-            )
+            success = result.get("success", 0)
+            failed = result.get("failed", 0)
+            report_text = f"<b>Массовое продление завершено</b>\n\n✅ Успешно: {success}\n❌ Ошибки: {failed}"
+            if failed > 0:
+                details = result.get("results", [])
+                errs = [f"• {r['email']}: {r.get('error', 'unknown')}" for r in details if not r.get("success")]
+                if errs:
+                    report_text += "\n\nОшибки:\n" + "\n".join(errs[:10])
 
+            await callback.message.answer(report_text, parse_mode="HTML")
             await callback.answer("✅ Массовое продление завершено", show_alert=True)
 
-            # Возвращаемся в админ-панель
             await manager.start(
                 AdminManager.main,
                 mode=StartMode.RESET_STACK,

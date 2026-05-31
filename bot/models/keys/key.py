@@ -1,6 +1,7 @@
+import dataclasses
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union
 
 
 def default_created_at():
@@ -57,6 +58,30 @@ class Key:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Key":
         return cls(**data)
+
+    @classmethod
+    def from_backend(cls, data: Union[Dict[str, Any], Any]) -> "Key":
+        """Build a Key model from backend API response dict or BackendKey."""
+        if isinstance(data, dict):
+            d = data
+        else:
+            d = dataclasses.asdict(data) if dataclasses.is_dataclass(data) else data.__dict__
+        return cls(
+            tg_id=d["tg_id"],
+            client_id=d.get("client_id", ""),
+            email=d["email"],
+            expiry_time=d["expiry_time"],
+            key=d["key"],
+            inbound_id=d["inbound_id"],
+            tariff_id=d.get("tariff_id"),
+            total_gb=d.get("total_gb", 10),
+            name_tariff=d.get("name_tariff"),
+            used_traffic=d.get("used_traffic", 0.0),
+            limit_ip=d.get("limit_ip"),
+            period=d.get("period"),
+            notified_10h=d.get("notified_10h", False),
+            notified_24h=d.get("notified_24h", False),
+        )
 
     @property
     def name(self) -> str:

@@ -13,7 +13,6 @@ from aiogram.types import TelegramObject, Update
 
 from logger import logger
 from config import CHANNEL_URL
-from services.cache.key_manager import CacheKeyManager
 from utils_bot.subscription_checker import check_user_subscription
 from utils_bot.subscription_keyboard import create_subscription_keyboard
 
@@ -125,31 +124,20 @@ class SubscriptionMiddleware(BaseMiddleware):
         self, user_id: int, cache: Any, data: Dict[str, Any]
     ) -> bool:
         """
-        Проверяет, зарегистрирован ли пользователь.
-
-        Сначала проверяет кеш, затем БД (если кеш пуст).
+        Проверяет, зарегистрирован ли пользователь через backend API.
         """
-        if not cache:
-            return False
-
-        # Проверяем кеш
-        cached_user = await cache.users.get(CacheKeyManager.user(user_id))
-        if cached_user:
-            return True
-
-        # Fallback: проверяем БД
         try:
-            from services.core.data.service import ServiceDataModel
+            from api.backend_client import BackendAPIClient
 
             container = data.get("container")
             if container:
-                service_model = container.resolve(ServiceDataModel)
-                db_user = await service_model.users.get_data(user_id)
-                if db_user:
+                backend = container.resolve(BackendAPIClient)
+                user = await backend.get_user(user_id)
+                if user:
                     return True
         except Exception as e:
             logger.debug(
-                "Ошибка при проверке пользователя в БД",
+                "Ошибка при проверке пользователя в backend",
                 user_id=user_id,
                 error=str(e),
             )

@@ -2,23 +2,20 @@ from typing import Dict, Any, Optional
 
 from aiogram_dialog import DialogManager
 
+from api.backend_client import BackendAPIClient
 from dialogs.windows.base import DataGetter
 from logger import logger
-from models import User
-from services.core.data.service import ServiceDataModel
 
 
 class AdminUserProfileGetter(DataGetter):
-    """Получает информацию профиля пользователя для админ-панели."""
+    """Получает информацию профиля пользователя для админ-панели через Backend API."""
 
-    def __init__(self, model_data: ServiceDataModel):
-        self.users = model_data.users
-        self.keys = model_data.keys
+    def __init__(self, backend: BackendAPIClient):
+        self.backend = backend
 
     async def get_data(self, dialog_manager: DialogManager, **kwargs) -> Dict[str, Any]:
         """Собирает информацию профиля пользователя."""
         try:
-            # Получаем tg_id из данных диалога или начальных данных
             tg_id = None
             if dialog_manager.dialog_data:
                 tg_id = dialog_manager.dialog_data.get("tg_id")
@@ -35,27 +32,15 @@ class AdminUserProfileGetter(DataGetter):
 
             logger.debug("Получаю информацию о пользователе", tg_id=tg_id)
 
-            # Получаем пользователя из кеша
-            user: Optional[User] = await self.users.get_data(tg_id)
-
+            user = await self.backend.get_user(tg_id)
             if not user:
                 logger.warning("Пользователь не найден", tg_id=tg_id)
                 return {"msg": f"❌ Пользователь с ID {tg_id} не найден", "keys": []}
 
-            # Получаем имя/username пользователя
-            username = user.username if user.username else user.first_name
+            username = user.get("username") or user.get("first_name") or ""
+            user_keys = await self.backend.get_user_keys(tg_id)
 
-            # Получаем все ключи этого пользователя
-            all_keys = await self.keys.get_all()
-            if not isinstance(all_keys, list):
-                all_keys = [all_keys] if all_keys else []
-
-            user_keys = [
-                key for key in all_keys if hasattr(key, "tg_id") and key.tg_id == tg_id
-            ]
-
-            # Проверяем статус пробного периода
-            trial_msg = "🔴 Использован" if user.trial == 0 else "🟢 Доступен"
+            trial_msg = "🔴 Использован" if user.get("trial", 0) == 0 else "🟢 Доступен"
 
             msg = (
                 f"📊 <b>Информация о пользователе</b>\n\n"
@@ -73,8 +58,8 @@ class AdminUserProfileGetter(DataGetter):
                 "msg": msg,
                 "keys": user_keys,
                 "user_id": tg_id,
-                "username": user.username or "",
-                "has_username": bool(user.username),
+                "username": user.get("username") or "",
+                "has_username": bool(user.get("username")),
             }
 
         except Exception as e:

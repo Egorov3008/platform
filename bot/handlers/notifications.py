@@ -7,14 +7,13 @@ Handlers для обработки callbacks из уведомлений.
 - connect_vpn — подключение к VPN
 - profile — открыть профиль
 """
-import punq
 from aiogram import F, Router, types
 from aiogram_dialog import DialogManager, StartMode
 
+from api.backend_client import BackendAPIClient
 from config import DEFAULT_PRICING_PLAN
 from logger import logger
-from services.cache.key_manager import CacheKeyManager
-from services.cache.service import CacheService
+from models import Tariff
 from services.scenarios.create_first_key_scenario import CreateFerstKeyScenario
 from states.key import KeysInit
 from states.main import MainMenu
@@ -28,7 +27,6 @@ router = Router()
 async def handle_renew_key(query: types.CallbackQuery, dialog_manager: DialogManager):
     """Обработить кнопку 'Продлить ключ' из уведомления"""
     try:
-        # Извлечь email из callback_data: "renew_key|user@example.com"
         if not query.data:
             await query.answer("❌ Ошибка при открытии формы", show_alert=True)
             return
@@ -42,26 +40,25 @@ async def handle_renew_key(query: types.CallbackQuery, dialog_manager: DialogMan
             email=email,
         )
 
-        # Получить CacheService из middleware данных
-        cache = dialog_manager.middleware_data.get("cache")
-        if not cache:
+        container = dialog_manager.middleware_data.get("container")
+        if not container:
             logger.error(
-                "CacheService not found in middleware_data",
+                "Container not found in middleware_data",
                 user_id=query.from_user.id if hasattr(query, "from_user") else None,
                 email=email
             )
             await query.answer("❌ Ошибка при открытии формы", show_alert=True)
             return
 
-        key = await cache.keys.get(CacheKeyManager.key(email))
+        backend: BackendAPIClient = container.resolve(BackendAPIClient)
+        key = await backend.get_key(email)
         if not key:
-            logger.warning("Key not found in cache", email=email)
+            logger.warning("Key not found in backend", email=email)
             await query.answer("❌ Ключ не найден. Откройте профиль для продления.", show_alert=True)
             return
 
         default_plan = int(DEFAULT_PRICING_PLAN) if DEFAULT_PRICING_PLAN else 10
         if key.tariff_id == default_plan:
-            # Пробный ключ — выбор тарифа
             logger.info(
                 "Trial key renewal - navigating to view_tariff",
                 tg_id=query.from_user.id,
@@ -73,9 +70,13 @@ async def handle_renew_key(query: types.CallbackQuery, dialog_manager: DialogMan
                 data={"email": email, "payment_type": "renew_key"},
             )
         else:
-            # Платный ключ — сразу к настройке оплаты (выбор месяцев)
-            tariff = await cache.tariffs.get(CacheKeyManager.tariff(key.tariff_id))
-            amount = float(key.amount or (tariff.amount if tariff else 0))
+            tariff_dict = await backend.get_tariff(key.tariff_id)
+            if not tariff_dict:
+                await query.answer("❌ Тариф не найден", show_alert=True)
+                return
+
+            tariff = Tariff.from_dict(tariff_dict)
+            amount = float(key.amount or tariff.amount)
 
             logger.info(
                 "Paid key renewal - navigating to setting_pay",
@@ -93,6 +94,7 @@ async def handle_renew_key(query: types.CallbackQuery, dialog_manager: DialogMan
                     "payment_type": f"renew_key|{email}",
                     "amount": amount,
                     "tariff": tariff,
+                    "number_of_months": 1,
                 },
             )
 
@@ -117,11 +119,8 @@ async def handle_activate_stock(
         tg_id = query.from_user.id
         logger.info("User activated trial from notification", tg_id=tg_id)
 
-
-        conteiner: punq.Container | None = dialog_manager.middleware_data.get("container")  # type: ignore[assignment]
-        cache: CacheService | None = dialog_manager.middleware_data.get("cache")  # type: ignore[assignment]
-
-        if not conteiner:
+        container = dialog_manager.middleware_data.get("container")
+        if not container:
             logger.error(
                 "Container not found in middleware_data",
                 user_id=tg_id,
@@ -130,26 +129,16 @@ async def handle_activate_stock(
             await query.answer("❌ Ошибка при активации", show_alert=True)
             return
 
-        if not cache:
-            logger.error(
-                "CacheService not found in middleware_data",
-                user_id=tg_id,
-                handler="activate_stock"
-            )
-            await query.answer("❌ Ошибка при активации", show_alert=True)
-            return
-
-        create_trial_key = conteiner.resolve(CreateFerstKeyScenario)
-
-        user = await cache.users.get(CacheKeyManager.user(tg_id))  # type: ignore[arg-type]
+        backend: BackendAPIClient = container.resolve(BackendAPIClient)
+        user = await backend.get_user(tg_id)
         if not user:
-            logger.error("User not found in cache", tg_id=tg_id)
+            logger.error("User not found in backend", tg_id=tg_id)
             await query.answer("❌ Пользователь не найден", show_alert=True)
             return
 
+        create_trial_key = container.resolve(CreateFerstKeyScenario)
         create_trial_key.dialog_manager = dialog_manager
-        await create_trial_key.start(tg_id, user.server_id)
-        
+        await create_trial_key.start(tg_id, user.get("server_id", 2))
 
     except Exception as e:
         logger.error(

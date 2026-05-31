@@ -1,20 +1,14 @@
-import random
 from typing import Any
 
-import asyncpg
 from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
 from aiogram_dialog import DialogManager, StartMode
 
-from config import LIST_AVAILABLE_CONNECTIONS, ADMIN_ID
+from api.backend_client import BackendAPIClient
+from config import ADMIN_ID
 from aiogram.exceptions import TelegramAPIError
 from logger import logger
-from models.referrals.referral_redemption import ReferralRedemption
-from services.cache.key_manager import CacheKeyManager
-from services.cache.service import CacheService
-from services.core.data.service import ServiceDataModel
-from services.core.user.utils.saver import SeverUser
 from services.core.user.utils.auto_register import auto_register_user
 from services.scenarios.gift_scenario import GiftActivationScenario
 from states.admin import AdminSearchManagementSG
@@ -33,17 +27,18 @@ async def send_massage_user_start(
         return
 
     tg_id = message.from_user.id
-    cache = dialog_manager.middleware_data.get("cache")
-    if not isinstance(cache, CacheService):
+    container = dialog_manager.middleware_data.get("container")
+    if not container:
         return
-    user_info = await cache.users.get(CacheKeyManager.user(tg_id))
+    backend: BackendAPIClient = container.resolve(BackendAPIClient)
+    user_info = await backend.get_user(tg_id)
 
     if not user_info:
         # Незарегистрированный пользователь — авторегистрация
         await auto_register_user(message, dialog_manager)
         return
 
-    if user_info.trial == 0:
+    if user_info.get("trial", 0) == 0:
         await dialog_manager.start(MainMenu.welcome, mode=StartMode.RESET_STACK)
     else:
         await dialog_manager.start(MainMenu.main, mode=StartMode.RESET_STACK)
@@ -82,24 +77,18 @@ async def send_massage_registration(
         await auto_register_user(message, dialog_manager)
     elif result_registration.get("type") == "gift":
         container = dialog_manager.middleware_data.get("container")
-        cache = dialog_manager.middleware_data.get("cache")
-
-        if not container or not cache:
+        if not container:
             await auto_register_user(message, dialog_manager)
             return
 
-        service_model: ServiceDataModel = container.resolve(ServiceDataModel)
-        saver: SeverUser = container.resolve(SeverUser)
-
+        backend: BackendAPIClient = container.resolve(BackendAPIClient)
         gift_scenario = GiftActivationScenario(
             dialog_manager=dialog_manager,
-            service_model=service_model,
-            saver=saver,
-            cache=cache,
+            backend_client=backend,
         )
         await gift_scenario.start()
     elif type_registration == "referral":
-        # Реферальная регистрация: авто-создаём пользователя и перенаправляем в главное меню
+        # Реферальная регистрация через backend API
         if not message.from_user:
             return
 
@@ -108,63 +97,49 @@ async def send_massage_registration(
         referral_link_id = result_registration.get("referral_link_id")
         try:
             container = dialog_manager.middleware_data.get("container")
-            cache = dialog_manager.middleware_data.get("cache")
-
-            if not container or not isinstance(cache, CacheService):
+            if not container:
                 await auto_register_user(message, dialog_manager)
                 return
 
-            pool: asyncpg.Pool = container.resolve(asyncpg.Pool)
-            referral_saver: SeverUser = container.resolve(SeverUser)
-            referral_service_model: ServiceDataModel = container.resolve(ServiceDataModel)
+            backend: BackendAPIClient = container.resolve(BackendAPIClient)
 
-            # Выбираем случайный inbound из доступных подключений
-            inbound_id = random.choice(LIST_AVAILABLE_CONNECTIONS)
+            from_user = message.from_user
+            payload = {
+                "tg_id": tg_id,
+                "username": from_user.username if from_user else None,
+                "first_name": from_user.first_name if from_user else None,
+                "last_name": from_user.last_name if from_user else None,
+                "language_code": from_user.language_code if from_user else None,
+                "server_id": 2,
+                "referral_id": referrer_tg_id,
+                "referral_link_id": referral_link_id,
+            }
 
-            # Создаём пользователя в БД (server_id всегда 2)
-            new_user = await referral_saver.register_user(
-                pool, tg_id=tg_id, server_id=2, referral_id=referrer_tg_id
+            new_user = await backend.admin_register_user(payload)
+            if not new_user or not new_user.get("tg_id"):
+                raise RuntimeError("Backend referral registration failed")
+
+            logger.info(
+                "Пользователь зарегистрирован по реферальной ссылке через backend",
+                tg_id=tg_id,
+                referrer_tg_id=referrer_tg_id,
             )
-
-            # Кешируем нового пользователя
-            await cache.users.set(CacheKeyManager.user(tg_id), new_user)
-
-            # Сохраняем выбранный inbound_id во временный кеш для CreateFirstKeyScenario
-            await cache.users.set(
-                CacheKeyManager.temporary_inbound(tg_id), str(inbound_id)
-            )
-
-            # Записываем реферальную привязку в БД
-            if referral_link_id:
-                redemption = ReferralRedemption(
-                    referral_link_id=referral_link_id,
-                    referred_tg_id=tg_id,
-                )
-                await referral_service_model.data_service.referral_redemptions.create(
-                    pool, **redemption.to_dict()
-                )
-                logger.info(
-                    "Реферальная привязка создана",
-                    referrer_tg_id=referrer_tg_id,
-                    referred_tg_id=tg_id,
-                )
 
             # Уведомляем админов о реферальной регистрации
-            from_user = message.from_user
             new_name = from_user.full_name if from_user and from_user.full_name else ""
             new_username = f"@{from_user.username}" if from_user and from_user.username else "нет"
 
             ref_username = "нет"
             if referrer_tg_id and isinstance(referrer_tg_id, int):
-                referrer = await cache.users.get(CacheKeyManager.user(referrer_tg_id))
+                referrer = await backend.get_user(referrer_tg_id)
                 if referrer:
-                    ref_username = f"@{referrer.username}" if referrer.username else "нет"
+                    ref_username = f"@{referrer.get('username')}" if referrer.get("username") else "нет"
 
             # Подсчёт рефералов у пригласившего
-            all_users = await cache.users.all()
+            all_users = await backend.admin_list_users()
             referral_count = sum(
                 1 for u in all_users
-                if getattr(u, "referral_id", None) == referrer_tg_id
+                if u.get("referral_id") == referrer_tg_id
             )
 
             admin_text = (
@@ -201,7 +176,10 @@ async def send_massage_registration(
             # Fallback: авторегистрация при ошибке
             await auto_register_user(message, dialog_manager)
     elif type_registration == "registered_user":
-        await dialog_manager.start(MainMenu.main, mode=StartMode.RESET_STACK)
+        if result_registration.get("trial", 0) == 0:
+            await dialog_manager.start(MainMenu.welcome, mode=StartMode.RESET_STACK)
+        else:
+            await dialog_manager.start(MainMenu.main, mode=StartMode.RESET_STACK)
     else:
         raise AttributeError("Неизвестный тип регистрации")
 

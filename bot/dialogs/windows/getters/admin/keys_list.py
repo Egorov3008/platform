@@ -2,44 +2,31 @@
 Геттер для отображения списка ключей с сегментацией и пагинацией.
 """
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List, Optional
 
 from aiogram_dialog import DialogManager
 
+from api.backend_client import BackendAPIClient
 from dialogs.windows.base import DataGetter
 from models import Key
-from services.cache.key_manager import CacheKeyManager
-from services.cache.service import CacheService
-from services.core.data.service import ServiceDataModel
 from services.core.keys.segmentation import KeySegmentationService
 from services.core.keys.models.key_model import KeyModel
 from logger import logger
 
 
 class AdminKeyListGetter(DataGetter):
-    """Геттер для отображения отфильтрованного списка ключей."""
+    """Геттер для отображения отфильтрованного списка ключей через backend API."""
 
-    def __init__(self, model_data: ServiceDataModel):
-        self.keys = model_data.keys
+    def __init__(self, backend_client: BackendAPIClient):
+        self._backend = backend_client
 
     async def get_data(self, dialog_manager: DialogManager, **kwargs) -> Dict[str, Any]:
-        """
-        Получить список ключей текущего сегмента.
-
-        Использует текущий сегмент из dialog_data['current_segment'].
-        Для сегментов expiring_* используется фильтрация по времени.
-        """
         try:
-            all_keys = await self.keys.get_all()
+            raw_keys = await self._backend.admin_list_keys()
+            all_keys = [Key.from_backend(k) for k in raw_keys]
 
-            # Нормализуем в список
-            if not isinstance(all_keys, list):
-                all_keys = [all_keys] if all_keys else []
-
-            # Получаем текущий сегмент из dialog_data
             current_segment = dialog_manager.dialog_data.get("current_segment", "all")
 
-            # Для сегментов expiring_* используем фильтрацию по времени
             segmentation = KeySegmentationService()
             if current_segment == "expiring_24h":
                 filtered_keys = await segmentation.get_expiring_24h(all_keys)
@@ -48,16 +35,11 @@ class AdminKeyListGetter(DataGetter):
             elif current_segment == "expiring_30d":
                 filtered_keys = await segmentation.get_expiring_30d(all_keys)
             else:
-                # Для остальных сегментов используем filter_by_name
-                filtered_keys = await segmentation.filter_by_name(
-                    all_keys, current_segment
-                )
+                filtered_keys = await segmentation.filter_by_name(all_keys, current_segment)
 
-            # Сохраняем в dialog_data для использования в Select и обработчиках
             dialog_manager.dialog_data["filtered_keys"] = filtered_keys
             dialog_manager.dialog_data["total_filtered"] = len(filtered_keys)
 
-            # Подготавливаем данные для Select виджета (email, объект ключа)
             keys_data = [(f"{key.email} {key.tg_id}", key) for key in filtered_keys]
 
             segment_title = {
@@ -80,7 +62,7 @@ class AdminKeyListGetter(DataGetter):
             return {
                 "keys_message": message,
                 "keys_data": keys_data,
-                "keys": filtered_keys,  # Для key_selector() из widgets/keybord.py
+                "keys": filtered_keys,
                 "total_keys": len(filtered_keys),
                 "segment": current_segment,
             }
@@ -97,37 +79,25 @@ class AdminKeyListGetter(DataGetter):
 
 
 class AdminKeyDetailsGetter(DataGetter):
-    """Геттер для отображения деталей ключа.
+    """Геттер для отображения деталей ключа через backend API."""
 
-    Использует KeyModel для получения стандартных полей KeyDetailsMessage
-    и добавляет дополнительные admin-специфичные поля.
-    """
+    def __init__(self, backend_client: BackendAPIClient):
+        self._backend = backend_client
 
     async def get_data(self, dialog_manager: DialogManager, **kwargs) -> Dict[str, Any]:
-        """Получить детали выбранного ключа.
-
-        Возвращает объединение KeyModel.to_dict() (для KeyDetailsMessage)
-        и дополнительных admin-полей.
-        """
         try:
-            cache: CacheService = dialog_manager.middleware_data.get("cache")
-            key: Optional[Key] = dialog_manager.start_data.get("selected_key") if dialog_manager.start_data else dialog_manager.dialog_data.get("selected_key")  
-            
-            
+            key: Optional[Key] = dialog_manager.start_data.get("selected_key") if dialog_manager.start_data else dialog_manager.dialog_data.get("selected_key")
             if not key:
                 return {"error": True}
 
-            # Получаем тариф из кеша
-            tariff = await cache.tariffs.get(CacheKeyManager.tariff(key.tariff_id))
+            tariff = await self._backend.get_tariff(key.tariff_id)
             if not tariff:
                 return {"error": True}
 
-            # Создаём KeyModel и получаем стандартные поля
             key_model = KeyModel(key, tariff)
             data = key_model.to_dict()
-            
+
             dialog_manager.dialog_data["selected_key"] = key
-            # Добавляем дополнительные admin-специфичные поля
             data.update({
                 "tg_id": key.tg_id,
                 "client_id": key.client_id,

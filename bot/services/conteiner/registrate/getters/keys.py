@@ -19,7 +19,6 @@ from dialogs.windows.widgets.message.keys.delete_key import DeleteKeyMessage
 from dialogs.windows.widgets.message.keys.error_key import ErrorKeyMessage
 from api.backend_client import BackendAPIClient
 from services.conteiner.protocol import ContainerProtocol
-from services.core.data.service import ServiceDataModel
 
 
 class KeysRegistrar(ContainerProtocol):
@@ -69,7 +68,6 @@ class KeysRegistrar(ContainerProtocol):
         container.register(
             KeyDetailsKeyboard,
             factory=lambda: KeyDetailsKeyboard(
-                model_data=container.resolve(ServiceDataModel),
                 backend_client=container.resolve(BackendAPIClient),
             ),
             scope=punq.Scope.singleton,

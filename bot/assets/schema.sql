@@ -1,7 +1,10 @@
-CREATE TABLE IF NOT EXISTS registrate_msg_user (
-    tg_id int8 NOT NULL,
-    is_msg int8 DEFAULT 0 NULL
-);
+-- Idempotent schema initialization for VPN platform (bot_db)
+-- Compatible with PostgreSQL 16
+-- Safe to re-run manually: all DDL uses IF NOT EXISTS or DO $$ guards.
+
+-- ============================================================================
+-- 1. Core tables without dependencies
+-- ============================================================================
 
 CREATE TABLE IF NOT EXISTS cache (
     key TEXT NOT NULL PRIMARY KEY,
@@ -15,89 +18,125 @@ CREATE TABLE IF NOT EXISTS mass_mailing (
     emoji TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS users (
-	tg_id int8 NOT NULL,
-	username text NULL,
-	first_name text NULL,
-	last_name text NULL,
-	language_code text NULL,
-	balance REAL   NOT NULL DEFAULT 0.0,
-	is_bot bool DEFAULT false NULL,
-	created_at timestamptz DEFAULT CURRENT_TIMESTAMP NULL,
-	updated_at timestamptz DEFAULT CURRENT_TIMESTAMP NULL,
-	is_admin bool DEFAULT false NULL,
-	trial int4 DEFAULT 0 NOT NULL,
-	server_id int4 NULL,
-	check_referral bool DEFAULT false NULL,
-	is_blocked bool DEFAULT false NULL,
-	CONSTRAINT users_pkey PRIMARY KEY (tg_id),
-	CONSTRAINT fk_user_server FOREIGN KEY (server_id) REFERENCES public.servers(id) ON DELETE SET NULL
-);
-
-
-CREATE TABLE IF NOT EXISTS payments
-(
-    id             SERIAL PRIMARY KEY,                                  -- Уникальный идентификатор платежа
-    payment_id     TEXT UNIQUE,
-    tg_id          BIGINT NOT NULL,                                     -- Уникальный идентификатор пользователя в Telegram
-    amount         REAL   NOT NULL DEFAULT 0.0,                         -- Сумма платежа
-    status         TEXT                     DEFAULT 'pending',          -- Статус платежа (pending, succeeded, canceled)
-    created_at     TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,  -- Дата и время создания платежа
-    payment_type   TEXT NOT NULL,
-    number_of_months INTEGER NOT NULL DEFAULT 1,
-    discount_percent INTEGER NOT NULL DEFAULT 0,                          -- Процент скидки за объём (0 если без скидки)
-    FOREIGN KEY (tg_id) REFERENCES users (tg_id)                        -- Внешний ключ, ссылающийся на таблицу users
-);
+-- ============================================================================
+-- 2. Servers & Tariffs (tables that others depend on)
+-- ============================================================================
 
 CREATE TABLE IF NOT EXISTS servers
 (
-    id               SERIAL PRIMARY KEY,                      -- Уникальный идентификатор сервера
-    cluster_name     TEXT NOT NULL,                           -- Имя кластера, к которому принадлежит сервер
-    server_name      TEXT NOT NULL,                           -- Имя сервера
-    api_url          TEXT NOT NULL,                           -- URL API сервера
-    subscription_url TEXT NOT NULL,                           -- URL подписки для сервера
-    login            TEXT NOT NULL,                           -- login к панели
-    password         TEXT NOT NULL,                           -- password панели
-    UNIQUE (cluster_name, server_name)                        -- Уникальное сочетание имени кластера и имени сервера
-);
-
-CREATE TABLE IF NOT EXISTS inbound (
-    server_id INTEGER NOT NULL,  -- Ссылка на сервер
-    inbound_id INTEGER NOT NULL, -- Номер подключения НА КОНКРЕТНОМ СЕРВЕРЕ
-    name_inbound TEXT,
-
-    -- Уникальность: inbound_id должен быть уникальным в рамках одного сервера
-    UNIQUE (server_id, inbound_id),
-
-    -- Жёсткая связь с сервером
-    CONSTRAINT fk_inbound_server
-        FOREIGN KEY (server_id)
-        REFERENCES servers(id)
-        ON DELETE RESTRICT  -- Запрещаем удаление сервера с активными подключениями
+    id               SERIAL PRIMARY KEY,
+    cluster_name     TEXT NOT NULL,
+    server_name      TEXT NOT NULL,
+    api_url          TEXT NOT NULL,
+    subscription_url TEXT NOT NULL,
+    login            TEXT NOT NULL,
+    password         TEXT NOT NULL,
+    UNIQUE (cluster_name, server_name)
 );
 
 CREATE TABLE IF NOT EXISTS tariff
 (
-    id SERIAL           PRIMARY KEY,                                           -- Уникальный идентификатор
-    name_tariff         TEXT NOT NULL,                                         -- Название тарифа
-    amount              REAL   NOT NULL DEFAULT 0.0,                           -- Сумма, которую предоставляет купон
-    description         TEXT,                                                  -- Описание тарифа
-    limit_ip            INTEGER NOT NULL DEFAULT 0,                            -- Лимит ip по тарифу
-    period              INTEGER NOT NULL DEFAULT 30,                           -- Период по тарифу
-    traffic_limit       REAL   NOT NULL DEFAULT 0.0                            -- Лимит трафика по тарифу
+    id SERIAL PRIMARY KEY,
+    name_tariff TEXT NOT NULL,
+    amount REAL NOT NULL DEFAULT 0.0,
+    description TEXT,
+    limit_ip INTEGER NOT NULL DEFAULT 0,
+    period INTEGER NOT NULL DEFAULT 30,
+    traffic_limit REAL NOT NULL DEFAULT 0.0
 );
 
--- Создаем таблицу ключей (keys) с внешним ключом на inbound
-CREATE TABLE IF NOT EXISTS keys (
+CREATE TABLE IF NOT EXISTS inbound
+(
+    id SERIAL PRIMARY KEY,
+    server_id INTEGER NOT NULL,
+    inbound_id INTEGER NOT NULL,
+    name_inbound TEXT,
+    UNIQUE (server_id, inbound_id),
+    CONSTRAINT fk_inbound_server FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE RESTRICT
+);
+
+-- ============================================================================
+-- 3. Users (depends on servers)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS users (
+    tg_id int8 NOT NULL,
+    username text NULL,
+    first_name text NULL,
+    last_name text NULL,
+    language_code text NULL,
+    balance REAL NOT NULL DEFAULT 0.0,
+    is_bot bool DEFAULT false NULL,
+    created_at timestamptz DEFAULT CURRENT_TIMESTAMP NULL,
+    updated_at timestamptz DEFAULT CURRENT_TIMESTAMP NULL,
+    is_admin bool DEFAULT false NULL,
+    trial int4 DEFAULT 0 NOT NULL,
+    server_id int4 NULL,
+    check_referral bool DEFAULT false NULL,
+    is_blocked bool DEFAULT false NULL,
+    CONSTRAINT users_pkey PRIMARY KEY (tg_id),
+    CONSTRAINT fk_user_server FOREIGN KEY (server_id) REFERENCES public.servers(id) ON DELETE SET NULL
+);
+
+-- Add missing referral_id (migration 008)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'users' AND column_name = 'referral_id'
+    ) THEN
+        ALTER TABLE users ADD COLUMN referral_id INTEGER;
+    END IF;
+END $$;
+
+-- ============================================================================
+-- 4. Payments (depends on users)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS payments
+(
+    id             SERIAL PRIMARY KEY,
+    payment_id     TEXT UNIQUE,
+    tg_id          BIGINT NOT NULL,
+    amount         REAL   NOT NULL DEFAULT 0.0,
+    status         TEXT                     DEFAULT 'pending',
+    created_at     TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    payment_type   TEXT NOT NULL,
+    number_of_months INTEGER NOT NULL DEFAULT 1,
+    discount_percent INTEGER NOT NULL DEFAULT 0,
+    referral_discount REAL NOT NULL DEFAULT 0.0,
+    FOREIGN KEY (tg_id) REFERENCES users (tg_id)
+);
+
+-- Backfill safety: ensure existing rows have referral_discount before any NOT NULL enforcement
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'payments' AND column_name = 'referral_discount'
+    ) THEN
+        UPDATE payments SET referral_discount = 0.0 WHERE referral_discount IS NULL;
+        ALTER TABLE payments ALTER COLUMN referral_discount SET NOT NULL;
+    ELSE
+        ALTER TABLE payments ADD COLUMN referral_discount REAL NOT NULL DEFAULT 0.0;
+    END IF;
+END $$;
+
+-- ============================================================================
+-- 5. Keys (depends on users, inbound, tariff)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS keys
+(
     tg_id BIGINT NOT NULL REFERENCES users(tg_id) ON DELETE CASCADE,
     client_id TEXT NOT NULL,
     email TEXT NOT NULL,
     created_at BIGINT NOT NULL,
     expiry_time BIGINT NOT NULL,
     key TEXT NOT NULL,
-    total_gb REAL NOT NULL DEFAULT 0.0,
+    total_gb REAL NOT NULL DEFAULT 10.0,
     reset_date BIGINT NOT NULL DEFAULT 0,
-    inbound_id INTEGER NOT NULL REFERENCES inbound(inbound_id) ON DELETE CASCADE,
+    inbound_id INTEGER NOT NULL REFERENCES inbound(id) ON DELETE CASCADE,
     notified_10h BOOLEAN NOT NULL DEFAULT FALSE,
     notified_24h BOOLEAN NOT NULL DEFAULT FALSE,
     tariff_id INTEGER REFERENCES tariff(id) ON DELETE SET NULL,
@@ -108,10 +147,36 @@ CREATE TABLE IF NOT EXISTS keys (
     period INTEGER,
     used_traffic REAL NOT NULL DEFAULT 0.0,
     server_info JSONB,
-    UNIQUE (tg_id, client_id)
+    UNIQUE (tg_id, client_id),
+    UNIQUE (email)
 );
 
-CREATE TABLE IF NOT EXISTS referrals (
+-- Ensure total_gb default matches model default (migration 008)
+DO $$
+BEGIN
+    ALTER TABLE keys ALTER COLUMN total_gb SET DEFAULT 10.0;
+EXCEPTION
+    WHEN undefined_column THEN
+        RAISE NOTICE 'Column keys.total_gb does not exist yet';
+END $$;
+
+-- Ensure unique constraint on email exists (migration 008)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'uq_keys_email' AND conrelid = 'keys'::regclass
+    ) THEN
+        ALTER TABLE keys ADD CONSTRAINT uq_keys_email UNIQUE (email);
+    END IF;
+END $$;
+
+-- ============================================================================
+-- 6. Referral tables (depend on users)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS referrals
+(
     referral_id SERIAL PRIMARY KEY,
     referrer_id BIGINT NOT NULL,
     token TEXT NOT NULL UNIQUE,
@@ -122,21 +187,24 @@ CREATE TABLE IF NOT EXISTS referrals (
     is_active BOOLEAN DEFAULT TRUE
 );
 
-CREATE TABLE IF NOT EXISTS referral_links (
+CREATE TABLE IF NOT EXISTS referral_links
+(
     id              SERIAL PRIMARY KEY,
     referrer_tg_id  BIGINT NOT NULL REFERENCES users(tg_id) ON DELETE CASCADE,
     token           TEXT NOT NULL UNIQUE,
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS referral_redemptions (
+CREATE TABLE IF NOT EXISTS referral_redemptions
+(
     id                SERIAL PRIMARY KEY,
     referral_link_id  INTEGER NOT NULL REFERENCES referral_links(id) ON DELETE CASCADE,
     referred_tg_id    BIGINT NOT NULL REFERENCES users(tg_id) ON DELETE CASCADE,
     redeemed_at       TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS referral_rewards (
+CREATE TABLE IF NOT EXISTS referral_rewards
+(
     id              SERIAL PRIMARY KEY,
     referrer_tg_id  BIGINT NOT NULL REFERENCES users(tg_id) ON DELETE CASCADE,
     reward_type     TEXT NOT NULL,
@@ -145,45 +213,51 @@ CREATE TABLE IF NOT EXISTS referral_rewards (
     is_claimed      BOOLEAN DEFAULT FALSE
 );
 
+-- ============================================================================
+-- 7. Gift links (depends on users)
+-- ============================================================================
 
-CREATE TABLE IF NOT EXISTS notifications
+CREATE TABLE IF NOT EXISTS gift_links
 (
-    tg_id                  BIGINT    NOT NULL,                              -- Уникальный идентификатор пользователя в Telegram
-    notification_type      TEXT      NOT NULL,                              -- Тип уведомления
-    last_notification_time TIMESTAMP NOT NULL DEFAULT NOW(),                -- Время последнего уведомления для пользователя
-    PRIMARY KEY (tg_id, notification_type)                                  -- Составной первичный ключ
+    id              SERIAL PRIMARY KEY NOT NULL,
+    sender_tg_id    INTEGER NOT NULL,
+    tariff_id       INTEGER NOT NULL,
+    token           TEXT NOT NULL,
+    created_at      TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    recipient_tg_id BIGINT,
+    email           TEXT,
+    used_at         TIMESTAMP WITH TIME ZONE,
+    CONSTRAINT fk_gift_sender FOREIGN KEY (sender_tg_id) REFERENCES users (tg_id),
+    CONSTRAINT fk_gift_recipient FOREIGN KEY (recipient_tg_id) REFERENCES users (tg_id)
 );
 
-
-
-CREATE TABLE IF NOT EXISTS gifts
-(
-    id              SERIAL PRIMARY KEY NOT NULL,                       -- Уникальный идентификатор подарка
-    sender_tg_id    INTEGER NOT NULL,                                   -- Уникальный идентификатор отправителя подарка
-    tariff_id       INTEGER NOT NULL,                                   -- Количество месяцев, выбранных для подарка
-    token           TEXT NOT NULL,                                      -- Токен подарка
-    created_at      TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, -- Дата и время создания подарка
-    recipient_tg_id BIGINT,                                             -- Уникальный идентификатор получателя подарка
-    email           TEXT,                                               -- Email для активации подарка
-    used_at         TIMESTAMP WITH TIME ZONE,                           -- Дата и время активации подарка
-    CONSTRAINT fk_sender FOREIGN KEY (sender_tg_id) REFERENCES users (tg_id),  -- Внешний ключ, ссылающийся на таблицу users
-    CONSTRAINT fk_recipient FOREIGN KEY (recipient_tg_id) REFERENCES users (tg_id) -- Внешний ключ, ссылающийся на таблицу users
-);
-
+-- ============================================================================
+-- 8. Stocks (per-user discount format; migration 008)
+-- ============================================================================
 
 CREATE TABLE IF NOT EXISTS stocks
 (
-    id                INTEGER PRIMARY KEY NOT NULL,
-    discount_type     TEXT      NOT NULL,
-    discount_percent  REAL NOT NULL DEFAULT 0.0,
-    created_at        TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    expiry_time        TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    is_active         BOOLEAN NOT NULL DEFAULT FALSE,
-    limit_users       INTEGER NOT DEFAULT 0,
-    count_users       INTEGER NOT DEFAULT 0
+    tg_id       BIGINT PRIMARY KEY REFERENCES users(tg_id) ON DELETE CASCADE,
+    stock_type  TEXT NOT NULL CHECK (stock_type IN ('fix', 'percent')),
+    value       DECIMAL(10,2) NOT NULL,
+    is_active   BOOLEAN NOT NULL DEFAULT true,
+    valid_until TIMESTAMPTZ,
+    created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- ============================================================================
+-- 9. Indexes
+-- ============================================================================
 
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'stocks' AND column_name = 'valid_until'
+    ) THEN
+        CREATE INDEX IF NOT EXISTS idx_stocks_active ON stocks(is_active, valid_until);
+    END IF;
+END $$;
 CREATE INDEX IF NOT EXISTS idx_referrals_token ON referrals(token);
 CREATE INDEX IF NOT EXISTS idx_referrals_active ON referrals(is_active) WHERE is_active = true;
 CREATE INDEX IF NOT EXISTS idx_referral_links_token ON referral_links(token);

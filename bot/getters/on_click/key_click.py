@@ -4,9 +4,8 @@ from aiogram.types import CallbackQuery
 from aiogram_dialog import DialogManager
 from aiogram_dialog.widgets.kbd import Select, Calendar
 
+from api.backend_client import BackendAPIClient
 from logger import logger
-from services.cache.key_manager import CacheKeyManager
-from services.cache.service import CacheService
 from states.admin import AdminManager
 from states.key import KeysInit
 
@@ -23,10 +22,15 @@ async def on_click_view_key(
 async def on_click_view_key_admin(
     callback: CallbackQuery, widget: Select, dialog_manager: DialogManager, item_id: str
 ):
-    """Обрабатывает выбор ключа (диалог больше не доступен)"""
+    """Обрабатывает выбор ключа через Backend API."""
     email = str(item_id)
-    cache: CacheService = dialog_manager.middleware_data.get("cache")
-    key = await cache.keys.get(CacheKeyManager.key(email))
+    container = dialog_manager.middleware_data.get("container")
+    backend = container.resolve(BackendAPIClient) if container else None
+    if not backend:
+        logger.error("BackendAPIClient not available in key_click")
+        await callback.answer("❌ Ошибка сервиса", show_alert=True)
+        return
+    key = await backend.get_key(email)
     await dialog_manager.start(AdminManager.key_details, data={"selected_key": key})
 
 

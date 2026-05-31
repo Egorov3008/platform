@@ -1,4 +1,3 @@
-import asyncpg
 import punq
 from punq import Container
 
@@ -15,18 +14,8 @@ from dialogs.windows.widgets.message.payment.setting_pay import (
     SettingsPayment as SettingsPaymentMessage,
 )
 from api.backend_client import BackendAPIClient
-from services.cache import CacheService
 from services.conteiner.protocol import ContainerProtocol
 from services.core.price.service import PriceService
-from services.core.data.service import ServiceDataModel
-from services.core.payment.processor import PaymentProcessor
-from services.core.payment.router import PaymentRouter
-from services.core.payment.creation_service import KeyCreationService
-from services.core.payment.renewal_service import KeyRenewalService
-from services.core.keys.utils.create_key import CreateKey
-from services.core.keys.utils.renewal import KeyRenewal
-from services.core.referral.bonus_service import ReferralBonusService
-from services.core.referral.link_generator import ReferralLinkGenerator
 
 
 class PaymentRegistrar(ContainerProtocol):
@@ -34,7 +23,7 @@ class PaymentRegistrar(ContainerProtocol):
         def build_settings_payment():
             return SettingsPayment(
                 price_service=container.resolve(PriceService),
-                model_data=container.resolve(ServiceDataModel),
+                backend=container.resolve(BackendAPIClient),
             )
 
         def build_form_payment_getter():
@@ -43,86 +32,13 @@ class PaymentRegistrar(ContainerProtocol):
             )
 
         def build_tariff_select_builder():
-            return TariffSelectBuilder(
-                model_service=container.resolve(ServiceDataModel),
-                cache_service=container.resolve(CacheService),
-            )
-
-        def build_payment_processor():
-            return PaymentProcessor(
-                conn=container.resolve(asyncpg.Pool),
-                model_service=container.resolve(ServiceDataModel),
-                cache=container.resolve(CacheService),
-            )
-
-        def build_key_creation_service():
-            return KeyCreationService(
-                processor=container.resolve(PaymentProcessor),
-                create_key=container.resolve(CreateKey),
-            )
-
-        def build_key_renewal_service():
-            return KeyRenewalService(
-                processor=container.resolve(PaymentProcessor),
-                key_manager=container.resolve(KeyRenewal),
-            )
-
-        def build_bonus_service():
-            return ReferralBonusService(
-                model_data=container.resolve(ServiceDataModel),
-            )
-
-        def build_link_generator():
-            return ReferralLinkGenerator(
-                model_data=container.resolve(ServiceDataModel),
-            )
-
-        def build_payment_router():
-            return PaymentRouter(
-                processor=container.resolve(PaymentProcessor),
-                creation_service=container.resolve(KeyCreationService),
-                renewal_service=container.resolve(KeyRenewalService),
-                bonus_service=container.resolve(ReferralBonusService),
-            )
+            return TariffSelectBuilder()
 
         def builder_payment_form_keybord():
             return PaymentFormKeyboard(
                 backend_client=container.resolve(BackendAPIClient),
             )
 
-        # Регистрируем PaymentProcessor первым, чтобы сервисы могли его использовать
-        container.register(
-            PaymentProcessor,
-            factory=build_payment_processor,
-            scope=punq.Scope.singleton,
-        )
-
-        # Регистрируем сервисы создания и продления ключей
-        container.register(
-            KeyCreationService,
-            factory=build_key_creation_service,
-            scope=punq.Scope.singleton,
-        )
-        container.register(
-            KeyRenewalService,
-            factory=build_key_renewal_service,
-            scope=punq.Scope.singleton,
-        )
-
-        # Регистрируем остальное
-        container.register(
-            ReferralBonusService,
-            factory=build_bonus_service,
-            scope=punq.Scope.singleton,
-        )
-        container.register(
-            ReferralLinkGenerator,
-            factory=build_link_generator,
-            scope=punq.Scope.singleton,
-        )
-        container.register(
-            PaymentRouter, factory=build_payment_router, scope=punq.Scope.singleton
-        )
         container.register(
             SettingsPayment, factory=build_settings_payment, scope=punq.Scope.singleton
         )

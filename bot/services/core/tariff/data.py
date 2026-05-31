@@ -1,30 +1,32 @@
 from typing import List
 
+from api.backend_client import BackendAPIClient
 from models import Tariff
-from services.core.data.service import ServiceDataModel
-from services.core.user.utils.checked_admin import CheckedUser
 from config import AVAILABLE_RATES_LIST
 
 
 class TariffData:
-    """Класс для отображения тарифов."""
+    """Класс для отображения тарифов через Backend API."""
 
-    def __init__(self, model_data: ServiceDataModel, checked_user: CheckedUser):
-        self.tariff_data = model_data.tariffs
+    def __init__(self, backend: BackendAPIClient, checked_user):
+        self.backend = backend
         self.checked_user = checked_user
 
     async def get_tariffs(self) -> List[Tariff]:
         """Возвращает список тарифов."""
-        tariffs = await self.tariff_data.get_data()
-        return [tariff for tariff in tariffs if tariff.id in AVAILABLE_RATES_LIST]
+        tariffs = await self.backend.admin_list_tariffs()
+        return [
+            Tariff.from_dict(t) for t in tariffs
+            if t.get("id") in AVAILABLE_RATES_LIST
+        ]
 
     async def get(self, user_id: int) -> List[Tariff]:
-        tariffs = await self.tariff_data.get_all()
+        tariffs = await self.backend.admin_list_tariffs()
+        models = [Tariff.from_dict(t) for t in tariffs]
         if not self.checked_user.check(user_id):
-            tariffs = [
-                tariff for tariff in tariffs if tariff.id in AVAILABLE_RATES_LIST
+            models = [
+                tariff for tariff in models if tariff.id in AVAILABLE_RATES_LIST
             ]
-        if not tariffs:
+        if not models:
             raise AttributeError("Тарифы не найдены")
-
-        return tariffs
+        return models

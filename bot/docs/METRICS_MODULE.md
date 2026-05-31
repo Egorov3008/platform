@@ -1,4 +1,7 @@
-# Metrics Module (`services/metrics/`)
+# Metrics Module (`services/metrics/`) ⚠️ Частично удалён
+
+> **HTTP-сервер `/metrics` и pull-модель collectors удалены.** Метрики всё ещё инкрементируются в коде бота через `registry.py`,
+> но scraping endpoint (если нужен) теперь должен быть в backend. Infrastructure-метрики (DB pool, XUI API) тоже переехали в backend.
 
 ## 📖 Оглавление
 
@@ -9,50 +12,51 @@
 5. [Точки интеграции](#точки-интеграции)
 6. [Конфигурация](#конфигурация)
 7. [Использование в коде](#использование-в-коде)
-8. [Кастомные Collector'ы](#кастомные-collectorы)
-9. [Grafana дашборды](#grafana-дашборды)
-10. [Алерты](#алерты)
-11. [Добавление новых метрик](#добавление-новых-метрик)
-12. [Тестирование](#тестирование)
+8. [Grafana дашборды](#grafana-дашборды)
+9. [Алерты](#алерты)
+10. [Добавление новых метрик](#добавление-новых-метрик)
+11. [Тестирование](#тестирование)
 
 ---
 
 ## Обзор
 
-**Metrics Module** — система мониторинга на базе `prometheus-client`, предоставляющая ~30 метрик для Prometheus/Grafana.
+**Metrics Module** — реестр метрик на базе `prometheus-client`. Метрики инкрементируются в коде бота, но scraping endpoint удалён.
 
 **Зависимость:** `prometheus-client>=0.20.0` (чистый Python, zero dependencies)
 
-**Основные возможности:**
-- ✅ Business метрики (платежи, ключи, регистрации, уведомления)
-- ✅ Infrastructure метрики (DB pool, кеш, XUI API, Telegram API)
-- ✅ Performance метрики (handler latency, background tasks)
-- ✅ HTTP endpoint `/metrics` для Prometheus scraping
-- ✅ Кастомные Collector'ы (pull-модель для кеша и DB pool)
-- ✅ Минимальное вмешательство в существующий код
+**Основные возможности (актуальные):**
+- ✅ Business метрики (регистрации)
+- ✅ Telegram API метрики
+- ✅ Dialog handler метрики
 
-**Точка входа:** `services/metrics/setup.py:init_metrics()` — вызывается в `main.py:on_startup()`
+**❌ Удалены:**
+- HTTP endpoint `/metrics` для Prometheus scraping
+- `CacheMetricsCollector` (pull-модель кеша)
+- `DBPoolMetricsCollector` (pull-модель asyncpg pool)
+- Infrastructure метрики (DB pool, XUI API, background tasks)
+
+**Точка входа:** `services/metrics/registry.py` — единый реестр Counter/Gauge/Histogram.
 
 ---
 
 ## Архитектура
 
-### Диаграмма потока
+### Диаграмма потока (актуальная)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ main.py: on_startup()                                       │
-│   └─ init_metrics(pool, cache_storage, metrics_port)        │
-│       ├─ Регистрация CacheMetricsCollector (pull-модель)    │
-│       ├─ Регистрация DBPoolMetricsCollector (pull-модель)   │
-│       └─ Запуск HTTP сервера /metrics на METRICS_PORT       │
+│ Код бота (handlers, dialogs, registration)                  │
+│   └─ Импортирует метрики из registry.py                     │
+│       ├─ Инкрементирует Counter при событиях               │
+│       └─ Например: user_registered_total.labels(type=).inc()│
 └─────────────────────────────────────────────────────────────┘
 
-┌─────────────────────────────────────────────────────────────┐
-│ Prometheus scrape → GET /metrics                            │
-│   ├─ Собирает Counter/Gauge/Histogram из REGISTRY           │
-│   ├─ Вызывает CacheMetricsCollector.collect()               │
-│   │   └─ Читает CacheStorage._storage (размеры namespace)   │
+❌ Удалённые компоненты:
+- init_metrics() — больше не запускается
+- CacheMetricsCollector — удалён
+- DBPoolMetricsCollector — удалён
+- HTTP сервер /metrics — удалён
 │   ├─ Вызывает DBPoolMetricsCollector.collect()              │
 │   │   └─ Читает asyncpg.Pool (size/idle/used)              │
 │   └─ Возвращает text/plain в формате Prometheus             │
@@ -332,46 +336,11 @@ handler_duration.labels(
 
 ---
 
-## Кастомные Collector'ы
+## Кастомные Collector'ы ❌ Удалены
 
-### CacheMetricsCollector
-
-**Файл:** `services/metrics/collectors/cache_collector.py`
-
-Читает `CacheStorage._storage` при каждом scrape. Не инструментирует hot path.
-
-```python
-class CacheMetricsCollector:
-    def __init__(self, storage: CacheStorage) -> None:
-        self._storage = storage
-
-    def collect(self):
-        gauge = GaugeMetricFamily(
-            "vpn_cache_items_count",
-            "Количество элементов в кеше по namespace",
-            labels=["namespace"],
-        )
-        for namespace, items in self._storage._storage.items():
-            gauge.add_metric([namespace], len(items))
-        yield gauge
-```
-
-### DBPoolMetricsCollector
-
-**Файл:** `services/metrics/collectors/db_pool_collector.py`
-
-Читает `asyncpg.Pool.get_size()` / `.get_idle_size()` при каждом scrape.
-
-```python
-class DBPoolMetricsCollector:
-    def __init__(self, pool: asyncpg.Pool) -> None:
-        self._pool = pool
-
-    def collect(self):
-        size = self._pool.get_size()
-        idle = self._pool.get_idle_size()
-        # yields: vpn_db_pool_size, vpn_db_pool_free, vpn_db_pool_used
-```
+> **Файлы удалены:** `services/metrics/collectors/cache_collector.py`, `services/metrics/collectors/db_pool_collector.py`.
+> Каталог `services/metrics/collectors/` больше не существует.
+> Infrastructure-метрики (размер кеша, состояние DB pool) теперь собираются backend'ом (если реализовано).
 
 ### Регистрация Collector'ов
 

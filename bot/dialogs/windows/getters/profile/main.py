@@ -26,14 +26,14 @@ class UserDataGetter(DataGetter):
             user = await self._backend.get_user(tg_id)
             keys = await self._backend.get_user_keys(tg_id)
 
-            trial: bool = user.trial == 0 if user else True
+            trial: bool = user.get("trial") == 0 if user else True
             count_key = len(keys)
             is_admin = self.check_user.check(tg_id)
             check_key = count_key > 0
             check_usage_link = await self.checker_link.check(tg_id)
 
             return {
-                "username": (user.username if user else None) or f"ID{tg_id}",
+                "username": (user.get("username") if user else None) or f"ID{tg_id}",
                 "count_key": count_key,
                 "trial": trial,
                 "is_admin": is_admin,

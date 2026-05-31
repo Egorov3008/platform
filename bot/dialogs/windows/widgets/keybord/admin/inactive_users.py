@@ -1,20 +1,16 @@
 """Клавиатуры для модуля очистки неактивных пользователей."""
 
-from typing import Any, Optional
+from typing import Any
 
-import asyncpg
-import punq
 from aiogram.types import CallbackQuery
 from aiogram_dialog import DialogManager
 from aiogram_dialog.widgets.kbd import Column, Button, SwitchTo, Cancel, Start
-from aiogram_dialog.widgets.text import Const, Format
+from aiogram_dialog.widgets.text import Const
 from aiogram_dialog import StartMode
 
+from api.backend_client import BackendAPIClient
 from dialogs.windows.base import KeyboardBuilder
 from logger import logger
-from models import User
-from services.cache.service import CacheService
-from services.core.data.service import ServiceDataModel
 from states import AdminManager, AdminUserCleanupSG
 
 
@@ -52,7 +48,7 @@ class InactiveUsersConfirmKeyboard(KeyboardBuilder):
         manager: DialogManager,
         **kwargs,
     ):
-        """Удалить всех неактивных пользователей после подтверждения."""
+        """Удалить всех неактивных пользователей через backend API."""
         inactive_users: list = manager.dialog_data.get("inactive_users", [])
 
         if not inactive_users:
@@ -61,46 +57,17 @@ class InactiveUsersConfirmKeyboard(KeyboardBuilder):
             )
             return
 
-        count = len(inactive_users)
-
-        cache_service: Optional[CacheService] = manager.middleware_data.get("cache")
-        if not cache_service:
-            await callback.answer(
-                "❌ Ошибка: не удалось получить доступ к кешу", show_alert=True
-            )
-            return
-
-        container: Optional[punq.Container] = manager.middleware_data.get("container")
+        container = manager.middleware_data.get("container")
         if not container:
-            await callback.answer(
-                "❌ Ошибка: не удалось получить DI контейнер", show_alert=True
-            )
+            await callback.answer("❌ Ошибка: не удалось получить DI контейнер", show_alert=True)
             return
 
         try:
-            model_data: ServiceDataModel = container.resolve(ServiceDataModel)
-            pool: asyncpg.Pool = container.resolve(asyncpg.Pool)
-            
-            if not pool:
-                await callback.answer(
-                    "❌ Ошибка: не удалось получить подключение к базе данных", show_alert=True
-                )
-                return
+            backend = container.resolve(BackendAPIClient)
+            result = await backend.admin_delete_inactive_users()
+            deleted_count = result.get("deleted", 0)
 
-            deleted_count = 0
-            for user in inactive_users:
-                if isinstance(user, User):
-                    await model_data.users.delete_data(pool, user)
-                    # Очищаем кеш
-                    from services.cache.key_manager import CacheKeyManager
-                    cache_key = CacheKeyManager.user(user.tg_id)
-                    await cache_service.users.delete(cache_key)
-                    deleted_count += 1
-
-            logger.info(
-                "Удалены неактивные пользователи",
-                count=deleted_count,
-            )
+            logger.info("Удалены неактивные пользователи через backend", count=deleted_count)
 
             await callback.answer(
                 f"✅ Удалено {deleted_count} неактивных пользователей",

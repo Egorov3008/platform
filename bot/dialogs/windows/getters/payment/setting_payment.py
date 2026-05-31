@@ -3,9 +3,9 @@ from typing import Dict, Any, Optional, Protocol
 
 from aiogram_dialog import DialogManager
 
+from api.backend_client import BackendAPIClient
 from dialogs.windows.base import DataGetter
 from models import Tariff
-from services.core.data.service import ServiceDataModel
 from services.core.price.result import PriceResult, apply_volume_discount
 from logger import logger
 from states import MainMenu
@@ -46,10 +46,10 @@ class PaymentContext:
 
 
 class SettingsPayment(DataGetter):
-    def __init__(self, price_service: PriceCalculatorProtocol, model_data: ServiceDataModel):
+    def __init__(self, price_service: PriceCalculatorProtocol, backend: BackendAPIClient):
         super().__init__()
         self.price_service = price_service
-        self.model_data = model_data
+        self.backend = backend
 
     async def get_data(self, dialog_manager: DialogManager, **kwargs) -> Dict[str, Any]:
         payment_type = None
@@ -66,9 +66,9 @@ class SettingsPayment(DataGetter):
             # Реферальная скидка (третий слой)
             referral_discount = 0.0
             user_balance = 0.0
-            user = await self.model_data.users.get_data(tg_id)
-            if user and user.balance > 0 and final_with_volume > MIN_PAYMENT_AMOUNT:
-                user_balance = user.balance
+            user = await self.backend.get_user(tg_id)
+            if user and user.get("balance", 0) > 0 and final_with_volume > MIN_PAYMENT_AMOUNT:
+                user_balance = user["balance"]
                 max_discount = round(final_with_volume - MIN_PAYMENT_AMOUNT, 2)
                 referral_discount = round(min(user_balance, max_discount), 2)
 

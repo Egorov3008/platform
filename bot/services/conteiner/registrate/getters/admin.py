@@ -1,9 +1,7 @@
-import asyncpg
 import punq
 from punq import Container
 
-from client import XUISession
-from services.cache.service import CacheService
+from api.backend_client import BackendAPIClient
 from dialogs.windows.getters.admin.panel import (
     AdminStatsGetter,
 )
@@ -27,11 +25,6 @@ from dialogs.windows.getters.admin.user_delete import AdminUserDeleteGetter
 from dialogs.windows.getters.admin.dashboard import AdminDashboardGetter
 from dialogs.windows.getters.admin.inactive_users import InactiveUsersGetter
 from dialogs.windows.getters.admin.mass_renewal_preview import AdminMassRenewalPreviewGetter
-from services.analytics.ltv_metrics import LtvMetricsService
-from services.analytics.churn_metrics import ChurnMetricsService
-from services.analytics.referral_metrics import ReferralMetricsService
-from services.analytics.gift_metrics import GiftMetricsService
-from services.analytics.payment_metrics import PaymentMetricsService
 from dialogs.windows.widgets.message.admin.dashboard import AdminDashboardMessage
 from dialogs.windows.widgets.keybord.admin.dashboard import AdminDashboardKeyboard
 from dialogs.windows.widgets.message.admin.panel import (
@@ -128,7 +121,6 @@ from dialogs.windows.widgets.keybord.admin.mass_renewal_confirm import (
 from dialogs.windows.widgets.message.admin.user_profile import AdminUserProfileMessage
 from dialogs.windows.widgets.keybord.admin.user_profile import AdminUserProfileKeyboard
 from services.conteiner.protocol import ContainerProtocol
-from services.core.data.service import ServiceDataModel
 
 
 class AdminRegistrar(ContainerProtocol):
@@ -138,12 +130,12 @@ class AdminRegistrar(ContainerProtocol):
         # ===== Panel Getters =====
         def build_admin_stats_getter():
             return AdminStatsGetter(
-                model_data=container.resolve(ServiceDataModel),
+                backend=container.resolve(BackendAPIClient),
             )
 
         def build_key_stats_getter():
             return KeyStatsGetter(
-                model_data=container.resolve(ServiceDataModel),
+                backend=container.resolve(BackendAPIClient),
             )
 
         # ===== Mailing Getter =====
@@ -153,55 +145,69 @@ class AdminRegistrar(ContainerProtocol):
         # ===== Keys List Getters =====
         def build_admin_key_list_getter():
             return AdminKeyListGetter(
-                model_data=container.resolve(ServiceDataModel),
+                backend_client=container.resolve(BackendAPIClient),
             )
 
         def build_admin_key_details_getter():
-            return AdminKeyDetailsGetter()
+            return AdminKeyDetailsGetter(
+                backend_client=container.resolve(BackendAPIClient),
+            )
 
         # ===== User Profile Getter =====
         def build_admin_user_profile_getter():
             return AdminUserProfileGetter(
-                model_data=container.resolve(ServiceDataModel),
+                backend=container.resolve(BackendAPIClient),
             )
 
         # ===== Generate Key Getter =====
         def build_admin_gen_key_getter():
             return AdminGenKeyGetter(
-                cache_service=container.resolve(CacheService),
+                backend_client=container.resolve(BackendAPIClient),
             )
 
         # ===== Key Actions Getters =====
         # ===== User Delete Getter =====
         def build_admin_user_delete_getter():
-            return AdminUserDeleteGetter()
+            return AdminUserDeleteGetter(
+                backend_client=container.resolve(BackendAPIClient),
+            )
 
         # ===== Inactive Users Getter =====
         def build_inactive_users_getter():
             return InactiveUsersGetter(
-                model_data=container.resolve(ServiceDataModel),
+                backend_client=container.resolve(BackendAPIClient),
             )
 
         # ===== Mass Renewal Preview Getter =====
         def build_mass_renewal_preview_getter():
             return AdminMassRenewalPreviewGetter(
-                cache=container.resolve(CacheService),
+                backend=container.resolve(BackendAPIClient),
             )
 
         def build_admin_key_delete_getter():
-            return AdminKeyDeleteGetter()
+            return AdminKeyDeleteGetter(
+                backend_client=container.resolve(BackendAPIClient),
+            )
 
         def build_admin_key_change_date_getter():
-            return AdminKeyChangeDateGetter()
+            return AdminKeyChangeDateGetter(
+                backend_client=container.resolve(BackendAPIClient),
+            )
 
         def build_admin_key_change_date_confirm_getter():
-            return AdminKeyChangeDateConfirmGetter()
+            return AdminKeyChangeDateConfirmGetter(
+                backend_client=container.resolve(BackendAPIClient),
+            )
 
         def build_admin_key_change_tariff_getter():
-            return AdminKeyChangeTariffGetter()
+            return AdminKeyChangeTariffGetter(
+                backend_client=container.resolve(BackendAPIClient),
+            )
 
         def build_admin_key_change_tariff_confirm_getter():
-            return AdminKeyChangeTariffConfirmGetter()
+            return AdminKeyChangeTariffConfirmGetter(
+                backend_client=container.resolve(BackendAPIClient),
+            )
 
         # Register getters
         container.register(
@@ -282,44 +288,7 @@ class AdminRegistrar(ContainerProtocol):
         container.register(
             AdminDashboardGetter,
             factory=lambda: AdminDashboardGetter(
-                db_pool=container.resolve(asyncpg.Pool),
-                cache_service=container.resolve(CacheService),
-                xui_session=container.resolve(XUISession),
-            ),
-            scope=punq.Scope.singleton,
-        )
-        container.register(
-            LtvMetricsService,
-            factory=lambda: LtvMetricsService(
-                db_pool=container.resolve(asyncpg.Pool),
-            ),
-            scope=punq.Scope.singleton,
-        )
-        container.register(
-            ChurnMetricsService,
-            factory=lambda: ChurnMetricsService(
-                db_pool=container.resolve(asyncpg.Pool),
-            ),
-            scope=punq.Scope.singleton,
-        )
-        container.register(
-            ReferralMetricsService,
-            factory=lambda: ReferralMetricsService(
-                db_pool=container.resolve(asyncpg.Pool),
-            ),
-            scope=punq.Scope.singleton,
-        )
-        container.register(
-            GiftMetricsService,
-            factory=lambda: GiftMetricsService(
-                db_pool=container.resolve(asyncpg.Pool),
-            ),
-            scope=punq.Scope.singleton,
-        )
-        container.register(
-            PaymentMetricsService,
-            factory=lambda: PaymentMetricsService(
-                db_pool=container.resolve(asyncpg.Pool),
+                backend=container.resolve(BackendAPIClient),
             ),
             scope=punq.Scope.singleton,
         )
@@ -327,7 +296,7 @@ class AdminRegistrar(ContainerProtocol):
         # ===== Payment Stats Getter =====
         def build_payment_stats_getter():
             return PaymentStatsGetter(
-                payment_metrics=container.resolve(PaymentMetricsService),
+                backend=container.resolve(BackendAPIClient),
             )
 
         container.register(

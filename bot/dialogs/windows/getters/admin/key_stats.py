@@ -6,25 +6,24 @@ from collections import Counter
 
 from aiogram_dialog import DialogManager
 
+from api.backend_client import BackendAPIClient
 from dialogs.windows.base import DataGetter
-from models import Key
-from services.core.data.service import ServiceDataModel
+from models.keys.key import Key
 from logger import logger
 
 
 class KeyStatsGetter(DataGetter):
     """Собирает общую статистику ключей с разбивкой по тарифам и 24h окну."""
 
-    def __init__(self, model_data: ServiceDataModel):
-        self.keys = model_data.keys
-        self.tariffs = model_data.tariffs
+    def __init__(self, backend: BackendAPIClient):
+        self.backend = backend
 
     async def _resolve_tariff_name(self, tariff_id: int) -> str:
         """Получает название тарифа по его ID. Возвращает 'ID:{id}' если не найден."""
         try:
-            tariff = await self.tariffs.get_data(tariff_id)
-            if tariff and hasattr(tariff, "name_tariff") and tariff.name_tariff:
-                return tariff.name_tariff
+            tariff = await self.backend.get_tariff(tariff_id)
+            if tariff and tariff.get("name_tariff"):
+                return tariff["name_tariff"]
         except Exception:
             pass
         return f"ID:{tariff_id}"
@@ -76,10 +75,8 @@ class KeyStatsGetter(DataGetter):
     async def get_data(self, dialog_manager: DialogManager, **kwargs) -> Dict[str, Any]:
         """Собирает общую статистику всех ключей + детальную 24h разбивку."""
         try:
-            all_keys = await self.keys.get_all()
-            if not isinstance(all_keys, list):
-                all_keys = [all_keys] if all_keys else []
-            keys_list: List[Key] = cast(List[Key], all_keys)
+            raw_keys = await self.backend.admin_list_keys()
+            keys_list: List[Key] = [Key.from_backend(k) for k in raw_keys]
 
             now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
             threshold_24h = now_ms + 24 * 3600 * 1000

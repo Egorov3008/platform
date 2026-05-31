@@ -2,10 +2,8 @@ from typing import List
 
 from aiogram_dialog import DialogManager
 
-from datetime import timedelta
 from dialogs.windows.base import DataGetter
 from models import Tariff
-from services.cache.service import CacheService
 from services.core.price.service import PriceService
 from services.core.tariff.data import TariffData
 from logger import logger
@@ -18,11 +16,9 @@ class TariffPreviewGetter(DataGetter):
         self,
         tariff_display: TariffData,
         price_service: PriceService,
-        cache_service: CacheService,
     ):
         self.tariff_display = tariff_display
         self.price_service = price_service
-        self.cache = cache_service.tariffs
 
     async def get_data(self, dialog_manager: DialogManager, **kwargs) -> dict:
         """Получение данных для отображения."""
@@ -66,15 +62,10 @@ class TariffPreviewGetter(DataGetter):
                 "discounted_amount": r.final_amount if r.has_discount else None,
             }
 
-            # Сохраняем тариф с информацией о скидочной цене для платежа
-            await self.cache.temporary_set(
-                f"set_tariff_{tariff.id}",
-                ttl=timedelta(minutes=10),
-                tariff=tariff,
-                discounted_amount=r.final_amount if r.has_discount else None,
-            )
-
         logger.debug("[Цена:TariffPreview] Тарифы записаны", count=len(processed_tariffs))
+
+        # Сохраняем в dialog_data для доступа из обработчиков клавиатуры
+        dialog_manager.dialog_data["processed_tariffs"] = processed_tariffs
 
         # Берём данные скидки из последнего обработанного результата
         last_result = results[tariffs[-1].id] if tariffs else None

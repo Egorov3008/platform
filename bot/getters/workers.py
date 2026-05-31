@@ -3,13 +3,12 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-import asyncpg
 from aiogram.types import CallbackQuery
 from aiogram_dialog import DialogManager
 from aiogram_dialog.widgets.kbd import Button
 
+from api.backend_client import BackendAPIClient
 from logger import logger
-from services.cache.service import CacheService
 
 
 async def delete_expired_keys_fast(
@@ -17,56 +16,42 @@ async def delete_expired_keys_fast(
     button: Button,
     manager: DialogManager,
 ) -> None:
-    """Удаляет просроченные ключи из БД и кеша.
-
-    Функция получает ServiceDataModel через DI контейнер,
-    находит все просроченные ключи и удаляет их из БД и кеша.
-    """
+    """Удаляет просроченные ключи через Backend API."""
     try:
-        session: Optional[asyncpg.Connection] = manager.middleware_data.get("session")
-        cache: Optional[CacheService] = manager.middleware_data.get("cache")
+        container = manager.middleware_data.get("container")
+        backend = container.resolve(BackendAPIClient) if container else None
 
-        if not session or not cache:
+        if not backend:
             await callback.answer(
-                "❌ Ошибка: не удалось получить доступ к БД или кешу", show_alert=True
+                "❌ Ошибка: не удалось получить доступ к backend", show_alert=True
             )
             return
 
-        # Получаем все ключи
-        all_keys = await cache.keys.all()
-        if not isinstance(all_keys, list):
-            all_keys = [all_keys] if all_keys else []
+        all_keys = await backend.admin_list_keys()
 
         current_time = datetime.now(timezone.utc)
         current_timestamp_ms = int(current_time.timestamp() * 1000)
 
-        # Находим просроченные ключи
         expired_keys = [
             key
             for key in all_keys
-            if hasattr(key, "expiry_time") and key.expiry_time < current_timestamp_ms
+            if key.expiry_time < current_timestamp_ms
         ]
 
         deleted_count = 0
         errors = []
 
-        # Удаляем каждый просроченный ключ
         for key in expired_keys:
             try:
-                # Удаляем из БД
-                await session.execute(
-                    "DELETE FROM keys WHERE email = $1",
-                    key.email,
-                )
-
-                # Удаляем из кеша
-                await cache.keys.delete(key.email)
-
-                deleted_count += 1
+                success = await backend.admin_delete_key(key.email)
+                if success:
+                    deleted_count += 1
+                else:
+                    errors.append(f"Failed to delete {key.email}")
             except Exception as e:
                 logger.error(
                     "Ошибка при удалении просроченного ключа",
-                    email=key.email if hasattr(key, "email") else "unknown",
+                    email=key.email,
                     error=str(e),
                     exc_info=True,
                 )

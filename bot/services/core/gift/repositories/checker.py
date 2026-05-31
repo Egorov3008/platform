@@ -1,17 +1,20 @@
 from typing import Optional
 
-from models import GiftLink
-from services.core.data.service import ServiceDataModel
+from api.backend_client import BackendAPIClient
 
 
 class CheckerGiftLink:
-    """Проверяет использование подарка"""
+    """Проверяет использование подарка через Backend API."""
 
-    def __init__(self, model_data: ServiceDataModel):
-        self._gift_data = model_data.gifts
+    def __init__(self, backend: BackendAPIClient):
+        self._backend = backend
 
     async def check(self, user_id: int) -> bool:
-        gift_link: Optional[GiftLink] = await self._gift_data.get_data(user_id)
-        if not gift_link:
+        gifts = await self._backend.admin_list_gifts(sender_tg_id=user_id)
+        if not gifts:
             return False
-        return gift_link.is_redeemable()
+        # If any gift is not yet redeemed (no redeemed_at / recipient_tg_id)
+        for gift in gifts:
+            if not gift.get("redeemed_at") and not gift.get("recipient_tg_id"):
+                return True
+        return False

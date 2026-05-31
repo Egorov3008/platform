@@ -5,10 +5,9 @@ from aiogram_dialog import DialogManager
 from aiogram_dialog.widgets.kbd import Start, SwitchTo, Row, Column, Url, Button
 from aiogram_dialog.widgets.text import Const, Format
 
+from api.backend_client import BackendAPIClient
 from config import SUPPORT_CHAT_URL
 from getters.base import BaseService
-from models import User, Key
-from services.core.data.service import ServiceDataModel
 from services.core.gift.repositories.checker import CheckerGiftLink
 from services.core.user.utils.checked_admin import CheckedUser
 from states import KeysInit, GiftStates, UsageRules, AdminManager
@@ -21,14 +20,13 @@ class MainMenuGetter(BaseService):
 
     def __init__(
         self,
-        model_data: ServiceDataModel,
+        backend: BackendAPIClient,
         checker_link: CheckerGiftLink,
         checked_user: CheckedUser,
         target_state: str = "MainMenu:main",
     ):
         super().__init__(target_state)
-        self.user_data = model_data.users
-        self.key_data = model_data.keys
+        self.backend = backend
         self.checker_link = checker_link
         self.check_user = checked_user
         self.state = "main"
@@ -38,16 +36,16 @@ class MainMenuGetter(BaseService):
     ) -> Dict[str, Any]:
         """Получение данных пользователя."""
         tg_id = dialog_manager.event.from_user.id
-        user: Optional[User] = await self.user_data.get_data(tg_id)
-        trial: bool = user.trial == 0
-        keys: List[Key] = await self.key_data.get_by(tg_id=tg_id)
+        user = await self.backend.get_user(tg_id)
+        trial: bool = user.get("trial") == 0 if user else True
+        keys = await self.backend.get_user_keys(tg_id)
         count_key = len(keys)
         is_admin = self.check_user.check(tg_id)
         check_key = count_key > 0
         check_usage_link = await self.checker_link.check(tg_id)
 
         return {
-            "username": user.username or tg_id,
+            "username": user.get("username") or tg_id if user else tg_id,
             "count_key": count_key,
             "trial": trial,
             "is_admin": is_admin,
@@ -126,7 +124,6 @@ class MainMenuGetter(BaseService):
         from pathlib import Path
         from aiogram.types import FSInputFile
 
-        # Путь к файлу относительно корня проекта
         base_dir = Path(__file__).resolve().parent.parent.parent
         pdf_path = base_dir / "Правила использования VPN — Бот только для своих.pdf"
 

@@ -4,64 +4,52 @@
 переиспользовать из разных мест (капча, веб-вход и т. п.).
 """
 
-import random
-
-import asyncpg
 from aiogram.exceptions import TelegramAPIError
 from aiogram.types import Message
 from aiogram_dialog import DialogManager, StartMode
 
-from config import ADMIN_ID, LIST_AVAILABLE_CONNECTIONS
+from api.backend_client import BackendAPIClient
+from config import ADMIN_ID
 from logger import logger
-from services.cache.key_manager import CacheKeyManager
-from services.cache.service import CacheService
-from services.core.user.utils.saver import SeverUser
 from states.main import MainMenu
 
 
 async def auto_register_user(
     message: Message, dialog_manager: DialogManager
 ) -> None:
-    """Авто-регистрация пользователя.
+    """Авто-регистрация пользователя через backend API.
 
-    1. Создаёт пользователя через SeverUser.register_user (server_id=2).
-    2. Кеширует его в cache.users.
-    3. Выбирает случайный inbound из LIST_AVAILABLE_CONNECTIONS и сохраняет
-       его в кеше как temporary_inbound.
-    4. Уведомляет админов.
-    5. Переходит на MainMenu.welcome (RESET_STACK).
+    1. Создаёт пользователя через BackendAPIClient.admin_register_user (server_id=2).
+    2. Уведомляет админов.
+    3. Переходит на MainMenu.welcome (RESET_STACK).
 
     При любой ошибке логирует и отправляет сообщение пользователю.
     """
     tg_id = message.from_user.id
     try:
         container = dialog_manager.middleware_data.get("container")
-        cache: CacheService = dialog_manager.middleware_data.get("cache")
-        pool: asyncpg.Pool = container.resolve(asyncpg.Pool)
-        saver: SeverUser = container.resolve(SeverUser)
+        backend: BackendAPIClient = container.resolve(BackendAPIClient)
 
-        # Создаём пользователя (server_id=2)
-        new_user = await saver.register_user(pool, tg_id=tg_id, server_id=2)
+        from_user = message.from_user
+        payload = {
+            "tg_id": tg_id,
+            "username": from_user.username if from_user else None,
+            "first_name": from_user.first_name if from_user else None,
+            "last_name": from_user.last_name if from_user else None,
+            "language_code": from_user.language_code if from_user else None,
+            "server_id": 2,
+        }
 
-        # Кешируем нового пользователя
-        await cache.users.set(CacheKeyManager.user(tg_id), new_user)
-
-        # Выбираем случайный inbound из доступных подключений
-        inbound_id = random.choice(LIST_AVAILABLE_CONNECTIONS)
-        await cache.users.set(
-            CacheKeyManager.temporary_inbound(tg_id), str(inbound_id)
-        )
+        new_user = await backend.admin_register_user(payload)
+        if not new_user or not new_user.get("tg_id"):
+            raise RuntimeError("Backend registration failed or returned empty user")
 
         logger.info(
-            "Пользователь авто-зарегистрирован",
+            "Пользователь авто-зарегистрирован через backend",
             tg_id=tg_id,
-            inbound_id=inbound_id,
         )
 
-        # Информационное уведомление админам
         await _notify_admins(message)
-
-        # Переходим в главное меню
         await dialog_manager.start(MainMenu.welcome, mode=StartMode.RESET_STACK)
 
     except Exception as e:

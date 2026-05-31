@@ -1,30 +1,45 @@
-# Документация по модулю services
+# Документация по модулю services ⚠️ Частично удалён
 
-Модуль `services` содержит основную бизнес-логику Telegram-бота для управления VPN-подписками. Он реализует сервисы, которые обрабатывают пользовательские запросы, взаимодействуют с базой данных и кэшем, а также управляют различными бизнес-процессами.
+> ⚠️ **ВАЖНО:** После рефакторинга (30 мая 2026) бот стал **чистым UI-слоем**. Вся бизнес-логика (платежи, синхронизация, уведомления, аналитика) переехала в `backend/`.
+> Бот общается с backend исключительно через `BackendAPIClient` (`api/backend_client.py`).
 
-## Структура модуля
+Модуль `services` содержит UI-хелперы Telegram-бота для управления VPN-подписками: кэш, диалоги, сценарии, лёгкие сервисы форматирования.
+
+## Структура модуля (актуальная)
 
 ```
 services/
 ├── __init__.py
-├── analytics
-├── billing
-├── cache
-├── conteiner
-├── core
-├── metrics          # Prometheus метрики (см. docs/METRICS_MODULE.md)
-├── notification
-├── scenarios
-└── synchron
+├── api              # HTTP-клиент для backend API (BackendAPIClient)
+├── cache            # In-memory TTL cache
+├── conteiner        # DI-контейнер (punq)
+├── core             # UI-хелперы (keys, user, gift, tariff, price, referral, stock)
+├── metrics          # Prometheus registry (Counter/Gauge/Histogram)
+└── scenarios        # Оркестраторы бизнес-сценариев
 ```
+
+**❌ Удалённые подмодули:**
+- `services/analytics/` — удалён (аналитика в backend)
+- `services/billing/` — удалён (тарифы и акции в backend)
+- `services/notification/` — удалён (воронки в backend)
+- `services/synchron/` — удалён (синхронизация в backend)
 
 ## Подмодули
 
+### `api`
+
+HTTP-клиент для взаимодействия с backend API.
+
+| Файл | Класс | Описание |
+|------|-------|-------------|
+| `backend_client.py` | `BackendAPIClient` | Асинхронный httpx-клиент. Все бизнес-операции (ключи, платежи, пользователи) через backend API |
+| `schemas.py` | DTO | Модели запросов/ответов для API |
+
 ### `core`
 
-Основной подмодуль, содержащий бизнес-логику приложения. Обеспечивает работу с данными пользователей, ключами, тарифами, платежами и подарочными ссылками.
+UI-хелперы и локальная бизнес-логика (без прямого доступа к БД и 3x-UI). Обеспечивает работу с данными пользователей, ключами, тарифами и подарочными ссылками через cache + backend API.
 
-#### `data`
+#### `data` ⚠️ Legacy
 
 Слой доступа к данным, объединяющий работу с кэшем и базой данных.
 
@@ -34,36 +49,30 @@ services/
 
 #### `user`
 
-Сервисы, связанные с управлением пользователями.
+Сервисы, связанные с управлением пользователями (UI layer).
 
-- `utils/trial.py` — `TrialService`: Устанавливает триальный период пользователю
-- `utils/saturation.py` — `SaturationUser`: Агрегирует полный контекст пользователя (пользователь + сервер + ключи)
+- `utils/trial.py` — `TrialService`: Устанавливает триальный период пользователю (через backend API)
+- `utils/saturation.py` — `SaturationUser`: Агрегирует полный контекст пользователя из cache
 - `utils/checked_admin.py` — `CheckedUser`: Проверка прав администратора
-- `utils/delete_data.py` — `DeleteUser`: Каскадное удаление пользователя и его ключей
-- `utils/saver.py` — `SeverUser`: Регистрация и сохранение пользователя
+- `utils/auto_register.py` — `AutoRegistrationService`: Автоматическая регистрация через backend API
 
-#### `keys`
+**❌ Удалены:** `utils/delete_data.py`, `utils/saver.py`, `utils/checked_block.py` — управление пользователями в backend.
 
-Сервисы, связанные с управлением ключами VPN.
+#### `keys` (UI layer only)
+
+Сервисы, связанные с отображением ключей VPN (без прямого доступа к 3x-UI).
 
 - `service.py` — `KeyService`: Подготавливает данные ключа для UI
-- `models/key_model.py` — `KeyModel`: Доменная модель ключа с вычисляемыми свойствами (статус, оставшееся время, использование трафика)
-- `view/key_view.py` — `KeyView`: Статические методы для отображения успешных/ошибочных ответов
-- `controllers/key_controller.py` — `KeyController`: MVC-контроллер, координирующий сервис, модель и представление
-- `utils/calculator.py` — `ExpiryCalculator`: Вычисление времени истечения для новых и продлеваемых ключей
-- `utils/create_key.py` — `CreateKey`: Оркестратор процесса создания нового ключа
-- `utils/formtion.py` — `FormationKey`: Построение объекта ключа с генерацией email/client_id
-- `utils/renewal.py` — `KeyRenewal`: Продление ключа через панель XUI
-- `utils/updating.py` — `KeyUpdater`: Применение параметров тарифа к ключу
+- `models/key_model.py` — `KeyModel`: Доменная модель ключа с вычисляемыми свойствами
+- `view/key_view.py` — `KeyView`: Статические методы для отображения ответов
+- `controllers/key_controller.py` — `KeyController`: MVC-контроллер
 
-#### `payment`
+**❌ Удалены:** `utils/calculator.py`, `utils/create_key.py`, `utils/formtion.py`, `utils/renewal.py`, `utils/updating.py` — создание/продление ключей теперь в backend.
 
-Сервисы, связанные с обработкой платежей.
+#### `payment` ❌ Удалён
 
-- `processor.py` — `PaymentProcessor`: Загрузка и валидация данных платежа
-- `creation_service.py` — `KeyCreationService`: Создание и доставка нового ключа после оплаты
-- `renewal_service.py` — `KeyRenewalService`: Продление существующего ключа после оплаты
-- `router.py` — `PaymentRouter`: Маршрутизация платежей к соответствующим обработчикам
+Сервисы платежей (`PaymentProcessor`, `KeyCreationService`, `KeyRenewalService`, `PaymentRouter`) удалены из бота.
+Вся платёжная логика — в backend.
 
 #### `gift`
 
@@ -87,7 +96,7 @@ services/
 
 Сервисы, связанные с тарифами.
 
-- `data.py` — `TariffData`: Получение тарифов из кэша/БД с фильтрацией для пользователей/администраторов
+- `data.py` — `TariffData`: Получение тарифов из cache с фильтрацией для пользователей/администраторов
 
 #### `price`
 
@@ -95,13 +104,11 @@ services/
 
 - `form_price.py` — `Pricing`: Формирование цены с учетом скидок и акций
 
-#### `connect_module`
+#### `connect_module` ❌ Удалён
 
-Сервисы, связанные с подключением к серверам.
+`FormConnectionData` удалён — данные для подключения теперь приходят из backend API.
 
-- `repositories/form_data.py` — `FormConnectionData`: Получение данных для подключения к серверу
-
-#### `time_helper.py`
+#### `time_helper.py` ❌ Удалён
 
 Утилиты для работы со временем в миллисекундах.
 

@@ -8,7 +8,6 @@ import asyncio
 import time
 from typing import Dict, Any, Optional
 
-import asyncpg
 from aiohttp import web
 
 from logger import logger
@@ -16,10 +15,10 @@ from logger import logger
 
 class HealthCheckService:
     """Сервис проверки состояния приложения"""
-    
+
     def __init__(
         self,
-        db_pool: Optional[asyncpg.Pool] = None,
+        db_pool: Optional[Any] = None,
         cache_service: Optional[Any] = None,
         xui_session: Optional[Any] = None,
     ):
@@ -176,7 +175,7 @@ _health_service: Optional[HealthCheckService] = None
 
 
 def init_health_service(
-    db_pool: Optional[asyncpg.Pool] = None,
+    db_pool: Optional[Any] = None,
     cache_service: Optional[Any] = None,
     xui_session: Optional[Any] = None,
 ) -> HealthCheckService:

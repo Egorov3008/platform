@@ -6,7 +6,6 @@ from logger import logger
 from registration.gift_registration import GiftRegistration
 from registration.referral_registration import ReferralRegistration
 from registration.registration_factory import RegistrationFactory
-from services.cache.key_manager import CacheKeyManager
 from services.metrics.registry import user_registered_total
 
 
@@ -27,30 +26,23 @@ class RegistrationUsersMiddleware(BaseMiddleware):
         data: Dict[str, Any],
     ) -> Any:
         container = data["container"]
-        cache = data["cache"]
 
         if not (user := data.get("event_from_user")):
             return await handler(event, data)
 
         user_id = user.id
 
-        # Проверяем кеш
-        cached_user = await cache.users.get(CacheKeyManager.user(user_id))
-        if cached_user:
-            data["registration_result"] = {"success": True, "type": "registered_user"}
-            return await handler(event, data)
-
-        # Fallback: проверяем backend API если кеша нет (кеш мог истечь или быть очищен)
+        # Проверяем backend API (single source of truth)
         try:
             from api.backend_client import BackendAPIClient
 
             backend_client = container.resolve(BackendAPIClient)
             backend_user = await backend_client.get_user(user_id)
             if backend_user:
-                logger.debug("Пользователь найден в backend (кеш был пуст)", user_id=user_id)
                 data["registration_result"] = {
                     "success": True,
                     "type": "registered_user",
+                    "trial": backend_user.get("trial", 0),
                 }
                 return await handler(event, data)
         except Exception as e:
