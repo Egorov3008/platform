@@ -45,6 +45,17 @@ playwright-report/
 # Worktrees
 .worktrees/
 
-# Self-signed SSL certs for local HTTPS
-cert.pem
-key.pem
+# Certificates (Let's Encrypt / nginx)
+/nginx_certs/
+/certs/
+
+# Temporary capture scripts
+/capture_*.py
+
+# Backup files
+*.backup
+/docker-compose.yml.backup
+
+# Root-level node artifacts (web/ has its own package.json)
+/package.json
+/package-lock.json

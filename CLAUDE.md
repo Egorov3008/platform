@@ -81,25 +81,25 @@ cd bot && make formatting
 
 ## Bot Architecture (aiogram 3)
 
+The bot is now a **pure UI layer**. All business logic (keys, payments, cache sync, notifications, analytics) lives in the backend. The bot communicates with the backend exclusively via `BackendAPIClient` (`bot/api/backend_client.py`).
+
 The bot uses a **middleware stack** where order matters. Each middleware injects services into the aiogram `data` dict:
 
 ```
 DependencyInjectionMiddleware  → data["container"]
-  → DatabaseMiddleware           → data["session"]
-    → CacheMiddleware            → data["cache"]
-      → XUIMiddleware            → data["xui_session"]
-        → RegistrationUsersMiddleware → data["registration_result"]
-          → AdminSearchMiddleware
-            → SubscriptionMiddleware
-              → LoggingMiddleware
-                → DialogExceptionHandlerMiddleware
+  → CacheMiddleware            → data["cache"]
+    → RegistrationUsersMiddleware → data["registration_result"]
+      → AdminSearchMiddleware
+        → SubscriptionMiddleware
+          → LoggingMiddleware
+            → DialogExceptionHandlerMiddleware
 ```
 
 **DI container:** `punq` singleton container built in `services/conteiner/app.py`. Package is intentionally named `conteiner` (legacy spelling — do not rename).
 
 **Dialogs:** Component-based factory pattern (`MessageBuilder` + `KeyboardBuilder` + `DataGetter` → `WindowFactory`).
 
-**Background tasks:** `BackgroundTaskManager` in `tasks.py` runs cache sync, notification funnels, and webhook server.
+**Background tasks:** Moved to `backend/background/scheduler.py`. The bot's `BackgroundTaskManager` (`tasks.py`) is now a no-op stub (retained for startup/shutdown compatibility).
 
 ## Backend Request Flow
 
@@ -111,7 +111,7 @@ FastAPI Router (/api/v1/*)
     └─ Call service/factory functions
     ↓
 Service Classes (KeyCreation, PaymentProcessor, KeyRenewal)
-    ├─ 3x-UI integration (py3xui client)
+    ├─ 3x-UI integration (native standalone API via backend/client.py)
     ├─ YooKassa payment processing
     ├─ Cache invalidation
     └─ Database updates
@@ -123,7 +123,11 @@ PostgreSQL + 3x-UI Panel
 - `build_key_services(pool, service_data, cache, data_service)` → returns `(create_key, key_renewal, xui)`
 - `build_payment_router(pool, service_data, cache, data_service)` → returns `PaymentRouter` (calls `build_key_services` internally)
 
+**3x-UI Integration:** Backend uses a native httpx client for 3x-ui v3.2.0 standalone API (`backend/client.py`). The `py3xui` dependency has been removed. `PanelClient` dataclass replaces `py3xui.Client`.
+
 **Telegram notifications:** Backend sends user notifications via `backend/bot_project.py`, a lightweight httpx wrapper around the Bot API. It does not depend on aiogram.
+
+**Background tasks:** `backend/background/scheduler.py` runs cache sync (every 3h), panel sync (every 3h), and notification funnels (every 1h) via APScheduler.
 
 ## Per-Component Deep Dives
 
