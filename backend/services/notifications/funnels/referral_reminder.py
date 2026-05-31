@@ -1,23 +1,17 @@
-"""
-Воронка напоминания о реферальной программе.
-
-Пользовательская воронка (не ключевая): segment_keys = [] всегда.
-Отправляет пользователям, не создавшим реферальную ссылку.
-"""
+"""Воронка напоминания о реферальной программе."""
 
 from datetime import timedelta
+from typing import Optional
 
 import asyncpg
-from aiogram import Bot
-from aiogram.types import InlineKeyboardMarkup
-from aiogram.utils.keyboard import InlineKeyboardBuilder
-
-from services.notification.models import NotificationContext, NotificationResult
-from services.notification.rate_limiter import RateLimiter
-from services.notification.utils.cache_helpers import NotificationDedupeCache
+from logger import logger
+from models.users.user import User
+from services.notifications.models import NotificationContext, NotificationResult
+from services.notifications.rate_limiter import RateLimiter
+from services.notifications.dedupe import NotificationDedupeCache
+from bot_project import bot
 
 _DEDUPE_TTL = timedelta(days=7)
-
 _CHECK_SQL = "SELECT EXISTS(SELECT 1 FROM referral_links WHERE referrer_tg_id = $1)"
 
 
@@ -34,18 +28,13 @@ class ReferralReminderFunnel:
     async def should_send(self, ctx: NotificationContext) -> bool:
         if await self._dedupe.is_sent(self.funnel_id, ctx.user.tg_id):
             return False
-        # Проверка в БД: нет реферальной ссылки → не приглашал никого
         async with self._pool.acquire() as conn:
             has_link: bool = await conn.fetchval(_CHECK_SQL, ctx.user.tg_id)
         return not has_link
 
-    async def process(self, bot: Bot, ctx: NotificationContext) -> NotificationResult:
+    async def process(self, ctx: NotificationContext) -> NotificationResult:
         result = NotificationResult(tg_id=ctx.user.tg_id, funnel_id=self.funnel_id)
-
-        send_result = await self._rate_limiter.send_message_safe(
-            bot, ctx.user, self._build_text(), self._build_keyboard()
-        )
-
+        send_result = await self._send_safe(ctx.user, self._build_text(), self._build_keyboard())
         if send_result == "sent":
             result.sent += 1
             await self._dedupe.mark_sent(self.funnel_id, ctx.user.tg_id, _DEDUPE_TTL)
@@ -53,7 +42,6 @@ class ReferralReminderFunnel:
             result.failed_blocked += 1
         else:
             result.failed_other += 1
-
         return result
 
     @staticmethod
@@ -70,9 +58,23 @@ class ReferralReminderFunnel:
         )
 
     @staticmethod
-    def _build_keyboard() -> InlineKeyboardMarkup:
-        kb = InlineKeyboardBuilder()
-        kb.button(text="🤝 Реферальная программа", callback_data="open_referral")
-        kb.button(text="👤 Личный кабинет", callback_data="profile")
-        kb.adjust(1)
-        return kb.as_markup()
+    def _build_keyboard() -> Optional[dict]:
+        return {
+            "inline_keyboard": [
+                [{"text": "🤝 Реферальная программа", "callback_data": "open_referral"}],
+                [{"text": "👤 Личный кабинет", "callback_data": "profile"}],
+            ]
+        }
+
+    async def _send_safe(self, user: User, text: str, keyboard: Optional[dict]) -> str:
+        await self._rate_limiter.acquire(user.tg_id)
+        try:
+            await bot.send_message(user.tg_id, text, reply_markup=keyboard)
+            return "sent"
+        except Exception as exc:
+            error_msg = str(exc).lower()
+            if "blocked" in error_msg or "forbidden" in error_msg or "chat not found" in error_msg:
+                logger.info("User blocked bot", tg_id=user.tg_id)
+                return "blocked"
+            logger.error("Send message error", tg_id=user.tg_id, error=str(exc))
+            return "error"

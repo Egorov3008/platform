@@ -1,11 +1,11 @@
-"""
-Модели данных для системы уведомлений.
-"""
+"""Модели данных для системы уведомлений (backend scheduler)."""
 
 from dataclasses import dataclass, field
-from typing import List, Dict
+from datetime import datetime, timezone
+from typing import Dict, List
 
-from models import User, Key
+from models.keys.key import Key
+from models.users.user import User
 
 
 @dataclass
@@ -13,8 +13,8 @@ class NotificationContext:
     """Контекст уведомления для одного пользователя в рамках воронки."""
 
     user: User
-    keys: List[Key]  # все ключи пользователя
-    segment_keys: List[Key]  # ключи, уже отфильтрованные по сегменту
+    keys: list[Key]
+    segment_keys: list[Key]
 
 
 @dataclass

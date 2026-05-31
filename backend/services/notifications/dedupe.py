@@ -1,10 +1,4 @@
-"""
-NotificationDedupeCache — дедупликация уведомлений через PostgreSQL.
-
-Флаги хранятся в таблице `cache` (key = "notif_{funnel_id}_{tg_id}"),
-что обеспечивает персистентность между рестартами бота.
-Дополнительно кешируем флаги в памяти (L1) для быстрой проверки внутри цикла.
-"""
+"""Дедупликация уведомлений через PostgreSQL (таблица cache)."""
 
 from datetime import datetime, timedelta, timezone
 
@@ -12,22 +6,17 @@ import asyncpg
 
 
 class NotificationDedupeCache:
-    """
-    Дедупликация уведомлений с персистентностью через PostgreSQL.
-
-    Использует таблицу `cache` (key TEXT PRIMARY KEY, value JSONB, expires_at TIMESTAMPTZ).
-    L1-словарь в памяти ускоряет повторные проверки внутри одного цикла.
-    """
+    """Дедупликация с персистентностью через PostgreSQL."""
 
     def __init__(self, pool: asyncpg.Pool) -> None:
         self._pool = pool
-        self._local: dict[str, bool] = {}  # L1: внутрицикловая дедупликация
+        self._local: dict[str, bool] = {}
 
     def _make_key(self, funnel_id: str, tg_id: int) -> str:
         return f"notif_{funnel_id}_{tg_id}"
 
     async def is_sent(self, funnel_id: str, tg_id: int) -> bool:
-        """Проверить, было ли уже отправлено уведомление данной воронки пользователю."""
+        """Проверить, было ли уже отправлено уведомление."""
         key = self._make_key(funnel_id, tg_id)
         if self._local.get(key):
             return True
@@ -39,7 +28,7 @@ class NotificationDedupeCache:
         return row is not None
 
     async def mark_sent(self, funnel_id: str, tg_id: int, ttl: timedelta) -> None:
-        """Зафиксировать, что уведомление отправлено (персистентно, с TTL)."""
+        """Зафиксировать отправку уведомления."""
         key = self._make_key(funnel_id, tg_id)
         self._local[key] = True
         expires_at = datetime.now(timezone.utc) + ttl
