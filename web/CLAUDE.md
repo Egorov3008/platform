@@ -85,7 +85,7 @@ JWT-based (python-jose) with unified Telegram Widget support for new and existin
 ### WebBackendClient
 
 HTTP client (`app/api/backend_client.py`) handles all business operations:
-- **Methods**: `list_tariffs()`, `create_key(tariff_id)`, `delete_key(email)`, `renew_key(email, tariff_id)`, etc.
+- **Methods**: `list_tariffs()`, `create_key(tariff_id)`, `create_trial_key()`, `get_user(tg_id)`, `delete_key(email)`, `renew_key(email, tg_id, tariff_id, months)`, etc.
 - **Authentication**: All requests include `X-Bot-Secret: <BOT_SECRET_KEY>` header (service-to-service auth)
 - **Dependency**: Injected via `get_backend_client(request, current_user)` — extracts user's `tg_id` from JWT
 - **Error handling**: httpx exceptions propagate as HTTP responses (400, 402, 404, 500, etc.)
@@ -100,13 +100,17 @@ HTTP client (`app/api/backend_client.py`) handles all business operations:
 **Keys (proxied to backend):**
 - `GET /api/v1/keys/` — list user's VPN keys
 - `POST /api/v1/keys/` — create new key (free tariffs)
+- `POST /api/v1/keys/trial` — create a free trial key
 - `GET /api/v1/keys/{email}` — get key details
-- `POST /api/v1/keys/{email}/renew` — renew key expiry (free only)
+- `POST /api/v1/keys/{email}/renew` — renew key expiry (free only, passes `tg_id` to backend)
 - `DELETE /api/v1/keys/{email}` — delete key
 
 **Tariffs (proxied to backend):**
 - `GET /api/v1/tariffs/` — list all tariffs
 - `GET /api/v1/tariffs/{id}` — get tariff details
+
+**Users (proxied to backend):**
+- `GET /api/v1/users/me` — get current user's data from backend (via `BackendAPIClient.get_user(tg_id)`)
 
 **Payments (proxied to backend):**
 - `GET /api/v1/payments/` — list user's payment history

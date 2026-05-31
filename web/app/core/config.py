@@ -11,7 +11,7 @@ if not _env_path.exists():
 _env_file = _env_path
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=str(_env_file), extra="ignore")
+    model_config = SettingsConfigDict(env_file=str(_env_file), extra="ignore", populate_by_name=True)
 
     database_url: str
     secret_key: str
@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 30
     telegram_bot_token: str
     telegram_bot_username: str = ""
+    bot_token: str = None  # alias for telegram_bot_token
     yookassa_shop_id: str
     yookassa_secret_key: str
     xui_api_url: str
