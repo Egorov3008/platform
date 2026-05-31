@@ -59,3 +59,7 @@ playwright-report/
 # Root-level node artifacts (web/ has its own package.json)
 /package.json
 /package-lock.json
+
+# Debug scripts
+backend/debug_sync.py
+**/debug_*.py
