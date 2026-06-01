@@ -1,16 +1,29 @@
 """
 Comprehensive async tests for RegistrationUsersMiddleware flow.
 
-Covers: cache lookup, DB fallback, token parsing, factory delegation,
-and the full /start flow for new/returning/gift users.
+ОТКЛЮЧЕНЫ 2026-06-01: файл тестировал старую архитектуру (cache.users →
+service_model.users.get_data → factory). Текущая реализация ходит только
+в BackendAPIClient (см. CLAUDE.md "Cache Access Rules") — соответствующее
+покрытие живёт в tests/middlewares/test_registration_users.py.
+
+Содержимое оставлено как reference, чтобы можно было переиспользовать
+тест-кейсы при будущей адаптации к новой архитектуре. Не удалять без
+обновления до актуальной логики middleware.
 """
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from aiogram.types import Update
 
-from middlewares.registration_users import RegistrationUsersMiddleware
-from registration.registration_factory import RegistrationFactory
+pytest.skip(
+    "Legacy flow tests for old cache/DB-based middleware — see "
+    "tests/middlewares/test_registration_users.py for current coverage.",
+    allow_module_level=True,
+)
+
+from aiogram.types import Update  # noqa: E402  — unreachable after skip
+
+from middlewares.registration_users import RegistrationUsersMiddleware  # noqa: E402
+from registration.registration_factory import RegistrationFactory  # noqa: E402
 
 
 class TestRegistrationUsersMiddlewareFlow:

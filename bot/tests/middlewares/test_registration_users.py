@@ -22,15 +22,26 @@ class TestRegistrationUsersMiddleware:
         }
 
     @pytest.mark.asyncio
-    async def test_registered_user_from_cache(self, middleware, base_data):
-        base_data["cache"].users.get = AsyncMock(return_value=MagicMock())
+    async def test_registered_user_from_backend_when_event_is_not_update(self, middleware, base_data):
+        """Если backend подтвердил регистрацию — middleware помечает
+        registration_result='registered_user' и сразу вызывает handler
+        (даже если event не является Update — это вспомогательный путь)."""
+        from api.backend_client import BackendAPIClient
+
+        backend_user = {"tg_id": 123, "trial": 0}
+        mock_backend = AsyncMock(spec=BackendAPIClient)
+        mock_backend.get_user = AsyncMock(return_value=backend_user)
+        base_data["container"].resolve = MagicMock(return_value=mock_backend)
+
         handler = AsyncMock()
         event = MagicMock()
 
         await middleware(handler, event, base_data)
 
         assert base_data["registration_result"]["type"] == "registered_user"
-        handler.assert_called_once()
+        assert base_data["registration_result"]["trial"] == 0
+        mock_backend.get_user.assert_awaited_once_with(123)
+        handler.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_no_event_user_passes_through(self, middleware, base_data):
@@ -39,7 +50,7 @@ class TestRegistrationUsersMiddleware:
 
         await middleware(handler, MagicMock(), base_data)
 
-        handler.assert_called_once()
+        handler.assert_awaited_once()
         assert "registration_result" not in base_data
 
     @pytest.mark.asyncio
@@ -47,7 +58,7 @@ class TestRegistrationUsersMiddleware:
         """check_event_message returns True when event has message."""
         # Создаём MagicMock, который проходит isinstance проверку
         from aiogram.types import Update
-        
+
         event = MagicMock()
         event.__class__ = Update  # Обманываем isinstance
         event.message = MagicMock()
@@ -71,11 +82,13 @@ class TestRegistrationUsersMiddleware:
         await middleware(handler, MagicMock(), base_data)
 
         assert base_data["registration_result"]["type"] == "registered_user"
-        mock_backend.get_user.assert_called_once_with(123)
-        handler.assert_called_once()
+        mock_backend.get_user.assert_awaited_once_with(123)
+        handler.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_unregistered_user_no_token_passes_through(self, middleware, base_data):
+    async def test_unregistered_user_no_token_marks_unknown(self, middleware, base_data):
+        """Если backend не нашёл пользователя и это не Update с /start — токен
+        не извлекается, registration_result='unknown_user' (для auto_register)."""
         from api.backend_client import BackendAPIClient
 
         mock_backend = AsyncMock(spec=BackendAPIClient)
@@ -91,8 +104,32 @@ class TestRegistrationUsersMiddleware:
         handler = AsyncMock()
         await middleware(handler, event, base_data)
 
-        handler.assert_called_once()
-        assert "registration_result" not in base_data
+        handler.assert_awaited_once()
+        assert base_data["registration_result"]["type"] == "unknown_user"
+        assert base_data["registration_result"]["success"] is False
+
+    @pytest.mark.asyncio
+    async def test_unregistered_user_with_start_no_token_marks_unknown(self, middleware, base_data):
+        """/start без токена → registration_result='unknown_user'."""
+        from api.backend_client import BackendAPIClient
+
+        mock_backend = AsyncMock(spec=BackendAPIClient)
+        mock_backend.get_user = AsyncMock(return_value=None)
+        base_data["container"].resolve = MagicMock(return_value=mock_backend)
+
+        from aiogram.types import Update
+        event = MagicMock()
+        event.__class__ = Update
+        msg = MagicMock()
+        msg.text = "/start"
+        event.message = msg
+        event.edited_message = None
+
+        handler = AsyncMock()
+        await middleware(handler, event, base_data)
+
+        handler.assert_awaited_once()
+        assert base_data["registration_result"]["type"] == "unknown_user"
 
     @pytest.mark.asyncio
     async def test_check_event_message_without_message(self, middleware):
