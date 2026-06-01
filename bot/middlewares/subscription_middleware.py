@@ -246,10 +246,9 @@ class SubscriptionMiddleware(BaseMiddleware):
             context["event_type"] = "message"
 
         try:
-            await cache.storage.set(
-                namespace="subscription",
-                key=f"return_to:{user_id}",
-                value=json.dumps(context),
+            await cache.set_return_context(
+                user_id=user_id,
+                context=context,
                 ttl=timedelta(seconds=300),  # 5 минут
             )
             logger.debug(

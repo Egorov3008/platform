@@ -1,3 +1,4 @@
+import json
 from typing import TypeVar, Generic, List, Optional, Any
 from datetime import timedelta
 
@@ -103,6 +104,55 @@ class CacheService:
         self.referral_links: CacheProtocol[ReferralLink] = ModelCache[ReferralLink](
             storage, "referral_links"
         )
+        # Subscription-related cache entries. Routed through CacheService so
+        # callers never touch `cache.storage` directly (see bot/.claude/CLAUDE.md
+        # cache access rules). Helpers below preserve the legacy key formats
+        # (str(user_id) for status, f"return_to:{user_id}" for context) so this
+        # is a pure refactor with zero behavior change.
+        self.subscriptions: CacheProtocol[dict] = ModelCache[dict](
+            storage, "subscriptions"
+        )
+
+    # --- Subscription status helpers (legacy key: str(user_id)) ---------------
+
+    async def get_subscription_status(self, user_id: int) -> Optional[bool]:
+        """Return cached subscription status (True/False) or None if cold."""
+        cached = await self.subscriptions.get(str(user_id))
+        if cached is None:
+            return None
+        return cached == "1"
+
+    async def set_subscription_status(
+        self, user_id: int, is_subscribed: bool, ttl: timedelta
+    ) -> None:
+        """Cache subscription status under legacy key ``str(user_id)``."""
+        await self.subscriptions.set(
+            str(user_id), "1" if is_subscribed else "0", ttl
+        )
+
+    # --- Return context helpers (legacy key: f"return_to:{user_id}") -----------
+
+    async def get_return_context(self, user_id: int) -> Optional[dict]:
+        """Return cached return context (dict) or None if cold/invalid JSON."""
+        raw = await self.subscriptions.get(f"return_to:{user_id}")
+        if not raw:
+            return None
+        try:
+            return json.loads(raw)
+        except (TypeError, json.JSONDecodeError):
+            return None
+
+    async def set_return_context(
+        self, user_id: int, context: dict, ttl: timedelta
+    ) -> None:
+        """Cache return context dict (JSON-encoded) under legacy key."""
+        await self.subscriptions.set(
+            f"return_to:{user_id}", json.dumps(context), ttl
+        )
+
+    async def delete_return_context(self, user_id: int) -> None:
+        """Drop cached return context for user."""
+        await self.subscriptions.delete(f"return_to:{user_id}")
 
     async def start(self):
         await self.storage.start()

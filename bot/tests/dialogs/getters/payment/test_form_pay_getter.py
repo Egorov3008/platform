@@ -12,17 +12,20 @@ from dialogs.windows.getters.payment.form_pay import FormPaymentGetter
 
 
 @pytest.fixture
-def mock_backend_client():
-    client = AsyncMock()
-    client.create_payment = AsyncMock(
-        return_value={
-            "payment_id": "backend_pay_001",
-            "confirmation_url": "https://yoomoney.ru/pay/001",
-            "amount": 500.0,
-        }
-    )
-    client.get_payment_status = AsyncMock(return_value=None)
-    return client
+def payment_response():
+    """Default response for backend_client.create_payment used by these tests."""
+    return {
+        "payment_id": "backend_pay_001",
+        "confirmation_url": "https://yoomoney.ru/pay/001",
+        "amount": 500.0,
+    }
+
+
+@pytest.fixture
+def mock_backend_client(mock_backend_client, payment_response):
+    """Override the shared mock with payment-specific create_payment return value."""
+    mock_backend_client.create_payment = AsyncMock(return_value=payment_response)
+    return mock_backend_client
 
 
 @pytest.fixture

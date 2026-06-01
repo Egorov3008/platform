@@ -38,15 +38,14 @@ async def check_user_subscription(
     # Проверяем кэш
     if cache:
         try:
-            # Используем storage напрямую с namespace и key
-            cached = await cache.storage.get(namespace="subscription", key=str(user_id))
+            cached = await cache.get_subscription_status(user_id)
             if cached is not None:
                 logger.debug(
                     "Статус подписки получен из кэша",
                     user_id=user_id,
-                    is_subscribed=cached == "1",
+                    is_subscribed=cached,
                 )
-                return cached == "1"
+                return cached
         except Exception as e:
             logger.warning(
                 "Ошибка при чтении кэша подписки",
@@ -86,10 +85,9 @@ async def check_user_subscription(
         # Кэшируем только подписанных пользователей
         if cache and is_subscribed:
             try:
-                await cache.storage.set(
-                    namespace="subscription",
-                    key=str(user_id),
-                    value="1",
+                await cache.set_subscription_status(
+                    user_id=user_id,
+                    is_subscribed=True,
                     ttl=timedelta(seconds=SUBSCRIPTION_CACHE_TTL),
                 )
             except Exception as e:

@@ -21,11 +21,6 @@ def mock_dialog_manager():
 
 
 @pytest.fixture
-def mock_backend():
-    return AsyncMock(spec=BackendAPIClient)
-
-
-@pytest.fixture
 def sample_keys():
     return [
         BackendKey(

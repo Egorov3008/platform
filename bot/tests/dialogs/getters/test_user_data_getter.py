@@ -20,11 +20,6 @@ def mock_dialog_manager():
 
 
 @pytest.fixture
-def mock_backend():
-    return AsyncMock(spec=BackendAPIClient)
-
-
-@pytest.fixture
 def mock_checker_link():
     return AsyncMock()
 

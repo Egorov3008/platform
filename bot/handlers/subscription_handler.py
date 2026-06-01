@@ -114,7 +114,7 @@ async def handle_subscription_check(callback: CallbackQuery, bot: Bot) -> None:
         # Очищаем кэш подписки чтобы следующая проверка была актуальной
         if cache:
             try:
-                await cache.storage.delete(namespace="subscription", key=str(user_id))
+                await cache.delete_subscription_status(user_id)
             except Exception:
                 pass
 
@@ -122,11 +122,10 @@ async def handle_subscription_check(callback: CallbackQuery, bot: Bot) -> None:
         context = None
         if cache:
             try:
-                context_json = await cache.storage.get(namespace="subscription", key=f"return_to:{user_id}")
-                if context_json:
-                    context = json.loads(context_json)
+                context = await cache.get_return_context(user_id)
+                if context:
                     # Очищаем контекст
-                    await cache.storage.delete(namespace="subscription", key=f"return_to:{user_id}")
+                    await cache.delete_return_context(user_id)
             except Exception as e:
                 logger.warning(
                     "Ошибка при чтении контекста подписки",

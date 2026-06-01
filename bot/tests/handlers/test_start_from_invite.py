@@ -6,7 +6,6 @@ from aiogram.fsm.context import FSMContext
 
 from handlers.start_from_invite import handle_start_with_invite
 from services.auth_service import BotAuthService
-from api.backend_client import BackendAPIClient
 
 
 @pytest.fixture
@@ -38,15 +37,6 @@ def mock_state():
     state = MagicMock(spec=FSMContext)
     state.update_data = AsyncMock()
     return state
-
-
-@pytest.fixture
-def mock_backend_client():
-    """Create a mock BackendAPIClient."""
-    client = MagicMock(spec=BackendAPIClient)
-    client.get_user = AsyncMock()
-    client.register_from_invite = AsyncMock()
-    return client
 
 
 @pytest.mark.asyncio
