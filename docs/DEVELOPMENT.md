@@ -54,13 +54,13 @@ cd web && npx playwright install
 
 ### Apply database migrations (web auth tables)
 
+Web migrations are auto-applied on container startup by `web/run.sh` (idempotent loop, skips `*drop*` files). For local dev (no Docker), apply manually:
+
 ```bash
-psql "$DATABASE_URL" -f web/migrations/001_web_auth.sql
-psql "$DATABASE_URL" -f web/migrations/002_login_codes.sql
-psql "$DATABASE_URL" -f web/migrations/003_stocks_per_user.sql
-psql "$DATABASE_URL" -f web/migrations/004_referral_tables.sql
-psql "$DATABASE_URL" -f web/migrations/005_add_referral_discount.sql
-psql "$DATABASE_URL" -f web/migrations/006_add_servers_and_update_schema.sql
+for f in web/migrations/*.sql; do
+  case "$(basename "$f")" in *drop*) continue;; esac
+  psql "$DATABASE_URL" -f "$f" || true
+done
 ```
 
 Backend database schema is managed directly; no migration runner is used in `backend/`.

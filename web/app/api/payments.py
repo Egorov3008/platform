@@ -22,16 +22,12 @@ logger = get_logger(__name__)
 @router.get("/", response_model=list[PaymentHistoryItem])
 async def list_payments(
     backend: WebBackendClient = Depends(get_backend_client),
-    current_user: dict = Depends(get_current_user),
+    _: dict = Depends(get_current_user),  # require auth
 ):
-    tg_id = current_user.get("tg_id")
-    if not tg_id:
-        logger.debug("tg_id отсутствует, возвращаем пустой список")
-        return []
-    logger.debug("GET /payments: запрос истории платежей", extra={"tg_id": tg_id})
+    logger.debug("GET /payments: запрос истории платежей")
     try:
         payments = await backend.get_payment_history()
-        logger.debug("GET /payments: успешно получено платежей", extra={"count": len(payments), "tg_id": tg_id})
+        logger.debug("GET /payments: успешно получено платежей", extra={"count": len(payments)})
         items = []
         for i, p in enumerate(payments):
             try:
@@ -48,7 +44,7 @@ async def list_payments(
     except Exception as e:
         logger.error(
             "GET /payments: ошибка при получении истории платежей",
-            extra={"error": str(e), "tg_id": tg_id, "error_type": type(e).__name__},
+            extra={"error": str(e), "error_type": type(e).__name__},
             exc_info=True
         )
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Backend error")
@@ -58,13 +54,9 @@ async def list_payments(
 async def create_payment(
     body: CreatePaymentRequest,
     backend: WebBackendClient = Depends(get_backend_client),
-    current_user: dict = Depends(get_current_user),
+    _: dict = Depends(get_current_user),  # require auth
 ):
-    tg_id = current_user.get("tg_id")
-    if not tg_id:
-        logger.warning("POST /payments/create: tg_id отсутствует")
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Telegram account required")
-    logger.debug("POST /payments/create: запрос", extra={"tg_id": tg_id, "tariff_id": body.tariff_id, "months": body.number_of_months})
+    logger.debug("POST /payments/create: запрос", extra={"tariff_id": body.tariff_id, "months": body.number_of_months})
     try:
         payment_data = await backend.create_payment(body.tariff_id, months=body.number_of_months)
         logger.debug("POST /payments/create: успешное создание платежа", extra={"payment_id": payment_data["payment_id"], "amount": payment_data.get("amount")})
@@ -76,7 +68,7 @@ async def create_payment(
     except Exception as e:
         logger.error(
             "POST /payments/create: ошибка при создании платежа",
-            extra={"error": str(e), "tg_id": tg_id, "tariff_id": body.tariff_id, "error_type": type(e).__name__},
+            extra={"error": str(e), "tariff_id": body.tariff_id, "error_type": type(e).__name__},
             exc_info=True
         )
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Backend error")
@@ -86,13 +78,9 @@ async def create_payment(
 async def create_renewal_payment(
     body: RenewPaymentRequest,
     backend: WebBackendClient = Depends(get_backend_client),
-    current_user: dict = Depends(get_current_user),
+    _: dict = Depends(get_current_user),  # require auth
 ):
-    tg_id = current_user.get("tg_id")
-    if not tg_id:
-        logger.warning("POST /payments/renew: tg_id отсутствует")
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Telegram account required")
-    logger.debug("POST /payments/renew: запрос", extra={"tg_id": tg_id, "email": body.client_id, "tariff_id": body.tariff_id, "months": body.number_of_months})
+    logger.debug("POST /payments/renew: запрос", extra={"email": body.client_id, "tariff_id": body.tariff_id, "months": body.number_of_months})
     try:
         payment_data = await backend.create_renewal_payment(
             email=body.client_id,
@@ -108,7 +96,7 @@ async def create_renewal_payment(
     except Exception as e:
         logger.error(
             "POST /payments/renew: ошибка при создании платежа продления",
-            extra={"error": str(e), "tg_id": tg_id, "email": body.client_id, "error_type": type(e).__name__},
+            extra={"error": str(e), "email": body.client_id, "error_type": type(e).__name__},
             exc_info=True
         )
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Backend error")
@@ -129,13 +117,9 @@ async def payment_config():
 async def check_payment_status(
     payment_id: str,
     backend: WebBackendClient = Depends(get_backend_client),
-    current_user: dict = Depends(get_current_user),
+    _: dict = Depends(get_current_user),  # require auth
 ):
-    tg_id = current_user.get("tg_id")
-    if not tg_id:
-        logger.warning("GET /payments/{payment_id}/status: tg_id отсутствует")
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Telegram account required")
-    logger.debug("GET /payments/{payment_id}/status: запрос", extra={"payment_id": payment_id, "tg_id": tg_id})
+    logger.debug("GET /payments/{payment_id}/status: запрос", extra={"payment_id": payment_id})
     try:
         payment_status = await backend.get_payment_status(payment_id)
         status_val = payment_status.get("status", "")
@@ -149,7 +133,7 @@ async def check_payment_status(
     except Exception as e:
         logger.error(
             "GET /payments/{payment_id}/status: ошибка при проверке статуса платежа",
-            extra={"error": str(e), "payment_id": payment_id, "tg_id": tg_id, "error_type": type(e).__name__},
+            extra={"error": str(e), "payment_id": payment_id, "error_type": type(e).__name__},
             exc_info=True
         )
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Backend error")

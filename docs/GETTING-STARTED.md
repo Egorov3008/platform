@@ -74,10 +74,16 @@ cp web/.env.example web/.env
 
 4. Apply web database migrations:
 
-```bash
-psql "$DATABASE_URL" -f web/migrations/001_web_auth.sql
-psql "$DATABASE_URL" -f web/migrations/002_login_codes.sql
-```
+   Web migrations are auto-applied on container startup by `web/run.sh` (idempotent loop, skips `*drop*` files). For local dev (no Docker), apply manually:
+
+   ```bash
+   for f in web/migrations/*.sql; do
+     case "$(basename "$f")" in *drop*) continue;; esac
+     psql "$DATABASE_URL" -f "$f" || true
+   done
+   ```
+
+   See `docs/DEPLOYMENT.md` for the full list of migration files.
 
 ## First Run
 
