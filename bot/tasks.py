@@ -10,6 +10,7 @@ class BackgroundTaskManager:
     def __init__(self):
         self.tasks = {}
         self.running = False
+        self._notifications_enabled = True
 
     def get_status(self) -> dict:
         """Возвращает текущий статус фоновых задач."""
@@ -18,12 +19,27 @@ class BackgroundTaskManager:
                 name: not task.done()
                 for name, task in self.tasks.items()
             },
-            "sync": {"last_run": None},
+            "sync": {"last_run": None, "duration": None, "error_count": 0},
+            "notifications": {
+                "enabled": self._notifications_enabled,
+                "last_run": None,
+                "report": None,
+            },
         }
 
     def is_notifications_enabled(self) -> bool:
         """Возвращает включены ли уведомления."""
-        return False
+        return self._notifications_enabled
+
+    def enable_notifications(self) -> None:
+        """Включить уведомления (stub — backend управляет фактическими задачами)."""
+        self._notifications_enabled = True
+        logger.info("Уведомления включены (stub)")
+
+    def disable_notifications(self) -> None:
+        """Выключить уведомления (stub — backend управляет фактическими задачами)."""
+        self._notifications_enabled = False
+        logger.info("Уведомления выключены (stub)")
 
     async def start_all_tasks(self, container, bot: Bot) -> None:
         """Запуск всех фоновых задач."""

@@ -21,11 +21,8 @@ async def on_click_search_tg_id(
     tg_id = int(text)
     logger.debug("Поиск пользователя по tg_id", tg_id=tg_id)
 
-    backend: Optional[BackendAPIClient] = dialog_manager.middleware_data.get("container")
-    if backend is None:
-        container = dialog_manager.middleware_data.get("container")
-        if container:
-            backend = container.resolve(BackendAPIClient)
+    container = dialog_manager.middleware_data.get("container")
+    backend = container.resolve(BackendAPIClient) if container else None
 
     if not backend:
         await message.answer("❌ Ошибка: не удалось получить доступ к backend")
