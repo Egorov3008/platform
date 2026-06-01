@@ -45,7 +45,7 @@ async def test_get_user_returns_dict_on_200(client, mock_http):
     assert isinstance(result, dict)
     assert result["tg_id"] == 123
     assert result["username"] == "user"
-    mock_http.get.assert_called_once_with("/api/v1/admin/users/123")
+    mock_http.get.assert_called_once_with("/api/v1/users/123")
 
 
 @pytest.mark.asyncio

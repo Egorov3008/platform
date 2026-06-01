@@ -328,8 +328,17 @@ class BackendAPIClient:
             return None
 
     async def get_user(self, tg_id: int) -> Optional[dict]:
+        """Fetch user via the public /users endpoint (bot-only auth).
+
+        Семантически правильный endpoint для бота: защищён X-Bot-Secret,
+        не требует X-API-Key и не предназначен только для админских операций.
+        Возвращает None при 404 (пользователь не зарегистрирован) и при любых
+        ошибках транспорта — это ожидаемое поведение, а не исключение.
+        """
         try:
-            r = await self._client.get(f"/api/v1/admin/users/{tg_id}")
+            r = await self._client.get(f"/api/v1/users/{tg_id}")
+            if r.status_code == 404:
+                return None
             r.raise_for_status()
             return r.json()
         except Exception as e:

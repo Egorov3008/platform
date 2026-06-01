@@ -32,17 +32,25 @@ class RegistrationUsersMiddleware(BaseMiddleware):
 
         user_id = user.id
 
-        # Проверяем backend API (single source of truth)
+        # Проверяем backend API (single source of truth).
+        # get_user() возвращает None, если пользователь не зарегистрирован — это
+        # нормальная ситуация, а не ошибка: идём дальше по flow регистрации.
         try:
             from api.backend_client import BackendAPIClient
 
             backend_client = container.resolve(BackendAPIClient)
             backend_user = await backend_client.get_user(user_id)
             if backend_user:
+                # backend_user может быть как dict (из httpx .json()), так и
+                # BackendUser (dataclass) — извлекаем trial безопасным способом.
+                if isinstance(backend_user, dict):
+                    trial = backend_user.get("trial", 0)
+                else:
+                    trial = getattr(backend_user, "trial", 0)
                 data["registration_result"] = {
                     "success": True,
                     "type": "registered_user",
-                    "trial": backend_user.get("trial", 0),
+                    "trial": trial,
                 }
                 return await handler(event, data)
         except Exception as e:
@@ -50,11 +58,22 @@ class RegistrationUsersMiddleware(BaseMiddleware):
                 "Ошибка при проверке пользователя в backend", user_id=user_id, error=str(e)
             )
 
+        # Пользователь не найден в backend. Если есть токен /start xxx —
+        # пытаемся зарегистрировать его (gift / referral). Если токена нет —
+        # помечаем как unknown_user, чтобы handler /start вызвал auto_register_user.
         if not self.check_event_message(event):
+            data.setdefault(
+                "registration_result",
+                {"success": False, "type": "unknown_user"},
+            )
             return await handler(event, data)
 
         token = await self.get_start_message(event)
         if not token:
+            data["registration_result"] = {
+                "success": False,
+                "type": "unknown_user",
+            }
             return await handler(event, data)
 
         # Резолвим зависимости из контейнера
@@ -73,6 +92,12 @@ class RegistrationUsersMiddleware(BaseMiddleware):
             logger.info("Регистрация успешна", user_id=user_id, type=result["type"])
             user_registered_total.labels(type=result.get("type", "unknown")).inc()
             data["registration_result"] = result
+        else:
+            # Токен был, но регистрация не удалась — пусть handler решает.
+            data.setdefault(
+                "registration_result",
+                {"success": False, "type": "unknown_user"},
+            )
 
         return await handler(event, data)
 
