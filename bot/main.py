@@ -207,7 +207,17 @@ async def on_shutdown():
 
 
 async def main():
-    """Точка входа в приложение"""
+    """Точка входа в приложение.
+
+    .. note::
+        Retry-loop ниже (max_restart_attempts=5) известная проблема:
+        при сбое polling следующая итерация вызывает
+        ``dp.include_router(router)`` на module-level Dispatcher, который
+        уже владеет этим router → ``RuntimeError: Router is already attached``.
+        Каждый неудачный рестарт спавнит новый getUpdates-сессию →
+        TelegramConflictError (179 конфликтов подряд в инциденте 2026-05-31).
+        Подробности и варианты фикса — ``docs/POSTMORTEM_BOT_RESTART_STORM_2026_05_31.md``.
+    """
     # Обработка сигналов для graceful shutdown
     loop = asyncio.get_event_loop()
 
