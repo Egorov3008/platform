@@ -13,6 +13,8 @@ migrations/
 ├── 002_alter_existing_tables.sql  # Изменение существующих таблиц
 ├── 003_migrate_gifts.sql          # Миграция таблицы gifts
 ├── 004_add_indexes_constraints.sql # Индексы и ограничения
+├── 005_add_payments_fields.sql    # number_of_months, discount_percent в payments
+├── 006_add_referral_discount.sql  # referral_discount в payments
 └── rollback/
     ├── 004_drop_indexes_constraints.sql
     ├── 003_rollback_gifts.sql
