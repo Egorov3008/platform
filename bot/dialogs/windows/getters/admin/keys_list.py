@@ -8,7 +8,7 @@ from aiogram_dialog import DialogManager
 
 from api.backend_client import BackendAPIClient
 from dialogs.windows.base import DataGetter
-from models import Key
+from models import Key, Tariff
 from services.core.keys.segmentation import KeySegmentationService
 from services.core.keys.models.key_model import KeyModel
 from logger import logger
@@ -74,7 +74,9 @@ class AdminKeyListGetter(DataGetter):
             return {
                 "keys_message": f"❌ Ошибка при загрузке ключей: {str(e)}",
                 "keys_data": [],
+                "keys": [],
                 "total_keys": 0,
+                "segment": current_segment,
             }
 
 
@@ -94,6 +96,7 @@ class AdminKeyDetailsGetter(DataGetter):
             if not tariff:
                 return {"error": True}
 
+            tariff = Tariff.from_dict(tariff)
             key_model = KeyModel(key, tariff)
             data = key_model.to_dict()
 

@@ -6,6 +6,7 @@ from aiogram_dialog import DialogManager
 
 from api.backend_client import BackendAPIClient
 from dialogs.windows.base import DataGetter
+from models import Tariff
 from logger import logger
 
 
@@ -88,10 +89,13 @@ class AdminKeyChangeTariffGetter(DataGetter):
             tariffs = await self._backend.admin_list_tariffs()
             tariff_list = []
             for t in tariffs:
-                if isinstance(t, dict):
-                    tariff_list.append((str(t.get("id")), t))
+                if isinstance(t, Tariff):
+                    tariff_obj = t
+                elif isinstance(t, dict):
+                    tariff_obj = Tariff.from_dict(t)
                 else:
-                    tariff_list.append((str(getattr(t, "id", "")), t))
+                    continue
+                tariff_list.append((str(tariff_obj.id), tariff_obj))
             return {"email": key.get("email", ""), "tariff_list": tariff_list}
         except Exception as e:
             logger.error("Ошибка при получении списка тарифов", error=str(e), exc_info=True)

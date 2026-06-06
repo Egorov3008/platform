@@ -6,6 +6,7 @@ from aiogram_dialog.widgets.kbd import Select, Calendar
 
 from api.backend_client import BackendAPIClient
 from logger import logger
+from models import Key
 from states.admin import AdminManager
 from states.key import KeysInit
 
@@ -31,6 +32,8 @@ async def on_click_view_key_admin(
         await callback.answer("❌ Ошибка сервиса", show_alert=True)
         return
     key = await backend.get_key(email)
+    if key is not None and not isinstance(key, Key):
+        key = Key.from_backend(key)
     await dialog_manager.start(AdminManager.key_details, data={"selected_key": key})
 
 

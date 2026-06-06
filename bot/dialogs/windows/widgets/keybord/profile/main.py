@@ -1,6 +1,6 @@
 from aiogram.types import CallbackQuery
 from aiogram_dialog import DialogManager, StartMode
-from aiogram_dialog.widgets.kbd import Start, Row, Url, Button
+from aiogram_dialog.widgets.kbd import Start, Row, Url, Button, Column, Group
 from aiogram_dialog.widgets.text import Const
 from config import SUPPORT_CHAT_URL
 from dialogs.windows.base import KeyboardBuilder
@@ -39,7 +39,7 @@ class UserKeyboardBuilder(KeyboardBuilder):
                     state=KeysInit.list,
                 ),
             ),
-            Row(
+            Group(
                 Start(
                     Const("Подарить ключ другу 🎁"),
                     id="partner_program",
@@ -51,6 +51,7 @@ class UserKeyboardBuilder(KeyboardBuilder):
                     id="referral_program",
                     state=ReferralSistem.main,
                 ),
+                width=1,
             ),
             Row(
                 Start(Const("💡 Тарифы"), id="tariff", state=Tariff.preview),

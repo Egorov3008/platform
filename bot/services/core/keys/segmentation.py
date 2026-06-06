@@ -86,6 +86,8 @@ class KeySegmentationService:
 
     async def filter_by_name(self, keys: List[Key], name: str) -> List[Key]:
         """Фильтровать ключи по имени сегмента."""
+        if name == "all":
+            return keys
         mapping = {
             "expiring_24h": self.get_expiring_24h,
             "expiring_7d": self.get_expiring_7d,
@@ -94,7 +96,6 @@ class KeySegmentationService:
             "active": self.get_active,
             "trial": self.get_trial,
             "unused": self.get_unused,
-            "all": lambda k: k,
         }
         handler = mapping.get(name)
         if handler:
