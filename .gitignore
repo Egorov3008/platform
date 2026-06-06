@@ -63,3 +63,6 @@ playwright-report/
 # Debug scripts
 backend/debug_sync.py
 **/debug_*.py
+
+# Codegraph — local SQLite index
+.codegraph/
