@@ -7,7 +7,7 @@ from dialogs.windows.widgets.keybord.profile.welcome import WelcomeKeyboard
 from dialogs.windows.widgets.message.profile.main import UserMessageBuilder
 from dialogs.windows.widgets.message.profile.welcom import WelcomeMessage
 from api.backend_client import BackendAPIClient
-from services.conteiner.protocol import ContainerProtocol
+from services.container.protocol import ContainerProtocol
 from services.core.gift.repositories.checker import CheckerGiftLink
 from services.core.user.utils.checked_admin import CheckedUser
 from services.scenarios.create_first_key_scenario import CreateFerstKeyScenario

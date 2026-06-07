@@ -6,7 +6,7 @@ from dialogs.windows.widgets.keybord.profile.min_main import MinMainKeyboard
 from dialogs.windows.widgets.keybord.register.captcha import CaptchaKeyboard
 from dialogs.windows.widgets.message.profile.min_main import MinMainMessage
 from dialogs.windows.widgets.message.register.captcha import CaptchaMessage
-from services.conteiner.protocol import ContainerProtocol
+from services.container.protocol import ContainerProtocol
 
 
 class RegisterRegistrar(ContainerProtocol):

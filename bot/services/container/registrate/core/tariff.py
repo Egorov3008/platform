@@ -1,6 +1,6 @@
 import punq
 
-from services.conteiner.protocol import ContainerProtocol
+from services.container.protocol import ContainerProtocol
 from punq import Container
 
 from api.backend_client import BackendAPIClient

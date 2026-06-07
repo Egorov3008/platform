@@ -14,7 +14,7 @@ from dialogs.windows.widgets.message.payment.setting_pay import (
     SettingsPayment as SettingsPaymentMessage,
 )
 from api.backend_client import BackendAPIClient
-from services.conteiner.protocol import ContainerProtocol
+from services.container.protocol import ContainerProtocol
 from services.core.price.service import PriceService
 
 

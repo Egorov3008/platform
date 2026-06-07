@@ -68,7 +68,7 @@ async def monitor_memory_snapshots(interval=5, count=3):
     Сделать несколько снимков памяти для выявления утечек.
     Сравнивает распределение памяти между снимками.
     """
-    from services.conteiner.app import get_container
+    from services.container.app import get_container
     from services.cache.service import CacheService
     
     print("\n=== Мониторинг утечек памяти ===")
@@ -108,7 +108,7 @@ async def monitor_memory_snapshots(interval=5, count=3):
 
 async def analyze_cache_memory():
     """Анализ потребления памяти кешем"""
-    from services.conteiner.app import get_container
+    from services.container.app import get_container
     from services.cache.service import CacheService
     
     print("\n=== Анализ кеша ===")

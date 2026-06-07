@@ -5,7 +5,7 @@ from api.backend_client import BackendAPIClient
 from dialogs.windows.getters.referral.main import ReferralMainGetter
 from dialogs.windows.widgets.keybord.referral.main import ReferralMainKeyboard
 from dialogs.windows.widgets.message.referral.main import ReferralMainMessage
-from services.conteiner.protocol import ContainerProtocol
+from services.container.protocol import ContainerProtocol
 
 
 class ReferralRegistrar(ContainerProtocol):

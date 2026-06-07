@@ -8,7 +8,7 @@ from aiogram_dialog import setup_dialogs
 
 from middlewares.admin_search_middleware import AdminSearchMiddleware
 from middlewares.dialog_error_handler import DialogExceptionHandlerMiddleware
-from services.conteiner.app import get_container
+from services.container.app import get_container
 from tasks import task_manager
 from bot_project import bot, dp, set_bot_commands
 from handlers import router
@@ -198,8 +198,8 @@ async def on_shutdown():
     logger.info("CacheService остановлен")
 
     # Сбрасываем контейнер для создания нового при следующем запуске
-    from services.conteiner.app import _container
-    import services.conteiner.app as app_module
+    from services.container.app import _container
+    import services.container.app as app_module
     app_module._container = None
     logger.info("Контейнер зависимостей сброшен")
 

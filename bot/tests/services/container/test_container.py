@@ -3,8 +3,8 @@ import asyncpg
 from database import DataService
 from services.cache.service import CacheService
 from services.cache.storage import CacheStorage
-from services.conteiner import create_container
-from services.conteiner.registrate.core import (
+from services.container import create_container
+from services.container.registrate.core import (
     CacheRegistrar,
     CoreServiceRegistrar,
     KeyServiceRegistrar,
@@ -91,7 +91,7 @@ async def test_container_creation(mock_db_pool):
     Тестирует создание контейнера зависимостей.
     Проверяет, что функция create_container корректно создает контейнер.
     """
-    with patch("services.conteiner.create_db_pool", return_value=mock_db_pool):
+    with patch("services.container.create_db_pool", return_value=mock_db_pool):
         container = await create_container()
 
     assert isinstance(container, Container)

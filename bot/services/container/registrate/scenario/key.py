@@ -2,7 +2,7 @@ import punq
 from punq import Container
 
 from api.backend_client import BackendAPIClient
-from services.conteiner.protocol import ContainerProtocol
+from services.container.protocol import ContainerProtocol
 from services.scenarios.create_first_key_scenario import CreateFerstKeyScenario
 
 

@@ -18,7 +18,7 @@ from dialogs.windows.widgets.message.keys.key_details import KeyDetailsMessage
 from dialogs.windows.widgets.message.keys.delete_key import DeleteKeyMessage
 from dialogs.windows.widgets.message.keys.error_key import ErrorKeyMessage
 from api.backend_client import BackendAPIClient
-from services.conteiner.protocol import ContainerProtocol
+from services.container.protocol import ContainerProtocol
 
 
 class KeysRegistrar(ContainerProtocol):

@@ -5,7 +5,7 @@ from api.backend_client import BackendAPIClient
 from registration.registration_factory import RegistrationFactory
 from registration.gift_registration import GiftRegistration
 from registration.referral_registration import ReferralRegistration
-from services.conteiner.protocol import ContainerProtocol
+from services.container.protocol import ContainerProtocol
 
 
 class RegistrationRegistrar(ContainerProtocol):

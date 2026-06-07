@@ -5,7 +5,7 @@ from middlewares.cache_middleware import CacheMiddleware
 from services.cache.loader import LoadingService
 from services.cache.service import CacheService
 from services.cache.storage import CacheStorage
-from services.conteiner.protocol import ContainerProtocol
+from services.container.protocol import ContainerProtocol
 
 
 class CacheRegistrar(ContainerProtocol):

@@ -1,8 +1,8 @@
 from punq import Container
 from logger import logger
-from services.conteiner.registrate.core import __all__ as core
-from services.conteiner.registrate.scenario import __all__ as scenario
-from services.conteiner.registrate.getters import __all__ as getters
+from services.container.registrate.core import __all__ as core
+from services.container.registrate.scenario import __all__ as scenario
+from services.container.registrate.getters import __all__ as getters
 
 
 async def create_container() -> Container:

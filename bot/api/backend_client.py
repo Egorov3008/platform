@@ -476,8 +476,9 @@ class BackendAPIClient:
 
     async def admin_sync(self) -> dict:
         """Trigger manual cache and panel synchronization. Returns full result dict."""
+        # Синхронизация может занимать 15-30 секунд — используем увеличенный таймаут
         try:
-            r = await self._client.post("/api/v1/admin/sync")
+            r = await self._client.post("/api/v1/admin/sync", timeout=60.0)
             r.raise_for_status()
             return r.json()
         except Exception as e:

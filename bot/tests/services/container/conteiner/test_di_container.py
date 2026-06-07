@@ -13,8 +13,8 @@ import pytest
 from unittest.mock import AsyncMock, patch
 from punq import Container
 
-from services.conteiner import create_container
-from services.conteiner.registrate.core import (
+from services.container import create_container
+from services.container.registrate.core import (
     CacheRegistrar,
     CoreServiceRegistrar,
     GiftServiceRegistrar,
@@ -23,8 +23,8 @@ from services.conteiner.registrate.core import (
     UserServiceRegistrar,
     RegistrationRegistrar,
 )
-from services.conteiner.registrate.scenario import ScenarioKeyRegistrar
-from services.conteiner.registrate.getters import (
+from services.container.registrate.scenario import ScenarioKeyRegistrar
+from services.container.registrate.getters import (
     ProfileRegistrar,
     GiftRegistrar,
     PaymentRegistrar,
@@ -69,7 +69,7 @@ async def full_container(mock_pool: AsyncMock) -> Container:
     Контейнер, созданный через create_container() с замоканным create_db_pool.
     Соответствует тому, что используется в продакшн-коде при старте бота.
     """
-    with patch("services.conteiner.create_db_pool", return_value=mock_pool):
+    with patch("services.container.create_db_pool", return_value=mock_pool):
         container = await create_container()
     return container
 
@@ -108,7 +108,7 @@ class TestDIContainerRegistration:
         self, mock_pool: AsyncMock
     ) -> None:
         """create_container() должен возвращать Container без исключений."""
-        with patch("services.conteiner.create_db_pool", return_value=mock_pool):
+        with patch("services.container.create_db_pool", return_value=mock_pool):
             container = await create_container()
 
         assert isinstance(container, Container)
@@ -397,7 +397,7 @@ class TestDIContainerDependencies:
     ) -> None:
         """create_container() должен вызывать create_db_pool ровно один раз."""
         with patch(
-            "services.conteiner.create_db_pool", return_value=mock_pool
+            "services.container.create_db_pool", return_value=mock_pool
         ) as mock_create:
             await create_container()
 

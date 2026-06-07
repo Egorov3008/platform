@@ -3,7 +3,7 @@ from punq import Container
 
 from dialogs.windows.getters.tariff.preview import TariffPreviewGetter
 from dialogs.windows.widgets.message.tariff.preview import TariffPreviewMessage
-from services.conteiner.protocol import ContainerProtocol
+from services.container.protocol import ContainerProtocol
 from services.core.price.service import PriceService
 from services.core.tariff.data import TariffData
 

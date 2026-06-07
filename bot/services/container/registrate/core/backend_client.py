@@ -3,7 +3,7 @@ from punq import Container
 
 from api.backend_client import BackendAPIClient
 from config import BACKEND_URL, BOT_SECRET_KEY
-from services.conteiner.protocol import ContainerProtocol
+from services.container.protocol import ContainerProtocol
 
 
 class BackendClientRegistrar(ContainerProtocol):

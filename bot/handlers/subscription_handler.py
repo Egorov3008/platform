@@ -99,7 +99,7 @@ async def handle_subscription_check(callback: CallbackQuery, bot: Bot) -> None:
     # Получаем кэш из состояния (через bot.get_state().get_data())
     cache = None
     try:
-        from services.conteiner.app import get_container
+        from services.container.app import get_container
         from services.cache.service import CacheService
 
         container = await get_container()

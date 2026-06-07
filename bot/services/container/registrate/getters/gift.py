@@ -5,7 +5,7 @@ from api.backend_client import BackendAPIClient
 from dialogs.windows.getters.gift.main import MainGetter
 from dialogs.windows.widgets.keybord.gift.main import GiftMainKeyboard
 from dialogs.windows.widgets.message.gift.main import GiftMainMessage
-from services.conteiner.protocol import ContainerProtocol
+from services.container.protocol import ContainerProtocol
 from services.core.gift.repositories.gen_url import GiftUrlGenerator
 
 

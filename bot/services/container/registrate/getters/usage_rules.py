@@ -9,7 +9,7 @@ from dialogs.windows.widgets.message.usage_rules.main import (
     UsageRulesMainMessage,
     UsageRulesPageMessage,
 )
-from services.conteiner.protocol import ContainerProtocol
+from services.container.protocol import ContainerProtocol
 
 
 class UsageRulesRegistrar(ContainerProtocol):

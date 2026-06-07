@@ -2,7 +2,7 @@ import punq
 from punq import Container
 
 from services.cache.loader import LoadingService
-from services.conteiner.protocol import ContainerProtocol
+from services.container.protocol import ContainerProtocol
 
 
 class CoreServiceRegistrar(ContainerProtocol):

@@ -3,7 +3,7 @@ from typing import List
 from punq import Container
 
 from dialogs.windows.window_factory import WindowFactory
-from services.conteiner.app import get_container
+from services.container.app import get_container
 from states import (
     MainMenu,
     Tariff,

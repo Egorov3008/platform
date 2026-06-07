@@ -11,7 +11,7 @@ from dialogs.windows.widgets.message.usage_rules.main import (
     UsageRulesMainMessage,
     UsageRulesPageMessage,
 )
-from services.conteiner.registrate.getters.usage_rules import UsageRulesRegistrar
+from services.container.registrate.getters.usage_rules import UsageRulesRegistrar
 
 
 @pytest.fixture

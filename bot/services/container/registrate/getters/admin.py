@@ -120,7 +120,7 @@ from dialogs.windows.widgets.keybord.admin.mass_renewal_confirm import (
 )
 from dialogs.windows.widgets.message.admin.user_profile import AdminUserProfileMessage
 from dialogs.windows.widgets.keybord.admin.user_profile import AdminUserProfileKeyboard
-from services.conteiner.protocol import ContainerProtocol
+from services.container.protocol import ContainerProtocol
 
 
 class AdminRegistrar(ContainerProtocol):

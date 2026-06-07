@@ -1,4 +1,4 @@
-from services.conteiner.protocol import ContainerProtocol
+from services.container.protocol import ContainerProtocol
 from punq import Container
 
 

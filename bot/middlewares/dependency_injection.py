@@ -4,7 +4,7 @@ from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject
 from punq import Container
 
-from services.conteiner.app import get_container
+from services.container.app import get_container
 
 
 class DependencyInjectionMiddleware(BaseMiddleware):
