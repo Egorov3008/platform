@@ -3,6 +3,12 @@ from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, Union
 
+try:
+    from pydantic import BaseModel
+    HAS_PYDANTIC = True
+except ImportError:
+    HAS_PYDANTIC = False
+
 
 def default_created_at():
     return int(datetime.now().timestamp() * 1000)
@@ -61,18 +67,22 @@ class Key:
 
     @classmethod
     def from_backend(cls, data: Union[Dict[str, Any], Any]) -> "Key":
-        """Build a Key model from backend API response dict or BackendKey."""
+        """Build a Key model from backend API response dict, dataclass, or pydantic DTO."""
         if isinstance(data, dict):
             d = data
+        elif dataclasses.is_dataclass(data) and not isinstance(data, type):
+            d = dataclasses.asdict(data)
+        elif HAS_PYDANTIC and isinstance(data, BaseModel):
+            d = data.model_dump()
         else:
-            d = dataclasses.asdict(data) if dataclasses.is_dataclass(data) else data.__dict__
+            d = getattr(data, "__dict__", {})
         return cls(
-            tg_id=d["tg_id"],
+            tg_id=d.get("tg_id"),
             client_id=d.get("client_id", ""),
-            email=d["email"],
-            expiry_time=d["expiry_time"],
-            key=d["key"],
-            inbound_id=d["inbound_id"],
+            email=d.get("email"),
+            expiry_time=d.get("expiry_time"),
+            key=d.get("key"),
+            inbound_id=d.get("inbound_id"),
             tariff_id=d.get("tariff_id"),
             total_gb=d.get("total_gb", 10),
             name_tariff=d.get("name_tariff"),

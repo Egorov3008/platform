@@ -3,7 +3,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 
-from api.backend_client import BackendAPIClient, BackendUser, BackendKey
+from api.backend_client import BackendAPIClient
+from api.schemas import UserDTO, KeyDTO
 
 
 def make_mock_client():
@@ -34,7 +35,7 @@ def make_response(status_code: int, json_data=None):
 
 
 @pytest.mark.asyncio
-async def test_get_user_returns_dict_on_200(client, mock_http):
+async def test_get_user_returns_dto_on_200(client, mock_http):
     mock_http.get = AsyncMock(return_value=make_response(200, {
         "tg_id": 123, "username": "user", "first_name": "Test",
         "balance": 0.0, "trial": 0, "server_id": 2,
@@ -42,9 +43,9 @@ async def test_get_user_returns_dict_on_200(client, mock_http):
     }))
     result = await client.get_user(123)
     assert result is not None
-    assert isinstance(result, dict)
-    assert result["tg_id"] == 123
-    assert result["username"] == "user"
+    assert isinstance(result, UserDTO)
+    assert result.tg_id == 123
+    assert result.username == "user"
     mock_http.get.assert_called_once_with("/api/v1/users/123")
 
 
@@ -64,17 +65,20 @@ async def test_get_user_returns_none_on_network_error(client, mock_http):
 
 @pytest.mark.asyncio
 async def test_get_user_keys_returns_list(client, mock_http):
-    mock_http.get = AsyncMock(return_value=make_response(200, [
-        {
-            "email": "user@vpn.ru", "tg_id": 123, "expiry_time": 9999999999000,
-            "key": "https://sub.example.com/abc", "inbound_id": 11,
-            "tariff_id": 9, "name_tariff": "Pro",
-            "total_gb": None, "used_traffic": 0.0,
-        }
-    ]))
+    mock_http.get = AsyncMock(return_value=make_response(200, {
+        "keys": [
+            {
+                "email": "user@vpn.ru", "tg_id": 123, "expiry_time": 9999999999000,
+                "key": "https://sub.example.com/abc", "inbound_id": 11,
+                "tariff_id": 9, "name_tariff": "Pro",
+                "client_id": "abc-123",
+                "total_gb": None, "used_traffic": 0.0,
+            }
+        ]
+    }))
     result = await client.get_user_keys(123)
     assert len(result) == 1
-    assert isinstance(result[0], BackendKey)
+    assert isinstance(result[0], KeyDTO)
     assert result[0].email == "user@vpn.ru"
     mock_http.get.assert_called_once_with("/api/v1/keys/", params={"tg_id": 123})
 
@@ -95,6 +99,7 @@ async def test_register_user_returns_user(client, mock_http):
     }))
     result = await client.register_user(tg_id=456, username="newuser", first_name="New")
     assert result is not None
+    assert isinstance(result, UserDTO)
     assert result.tg_id == 456
     mock_http.post.assert_called_once()
 

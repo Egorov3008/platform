@@ -41,8 +41,7 @@ class RegistrationUsersMiddleware(BaseMiddleware):
             backend_client = container.resolve(BackendAPIClient)
             backend_user = await backend_client.get_user(user_id)
             if backend_user:
-                # backend_user может быть как dict (из httpx .json()), так и
-                # BackendUser (dataclass) — извлекаем trial безопасным способом.
+                # backend_user может быть dict, dataclass или pydantic DTO — извлекаем trial безопасным способом.
                 if isinstance(backend_user, dict):
                     trial = backend_user.get("trial", 0)
                 else:

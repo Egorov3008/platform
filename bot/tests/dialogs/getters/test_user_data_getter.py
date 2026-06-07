@@ -6,7 +6,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from api.backend_client import BackendAPIClient, BackendUser, BackendKey
+from api.backend_client import BackendAPIClient
+from api.schemas import UserDTO, KeyDTO
 from dialogs.windows.getters.profile.main import UserDataGetter
 
 
@@ -31,7 +32,7 @@ def mock_checked_user():
 
 @pytest.fixture
 def sample_user():
-    return BackendUser(
+    return UserDTO(
         tg_id=123456789,
         username="testuser",
         first_name="Test",
@@ -46,12 +47,15 @@ def sample_user():
 @pytest.fixture
 def sample_keys():
     return [
-        BackendKey(
+        KeyDTO(
             email="test@example.com",
             tg_id=123456789,
             expiry_time=9999999999000,
             key="key_data",
             inbound_id=12,
+            tariff_id=1,
+            client_id="abc-123",
+            name_tariff="Test",
         )
     ]
 

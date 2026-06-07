@@ -27,8 +27,9 @@ class TestRegistrationUsersMiddleware:
         registration_result='registered_user' и сразу вызывает handler
         (даже если event не является Update — это вспомогательный путь)."""
         from api.backend_client import BackendAPIClient
+        from api.schemas import UserDTO
 
-        backend_user = {"tg_id": 123, "trial": 0}
+        backend_user = UserDTO(tg_id=123, username="test", first_name="Test", balance=0.0, trial=0, server_id=1, is_admin=False, is_blocked=False)
         mock_backend = AsyncMock(spec=BackendAPIClient)
         mock_backend.get_user = AsyncMock(return_value=backend_user)
         base_data["container"].resolve = MagicMock(return_value=mock_backend)
@@ -67,11 +68,12 @@ class TestRegistrationUsersMiddleware:
 
     @pytest.mark.asyncio
     async def test_registered_user_from_backend(self, middleware, base_data):
-        from api.backend_client import BackendAPIClient, BackendUser
+        from api.backend_client import BackendAPIClient
+        from api.schemas import UserDTO
 
-        backend_user = BackendUser(
+        backend_user = UserDTO(
             tg_id=123, username="u", first_name="F",
-            balance=0.0, trial=0, server_id=None,
+            balance=0.0, trial=0, server_id=1,
             is_admin=False, is_blocked=False,
         )
         mock_backend = AsyncMock(spec=BackendAPIClient)

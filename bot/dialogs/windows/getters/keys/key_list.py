@@ -2,7 +2,8 @@ from typing import Dict, Any, List
 
 from aiogram_dialog import DialogManager
 
-from api.backend_client import BackendAPIClient, BackendKey
+from api.backend_client import BackendAPIClient
+from api.schemas import KeyDTO
 from dialogs.windows.base import DataGetter
 from logger import logger
 
@@ -16,7 +17,7 @@ class KeyListGetter(DataGetter):
     async def get_data(self, dialog_manager: DialogManager, **kwargs) -> Dict[str, Any]:
         try:
             tg_id = dialog_manager.event.from_user.id
-            keys: List[BackendKey] = await self._backend.get_user_keys(tg_id)
+            keys: List[KeyDTO] = await self._backend.get_user_keys(tg_id)
 
             key_data = []
             for i, key in enumerate(keys):

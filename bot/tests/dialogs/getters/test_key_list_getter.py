@@ -6,7 +6,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from api.backend_client import BackendAPIClient, BackendKey
+from api.backend_client import BackendAPIClient
+from api.schemas import KeyDTO
 from dialogs.windows.getters.keys.key_list import KeyListGetter
 
 
@@ -23,19 +24,25 @@ def mock_dialog_manager():
 @pytest.fixture
 def sample_keys():
     return [
-        BackendKey(
+        KeyDTO(
             email="user1@example.com",
             tg_id=123456789,
             expiry_time=9999999999000,
             key="key_data1",
             inbound_id=12,
+            tariff_id=1,
+            client_id="abc-123",
+            name_tariff="Test",
         ),
-        BackendKey(
+        KeyDTO(
             email="user2@example.com",
             tg_id=123456789,
             expiry_time=9999999999000,
             key="key_data2",
             inbound_id=13,
+            tariff_id=1,
+            client_id="def-456",
+            name_tariff="Test",
         ),
     ]
 
