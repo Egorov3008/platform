@@ -28,6 +28,7 @@ services:
     volumes:
       - ./.env:/app/.env:ro
       - ./backend:/app
+      - ./shared:/app/shared
     depends_on:
       postgres:
         condition: service_healthy
@@ -52,6 +53,7 @@ services:
       - ./bot/logs:/app/logs
       - ./bot/logs_error:/app/logs_error
       - ./bot/video_instructions:/app/video_instructions:ro
+      - ./shared:/app/shared
     depends_on:
       postgres:
         condition: service_healthy

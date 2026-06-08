@@ -6,6 +6,8 @@ from pathlib import Path
 from dotenv import load_dotenv, find_dotenv
 from logger import logger
 
+from shared.config import core_settings, REFERRAL_BONUS_PERCENTAGES  # noqa: F401
+
 if not find_dotenv():
     logger.info("Переменные окружения не загружены т.к отсутствует файл .env")
 else:
@@ -56,14 +58,16 @@ ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 ADD_CLIENT_URL = os.getenv("ADD_CLIENT_URL")
 API_URL = os.getenv("API_URL")
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
-BOT_SECRET_KEY = os.getenv("BOT_SECRET_KEY", "")
+# BOT_SECRET_KEY — sourced from .env or shared.core_settings fallback
+BOT_SECRET_KEY = os.getenv("BOT_SECRET_KEY", "") or core_settings.bot_secret_key
 INVITE_TOKEN = os.getenv("INVITE_TOKEN", "changeme")
 
 DB_NAME = os.getenv("DB_NAME")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 LOG_DIR = os.path.abspath("logs")
 DB_USER = os.getenv("DB_USER")
-DATABASE_URL = os.getenv("DATABASE_URL")
+# DATABASE_URL — prefer .env value, fall back to shared.core_settings
+DATABASE_URL = os.getenv("DATABASE_URL") or core_settings.database_url
 BACK_DIR = os.path.abspath("backup")
 
 ADMIN = os.getenv("ADMIN_ID")
@@ -75,19 +79,20 @@ AVAILABLE_RATES = os.getenv("AVAILABLE_RATES")
 AVAILABLE_RATES_LIST = _safe_literal_eval(AVAILABLE_RATES, "AVAILABLE_RATES")
 
 DEV_MODE = False
-YOOKASSA_SECRET_KEY = os.getenv("YOOKASSA_SECRET_KEY")
-YOOKASSA_SHOP_ID = os.getenv("YOOKASSA_SHOP_ID")
+# YooKassa — sourced from .env, with shared.core_settings fallback
+YOOKASSA_SECRET_KEY = (
+    os.getenv("YOOKASSA_SECRET_KEY") or core_settings.yookassa_secret_key
+)
+YOOKASSA_SHOP_ID = (
+    os.getenv("YOOKASSA_SHOP_ID") or core_settings.yookassa_shop_id
+)
 CRYPTO_BOT_ENABLE = False
 FREEKASSA_ENABLE = False
 LEGACY_ENABLE = False
 ROBOKASSA_ENABLE = False
 SUB_PATH = None
 YOOKASSA_ENABLE = False
-REFERRAL_BONUS_PERCENTAGES = {
-    "1": "0.10",  # 10% для первого уровня
-    "2": "0.05",  # 5% для второго уровня
-    "3": "0.02",  # 2% для третьего уровня
-}
+# REFERRAL_BONUS_PERCENTAGES — single source of truth in shared.config
 URL_BOT = os.getenv("URL_BOT")
 PAYMENT_INFO = os.getenv("PAYMENT_INFO")
 payment_info_dict = _safe_literal_eval(PAYMENT_INFO, "PAYMENT_INFO")
@@ -106,7 +111,8 @@ DISABLE_WEBHOOK_IP_CHECK = os.getenv("DISABLE_WEBHOOK_IP_CHECK", "false").lower(
 SUPPORT_CHAT_URL = os.getenv("SUPPORT_CHAT_URL")
 WEBAPP_HOST = os.getenv("WEBAPP_HOST")
 WEBAPP_PORT = os.getenv("WEBAPP_PORT")
-METRICS_PORT = int(os.getenv("METRICS_PORT", "9101"))
+# METRICS_PORT — shared.core_settings is the canonical default
+METRICS_PORT = int(os.getenv("METRICS_PORT", str(core_settings.metrics_port)))
 BACKUP_TIME = 86400
 BASE_DIR = Path(__file__).parent
 VIDEOS_DIR = BASE_DIR / "video_instructions"
@@ -123,7 +129,8 @@ DOWNLOAD_LIN = "https://github.com/hiddify/hiddify-next/releases/download/v2.5.7
 
 RENEWAL_PRICES = {"1": 1}
 CONNECT_WINDOWS = "https://github.com/hiddify/hiddify-next/releases/latest/download/Hiddify-Windows-Setup-x64.Msix"
-TRIAL_TIME = 30
+# TRIAL_TIME — shared.core_settings is the canonical default
+TRIAL_TIME = int(os.getenv("TRIAL_TIME", str(core_settings.trial_time)))
 
 SERVERS = {"1": {}}
 NEWS_MESSAGE = "У нас нет новостей 🙊"
@@ -136,6 +143,5 @@ PROJECT_NAME = "MyVPNService"
 SUB_MESSAGE = "Ваш надежный сервис для безопасного серфинга."
 DICTIONARY_OF_DISCOUNTS = {}
 
-# Скидки за объём: единый процент для 2-6 месяцев
-DISCOUNTS: int = 3
-
+# DISCOUNTS — sourced from .env, with shared.core_settings fallback
+DISCOUNTS: int = int(os.getenv("DISCOUNTS", str(core_settings.discounts)))
