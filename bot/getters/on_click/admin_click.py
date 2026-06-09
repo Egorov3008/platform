@@ -302,6 +302,10 @@ async def click_sync_cache(
     panel = result.get("panel", {})
     cache = result.get("cache", {})
 
+    traffic_ok = panel.get("traffic_updated", 0)
+    traffic_fail = panel.get("traffic_failed", 0)
+    traffic_total = traffic_ok + traffic_fail
+
     lines = [
         "✅ <b>Синхронизация завершена</b>",
         "",
@@ -309,10 +313,10 @@ async def click_sync_cache(
         "",
         "📊 <b>Панель:</b>",
         f"• Клиентов на панели: {panel.get('panel_clients', 0)}",
-        f"• Отсутствовало в кэше: {panel.get('missing_keys', 0)} ключей, {panel.get('missing_users', 0)} пользователей",
-        f"• Восстановлено: {panel.get('restored_keys', 0)} ключей, {panel.get('restored_users', 0)} пользователей",
-        f"• Удалено orphaned: {panel.get('deleted_orphaned', 0)}",
-        f"• Трафик обновлён: {panel.get('successful', 0)} / {panel.get('total', 0)}",
+        f"• Ключей в БД: {panel.get('db_keys_before', 0)} → {panel.get('db_keys_after', 0)}",
+        f"• Совпадений: {panel.get('synced', 0)}, обновлено панель: {panel.get('panel_updated', 0)}, обновлено БД: {panel.get('db_updated', 0)}",
+        f"• Создано: {panel.get('created', 0)}, удалено orphaned: {panel.get('orphaned_deleted', 0)}",
+        f"• Трафик обновлён: {traffic_ok} / {traffic_total}",
     ]
 
     await callback.message.answer("\n".join(lines), parse_mode="HTML")

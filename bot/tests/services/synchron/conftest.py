@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 import aiohttp
 import pytest
 
-from py3xui import Client
+from client import PanelClient
 
 
 @pytest.fixture
@@ -100,17 +100,17 @@ async def database_synchronizer(
 
 @pytest.fixture
 async def sample_client():  # noqa: PT004
-    """Фикстура для создания примера клиента py3xui.Client."""
-    client = MagicMock(spec=Client)
-    client.email = "test@example.com"
-    client.tg_id = 12345
-    client.id = "client_123"
-    client.sub_id = "sub_123"
-    client.inbound_id = 1
-    client.expiry_time = 1700000000000
-    client.total_gb = 10 * (1024**3)
-    client.limit_ip = 1
-    return client
+    """Фикстура для создания примера клиента PanelClient."""
+    return PanelClient(
+        id="client_123",
+        email="test@example.com",
+        tg_id=12345,
+        inbound_id=1,
+        sub_id="sub_123",
+        expiry_time=1700000000000,
+        total_gb=10 * (1024**3),
+        limit_ip=1,
+    )
 
 
 @pytest.fixture
