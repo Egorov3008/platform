@@ -361,7 +361,6 @@ class TestReferralRewardDBFields:
             "reward_type",
             "reward_value",
             "awarded_at",
-            "is_claimed",
         }
 
     def test_from_dict_accepts_id_from_select(self):
@@ -370,7 +369,6 @@ class TestReferralRewardDBFields:
             "reward_type": "percent",
             "reward_value": "10",
             "awarded_at": datetime.now(),
-            "is_claimed": False,
             "id": 20,
         }
         rew = ReferralReward.from_dict(data)
@@ -382,10 +380,6 @@ class TestReferralRewardDBFields:
         assert rew.awarded_at is not None
         assert isinstance(rew.awarded_at, datetime)
 
-    def test_is_claimed_default_false(self):
-        rew = ReferralReward(referrer_tg_id=1, reward_type="fix", reward_value="50")
-        assert rew.is_claimed is False
-
     def test_db_fields_whitelist_correct(self):
         assert ReferralReward._DB_FIELDS == frozenset(
             {
@@ -393,7 +387,6 @@ class TestReferralRewardDBFields:
                 "reward_type",
                 "reward_value",
                 "awarded_at",
-                "is_claimed",
             }
         )
 

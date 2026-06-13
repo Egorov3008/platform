@@ -10,6 +10,7 @@
 """
 
 from datetime import datetime
+from decimal import Decimal
 
 from models.referrals.referral_link import ReferralLink
 from models.referrals.referral_redemption import ReferralRedemption
@@ -158,8 +159,10 @@ class TestReferralReward:
         rew = ReferralReward(referrer_tg_id=1, reward_type="percent", reward_value="10")
         assert rew.referrer_tg_id == 1
         assert rew.reward_type == "percent"
-        assert rew.reward_value == "10"
-        assert rew.is_claimed is False
+        # BUG-8: reward_value хранится как Decimal (TEXT→DECIMAL(10,2) в БД),
+        # __post_init__ нормализует str → Decimal.
+        assert rew.reward_value == Decimal("10")
+        assert isinstance(rew.reward_value, Decimal)
         assert rew.id is None
 
     def test_awarded_at_auto_set(self):
@@ -189,10 +192,8 @@ class TestReferralReward:
             "reward_type",
             "reward_value",
             "awarded_at",
-            "is_claimed",
         }
         assert d["reward_type"] == "percent"
-        assert d["is_claimed"] is False
 
     def test_from_dict_accepts_id_from_select(self):
         data = {
@@ -200,7 +201,6 @@ class TestReferralReward:
             "reward_type": "percent",
             "reward_value": "10",
             "awarded_at": datetime.now(),
-            "is_claimed": False,
             "id": 20,
         }
         rew = ReferralReward.from_dict(data)
@@ -213,15 +213,9 @@ class TestReferralReward:
             "reward_type": "fix",
             "reward_value": "100",
             "awarded_at": datetime.now(),
-            "is_claimed": True,
         }
         rew = ReferralReward.from_dict(data)
         assert rew.id is None
-        assert rew.is_claimed is True
-
-    def test_is_claimed_default(self):
-        rew = ReferralReward(referrer_tg_id=1, reward_type="fix", reward_value="50")
-        assert rew.is_claimed is False
 
     def test_db_fields_whitelist(self):
         assert ReferralReward._DB_FIELDS == frozenset(
@@ -230,7 +224,6 @@ class TestReferralReward:
                 "reward_type",
                 "reward_value",
                 "awarded_at",
-                "is_claimed",
             }
         )
 
@@ -240,5 +233,7 @@ class TestReferralReward:
         )
         rew2 = ReferralReward.from_dict(rew.to_dict())
         assert rew2.referrer_tg_id == 42
-        assert rew2.reward_value == "15"
+        # BUG-8: reward_value остаётся Decimal после roundtrip
+        assert rew2.reward_value == Decimal("15")
+        assert isinstance(rew2.reward_value, Decimal)
         assert rew2.id is None  # id не был в to_dict
