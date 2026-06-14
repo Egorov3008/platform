@@ -1,4 +1,5 @@
 from typing import Optional
+
 from aiogram.types import CallbackQuery
 from aiogram_dialog import DialogManager, ShowMode
 from aiogram_dialog.widgets.kbd import Column, Select, Cancel
@@ -10,7 +11,11 @@ from states.payment import PaymentState
 
 
 class TariffSelectBuilder(KeyboardBuilder):
-    """"""
+    """Билдер выбора тарифа.
+
+    Сохранение выбранного тарифа в backend кеш происходит на стороне backend
+    при создании платежа (POST /payments/create).
+    """
 
     async def _on_tariff_selected(
         self,
@@ -19,7 +24,7 @@ class TariffSelectBuilder(KeyboardBuilder):
         dialog_manager: DialogManager,
         item_id: str,
     ):
-        """Обработчик выбора тарифа — специфичен для платежей"""
+        """Обработчик выбора тарифа — специфичен для платежей."""
 
         data = dialog_manager.dialog_data
         start_data = dialog_manager.start_data or {}
@@ -28,7 +33,7 @@ class TariffSelectBuilder(KeyboardBuilder):
         tariff_data = processed_tariffs.get(item_id)
 
         if not tariff_data:
-            await callback.answer("❌ Тарифы не найден", show_alert=True)
+            await callback.answer("❌ Тариф не найден", show_alert=True)
             return
 
         if isinstance(tariff_data, dict):
@@ -68,11 +73,11 @@ class TariffSelectBuilder(KeyboardBuilder):
 
         dialog_manager.dialog_data.update(update)
 
-        # Для продления ключа сохраняем выбранный tariff_id в dialog_data
+        # Email сохраняаем в dialog_data — он будет передан в backend при создании платежа
         if email:
-            dialog_manager.dialog_data[f"renewal_tariff_{email}"] = int(item_id)
+            dialog_manager.dialog_data["email"] = email
             logger.info(
-                "[Цена:TariffSelect] Выбранный тариф сохранён в dialog_data для продления",
+                "[Цена:TariffSelect] Email сохранён в dialog_data для передачи в backend",
                 email=email,
                 tariff_id=item_id,
             )
