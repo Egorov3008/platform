@@ -67,8 +67,8 @@ class FormPaymentGetter(DataGetter):
         if not payment_data:
             raise ValueError("Не удалось создать платёж. Обратитесь в поддержку.")
 
-        payment_id = payment_data["payment_id"]
-        confirmation_url = payment_data["confirmation_url"]
+        payment_id = payment_data.payment_id
+        confirmation_url = payment_data.confirmation_url
 
         dialog_manager.dialog_data["payment_id"] = payment_id
         dialog_manager.dialog_data["confirmation_url"] = confirmation_url

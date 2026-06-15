@@ -69,7 +69,8 @@ class AdminStatsGetter(DataGetter):
 
         keys_by_user: Dict[int, List[Key]] = {}
         for k in keys:
-            keys_by_user.setdefault(k.tg_id, []).append(k)
+            k_tg_id = k.tg_id if hasattr(k, "tg_id") else k.get("tg_id")
+            keys_by_user.setdefault(k_tg_id, []).append(k)
 
         churned = 0
         for u in users:

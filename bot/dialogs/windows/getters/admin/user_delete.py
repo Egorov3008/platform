@@ -7,6 +7,7 @@ from aiogram_dialog import DialogManager
 from api.backend_client import BackendAPIClient
 from dialogs.windows.base import DataGetter
 from logger import logger
+from models.users.user import User
 
 
 class AdminUserDeleteGetter(DataGetter):
@@ -22,7 +23,9 @@ class AdminUserDeleteGetter(DataGetter):
             if not tg_id:
                 return {"tg_id": "", "username": "", "keys_count": 0}
 
-            user = await self._backend.get_user(tg_id)
+            raw_user = await self._backend.get_user(tg_id)
+            # get_user returns a dict from the backend; normalize to User.
+            user: User | None = User.from_backend(raw_user) if raw_user else None
             if not user:
                 return {"tg_id": tg_id, "username": "Не найден", "keys_count": 0}
 

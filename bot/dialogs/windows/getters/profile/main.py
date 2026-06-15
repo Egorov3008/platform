@@ -5,6 +5,7 @@ from aiogram_dialog import DialogManager
 from api.backend_client import BackendAPIClient
 from dialogs.windows.base import DataGetter
 from logger import logger
+from models.users.user import User
 from services.core.gift.repositories.checker import CheckerGiftLink
 from services.core.user.utils.checked_admin import CheckedUser
 
@@ -23,7 +24,10 @@ class UserDataGetter(DataGetter):
     async def get_data(self, dialog_manager: DialogManager, **kwargs) -> Dict[str, Any]:
         try:
             tg_id = dialog_manager.event.from_user.id
-            user = await self._backend.get_user(tg_id)
+            raw_user = await self._backend.get_user(tg_id)
+            # BackendAPIClient.get_user returns a dict (not a model); convert
+            # to User via the same tolerant factory used for keys.
+            user: User | None = User.from_backend(raw_user) if raw_user else None
             keys = await self._backend.get_user_keys(tg_id)
 
             trial: bool = user.trial == 0 if user else True
