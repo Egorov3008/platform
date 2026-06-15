@@ -11,7 +11,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-COPY ../shared /app/shared
 
 # Директории для логов
 RUN mkdir -p logs logs_error

@@ -69,6 +69,7 @@ SQLAlchemy==2.0.45
 starlette==0.50.0
 tenacity==9.1.2
 pybreaker>=1.0.0
+tornado>=6.0.0
 tomli==2.4.0
 typing-inspection==0.4.2
 typing_extensions==4.15.0

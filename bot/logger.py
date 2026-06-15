@@ -202,10 +202,13 @@ class StructuredLogger:
         loguru_logger.warning(message, **extra)
 
     @staticmethod
-    def error(message: str, **extra: Any) -> None:
+    def error(message: str, exc_info: bool = False, **extra: Any) -> None:
         extra = sanitize_data(extra)
         extra.update(get_common_fields())
-        loguru_logger.error(message, **extra)
+        # loguru reads ``exception=True`` from opt(); passing exc_info via
+        # **extra is a no-op, which is why tracebacks were missing.
+        sink = loguru_logger.opt(exception=exc_info)
+        sink.error(message, **extra)
 
     @staticmethod
     def critical(message: str, **extra: Any) -> None:
