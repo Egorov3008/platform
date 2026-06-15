@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from api.backend_client import BackendAPIClient
-from api.schemas import UserDTO, KeyDTO
+from api.schemas import KeyDTO
 from dialogs.windows.getters.profile.main import UserDataGetter
 
 
@@ -32,16 +32,20 @@ def mock_checked_user():
 
 @pytest.fixture
 def sample_user():
-    return UserDTO(
-        tg_id=123456789,
-        username="testuser",
-        first_name="Test",
-        balance=0.0,
-        trial=0,
-        server_id=1,
-        is_admin=False,
-        is_blocked=False,
-    )
+    # BackendAPIClient.get_user() returns a plain dict (== UserResponse JSON).
+    # Tests must mirror production reality — the getter now wraps it via
+    # User.from_backend(), so this dict shape is what the code expects.
+    return {
+        "tg_id": 123456789,
+        "username": "testuser",
+        "first_name": "Test",
+        "balance": 0.0,
+        "trial": 0,
+        "server_id": 1,
+        "is_admin": False,
+        "is_blocked": False,
+        "created_at": None,
+    }
 
 
 @pytest.fixture
@@ -113,7 +117,7 @@ class TestUserDataGetterBasic:
         self, mock_backend, mock_checker_link, mock_checked_user,
         mock_dialog_manager, sample_user,
     ):
-        sample_user.trial = 1
+        sample_user["trial"] = 1
         mock_backend.get_user = AsyncMock(return_value=sample_user)
         mock_backend.get_user_keys = AsyncMock(return_value=[])
         mock_checked_user.check.return_value = False
@@ -183,7 +187,7 @@ class TestUserDataGetterIntegration:
         self, mock_backend, mock_checker_link, mock_checked_user,
         mock_dialog_manager, sample_user, sample_keys,
     ):
-        sample_user.trial = 0
+        sample_user["trial"] = 0
         mock_backend.get_user = AsyncMock(return_value=sample_user)
         mock_backend.get_user_keys = AsyncMock(return_value=sample_keys)
         mock_checked_user.check.return_value = True

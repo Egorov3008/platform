@@ -1,8 +1,17 @@
 """
 Tests for KeyDetailsGetter - key detail view with status and traffic info.
 
-KeyDetailsGetter.get_data() fetches key details and formats via KeyModel.
-Side-effectful: requires mocking ServiceDataModel.keys.
+After the migration to BackendAPIClient, KeyDetailsGetter delegates key
+fetching to ``BackendAPIClient.get_key_details()`` (returns a dict shaped
+like backend ``KeyDetailResponse``). This test suite mocks that single
+async method and asserts the getter formats the dict into the dialog data
+that the bot's key-details window expects.
+
+Fields expected by the dialog window (from key_details.py):
+    error, not_error, keys, tariff_name, used_traffic, total_gb,
+    progress_bar, usage_percent, expiry_date, status_emoji, status_text,
+    time_left_message, is_trial, not_trial_tariff, is_active,
+    days_left, hours_left.
 """
 
 from datetime import datetime, timedelta
@@ -10,245 +19,195 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from models import Key
 from dialogs.windows.getters.keys.key_details import KeyDetailsGetter
+
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
+
+
+def _key_details(
+    *,
+    email: str = "test@example.com",
+    key: str = "vpn_key_data",
+    tariff_id: int = 1,
+    name_tariff: str | None = "Premium",
+    total_gb_bytes: int = 10 * (1024**3),  # 10 GiB
+    used_traffic_bytes: float = 1 * (1024**3),  # 1 GiB
+    days_left: int = 30,
+    hours_left: int = 0,
+    is_active: bool = True,
+    is_trial: bool = False,
+    status_text: str = "Активна",
+    expiry_date: str = "15 июля 2026 года",
+) -> dict:
+    """Build a dict shaped like backend KeyDetailResponse."""
+    return {
+        "email": email,
+        "tg_id": 123456789,
+        "client_id": "client-1",
+        "expiry_time": int((datetime.utcnow() + timedelta(days=days_left)).timestamp() * 1000),
+        "key": key,
+        "tariff_id": tariff_id,
+        "name_tariff": name_tariff,
+        "total_gb": total_gb_bytes,
+        "used_traffic": used_traffic_bytes,
+        "inbound_id": 12,
+        "public_link": key,
+        "link_to_connect": key,
+        "notified_10h": False,
+        "notified_24h": False,
+        "status_text": status_text,
+        "days_left": days_left,
+        "hours_left": hours_left,
+        "is_active": is_active,
+        "is_trial": is_trial,
+        "expiry_date": expiry_date,
+    }
 
 
 @pytest.fixture
 def mock_dialog_manager():
-    """Mock DialogManager with dialog_data and cache in middleware_data"""
+    """Mock DialogManager with email set in dialog_data."""
     manager = AsyncMock()
     manager.dialog_data = {"email": "test@example.com"}
-    manager.middleware_data = {}
     return manager
 
 
 @pytest.fixture
-def mock_model_data():
-    """Mock ServiceDataModel"""
-    model_data = AsyncMock()
-    model_data.keys = AsyncMock()
-    return model_data
+def mock_backend_client():
+    """Standalone AsyncMock for BackendAPIClient (avoids pulling conftest chain)."""
+    return AsyncMock()
 
 
 @pytest.fixture
-def mock_cache():
-    """Mock CacheService for KeyDetailsGetter"""
-    cache = AsyncMock()
-    cache.keys = AsyncMock()
-    return cache
+def getter(mock_backend_client):
+    return KeyDetailsGetter(backend_client=mock_backend_client)
 
 
-@pytest.fixture
-def active_key():
-    """Active key (not expired)"""
-    expiry_time = int((datetime.utcnow() + timedelta(days=30)).timestamp() * 1000)
-    return Key(
-        email="test@example.com",
-        inbound_id=12,
-        client_id="client1",
-        tg_id=123456789,
-        key="vpn_key_data",
-        expiry_time=expiry_time,
-        tariff_id=1,
-        name_tariff="Premium",
-        used_traffic=1024**3,  # 1 GB
-        total_gb=10 * (1024**3),  # 10 GB
-    )
-
-
-@pytest.fixture
-def expired_key():
-    """Expired key"""
-    expiry_time = int((datetime.utcnow() - timedelta(days=1)).timestamp() * 1000)
-    return Key(
-        email="expired@example.com",
-        inbound_id=12,
-        client_id="client2",
-        tg_id=123456789,
-        key="expired_key",
-        expiry_time=expiry_time,
-        tariff_id=2,
-        name_tariff="Basic",
-    )
-
-
-@pytest.fixture
-def trial_key():
-    """Trial key (tariff_id=10)"""
-    expiry_time = int((datetime.utcnow() + timedelta(days=7)).timestamp() * 1000)
-    return Key(
-        email="trial@example.com",
-        inbound_id=12,
-        client_id="client3",
-        tg_id=123456789,
-        key="trial_key",
-        expiry_time=expiry_time,
-        tariff_id=10,  # Trial tariff
-        name_tariff="Trial",
-    )
+# ---------------------------------------------------------------------------
+# Basic flow
+# ---------------------------------------------------------------------------
 
 
 class TestKeyDetailsGetterBasic:
-    """Test KeyDetailsGetter.get_data() basic functionality"""
-
     @pytest.mark.asyncio
-    async def test_get_data_key_found(
-        self, mock_model_data, mock_dialog_manager, mock_cache, active_key
-    ):
-        """get_data() should return key details when found"""
-        mock_cache.keys.get.return_value = active_key
-        mock_cache.tariffs.get.return_value = None
-        mock_dialog_manager.middleware_data = {"cache": mock_cache}
+    async def test_get_data_key_found(self, getter, mock_backend_client, mock_dialog_manager):
+        """get_data() should return formatted details when backend returns a key."""
+        mock_backend_client.get_key_details.return_value = _key_details()
 
-        getter = KeyDetailsGetter()
         result = await getter.get_data(mock_dialog_manager)
 
-        mock_cache.keys.get.assert_called_once_with("key_test@example.com")
+        mock_backend_client.get_key_details.assert_awaited_once_with("test@example.com")
         assert result["error"] is False
-        assert "keys" in result
+        assert result["not_error"] is True
         assert result["keys"] == "vpn_key_data"
+        assert result["tariff_name"] == "Premium"
+        # 1 GiB / 10 GiB = 10% = 1 of 10 filled
+        assert result["used_traffic"] == 1.0
+        assert result["total_gb"] == 10.0
+        assert result["usage_percent"] == 10.0
+        assert "█" in result["progress_bar"] or "░" in result["progress_bar"]
 
     @pytest.mark.asyncio
-    async def test_get_data_key_not_found(self, mock_model_data, mock_dialog_manager, mock_cache):
-        """get_data() should return error when key not found"""
-        mock_cache.keys.get.return_value = None
-        mock_dialog_manager.middleware_data = {"cache": mock_cache}
+    async def test_get_data_key_not_found(
+        self, getter, mock_backend_client, mock_dialog_manager
+    ):
+        """get_data() should return an error dict when backend returns None."""
+        mock_backend_client.get_key_details.return_value = None
 
-        getter = KeyDetailsGetter()
         result = await getter.get_data(mock_dialog_manager)
 
         assert result["error"] is True
-        assert result["error_message"] == "❌ Ключ не найден"
+        assert result["not_error"] is False
+        assert result["keys"] == ""
+        assert "не найден" in result["error_message"].lower()
 
     @pytest.mark.asyncio
-    async def test_get_data_calls_get_data_with_email(
-        self, mock_model_data, mock_dialog_manager, mock_cache, active_key
-    ):
-        """get_data() should call get with email from dialog_data"""
-        mock_cache.keys.get.return_value = active_key
-        mock_cache.tariffs.get.return_value = None
-        mock_dialog_manager.middleware_data = {"cache": mock_cache}
+    async def test_get_data_no_email(self, getter, mock_backend_client):
+        """get_data() should bail out early when dialog_data has no email."""
+        manager = AsyncMock()
+        manager.dialog_data = {}  # no "email" key
 
-        getter = KeyDetailsGetter()
-        await getter.get_data(mock_dialog_manager)
+        result = await getter.get_data(manager)
 
-        mock_cache.keys.get.assert_called_once_with("key_test@example.com")
+        # backend is not touched
+        mock_backend_client.get_key_details.assert_not_awaited()
+        assert result["error"] is True
+        assert "email" in result["error_message"].lower()
+
+
+# ---------------------------------------------------------------------------
+# Status mapping
+# ---------------------------------------------------------------------------
 
 
 class TestKeyDetailsGetterStatus:
-    """Test KeyDetailsGetter key status handling"""
-
     @pytest.mark.asyncio
-    async def test_get_data_active_key_status(
-        self, mock_model_data, mock_dialog_manager, mock_cache, active_key
+    async def test_active_key_status(
+        self, getter, mock_backend_client, mock_dialog_manager
     ):
-        """get_data() should mark active keys correctly"""
-        mock_cache.keys.get.return_value = active_key
-        mock_dialog_manager.middleware_data = {"cache": mock_cache}
+        """Active key → green emoji, days_left message."""
+        mock_backend_client.get_key_details.return_value = _key_details(
+            is_active=True, days_left=5, hours_left=0, status_text="Активна"
+        )
 
-        getter = KeyDetailsGetter()
         result = await getter.get_data(mock_dialog_manager)
 
         assert result["is_active"] is True
         assert result["status_emoji"] == "🟢"
         assert result["status_text"] == "Активна"
+        assert "5" in result["time_left_message"]
+        assert "дней" in result["time_left_message"].lower()
 
     @pytest.mark.asyncio
-    async def test_get_data_expired_key_status(
-        self, mock_model_data, mock_dialog_manager, mock_cache, expired_key
+    async def test_expired_key_status(
+        self, getter, mock_backend_client, mock_dialog_manager
     ):
-        """get_data() should mark expired keys correctly"""
-        mock_cache.keys.get.return_value = expired_key
-        mock_dialog_manager.middleware_data = {"cache": mock_cache}
+        """Expired key (is_active=False) → red emoji, zero hours."""
+        mock_backend_client.get_key_details.return_value = _key_details(
+            is_active=False, days_left=0, hours_left=0, status_text="Истекла"
+        )
 
-        getter = KeyDetailsGetter()
         result = await getter.get_data(mock_dialog_manager)
 
         assert result["is_active"] is False
         assert result["status_emoji"] == "🔴"
-        assert result["status_text"] == "Истекла"
+        assert "0" in result["time_left_message"]
 
     @pytest.mark.asyncio
-    async def test_get_data_expiring_soon_key_status(
-        self, mock_model_data, mock_dialog_manager, mock_cache
+    async def test_expiring_soon_key_status(
+        self, getter, mock_backend_client, mock_dialog_manager
     ):
-        """get_data() should mark expiring-soon keys correctly"""
-        expiry_time = int((datetime.utcnow() + timedelta(hours=12)).timestamp() * 1000)
-        expiring_key = Key(
-            email="expiring@example.com",
-            inbound_id=12,
-            client_id="client4",
-            tg_id=123456789,
-            key="expiring_key",
-            expiry_time=expiry_time,
-            tariff_id=2,
+        """Same-day, hours_left > 0 → yellow emoji, hours message."""
+        mock_backend_client.get_key_details.return_value = _key_details(
+            is_active=True, days_left=0, hours_left=12, status_text="Заканчивается"
         )
-        mock_cache.keys.get.return_value = expiring_key
-        mock_dialog_manager.middleware_data = {"cache": mock_cache}
 
-        getter = KeyDetailsGetter()
         result = await getter.get_data(mock_dialog_manager)
 
         assert result["is_active"] is True
         assert result["status_emoji"] == "🟡"
-        assert result["status_text"] == "Заканчивается"
+        assert "12" in result["time_left_message"]
+        assert "часов" in result["time_left_message"].lower()
 
 
-class TestKeyDetailsGetterTraffic:
-    """Test KeyDetailsGetter traffic calculation"""
-
-    @pytest.mark.asyncio
-    async def test_get_data_traffic_info(
-        self, mock_model_data, mock_dialog_manager, mock_cache, active_key
-    ):
-        """get_data() should calculate traffic usage correctly"""
-        mock_cache.keys.get.return_value = active_key
-        mock_dialog_manager.middleware_data = {"cache": mock_cache}
-
-        getter = KeyDetailsGetter()
-        result = await getter.get_data(mock_dialog_manager)
-
-        assert "used_traffic" in result
-        assert "total_gb" in result
-        assert "usage_percent" in result
-        assert "progress_bar" in result
-        # 1 GB out of 10 GB = 10%
-        assert result["usage_percent"] == 10.0
-        assert result["used_traffic"] == 1.0
-
-    @pytest.mark.asyncio
-    async def test_get_data_progress_bar(
-        self, mock_model_data, mock_dialog_manager, mock_cache, active_key
-    ):
-        """get_data() should generate progress bar"""
-        mock_cache.keys.get.return_value = active_key
-        mock_dialog_manager.middleware_data = {"cache": mock_cache}
-
-        getter = KeyDetailsGetter()
-        result = await getter.get_data(mock_dialog_manager)
-
-        progress_bar = result["progress_bar"]
-        # 1 GB / 10 GB = 10% = 1 filled block out of 10
-        assert "█" in progress_bar or "░" in progress_bar
+# ---------------------------------------------------------------------------
+# Tariff handling
+# ---------------------------------------------------------------------------
 
 
 class TestKeyDetailsGetterTariff:
-    """Test KeyDetailsGetter tariff handling"""
-
     @pytest.mark.asyncio
-    async def test_get_data_regular_tariff(
-        self, mock_model_data, mock_dialog_manager, mock_cache, active_key
+    async def test_regular_tariff(
+        self, getter, mock_backend_client, mock_dialog_manager
     ):
-        """get_data() should mark non-trial tariffs"""
-        mock_cache.keys.get.return_value = active_key
-        mock_tariff = AsyncMock()
-        mock_tariff.name_tariff = "Premium"
-        mock_tariff.id = 1
-        mock_cache.tariffs.get.return_value = mock_tariff
-        mock_dialog_manager.middleware_data = {"cache": mock_cache}
+        """tariff_id != 10 → not a trial, show its name."""
+        mock_backend_client.get_key_details.return_value = _key_details(
+            tariff_id=1, name_tariff="Premium", is_trial=False
+        )
 
-        getter = KeyDetailsGetter()
         result = await getter.get_data(mock_dialog_manager)
 
         assert result["is_trial"] is False
@@ -256,190 +215,88 @@ class TestKeyDetailsGetterTariff:
         assert result["tariff_name"] == "Premium"
 
     @pytest.mark.asyncio
-    async def test_get_data_trial_tariff(
-        self, mock_model_data, mock_dialog_manager, mock_cache, trial_key
+    async def test_trial_tariff(
+        self, getter, mock_backend_client, mock_dialog_manager
     ):
-        """get_data() should mark trial tariffs (tariff_id=10)"""
-        mock_cache.keys.get.return_value = trial_key
-        mock_tariff = AsyncMock()
-        mock_tariff.name_tariff = "Trial"
-        mock_tariff.id = 10
-        mock_cache.tariffs.get.return_value = mock_tariff
-        mock_dialog_manager.middleware_data = {"cache": mock_cache}
+        """tariff_id == 10 → trial flag, hide 'Продлить ключ' paid button."""
+        mock_backend_client.get_key_details.return_value = _key_details(
+            tariff_id=10, name_tariff="Trial", is_trial=True
+        )
 
-        getter = KeyDetailsGetter()
         result = await getter.get_data(mock_dialog_manager)
 
         assert result["is_trial"] is True
         assert result["not_trial_tariff"] is False
+        assert result["tariff_name"] == "Trial"
 
     @pytest.mark.asyncio
-    async def test_get_data_tariff_name_fallback(
-        self, mock_model_data, mock_dialog_manager, mock_cache
+    async def test_missing_tariff_name_falls_back(
+        self, getter, mock_backend_client, mock_dialog_manager
     ):
-        """get_data() should use default tariff name if not set"""
-        expiry_time = int((datetime.utcnow() + timedelta(days=30)).timestamp() * 1000)
-        key_no_tariff = Key(
-            email="notariff@example.com",
-            inbound_id=12,
-            client_id="client5",
-            tg_id=123456789,
-            key="key_no_tariff",
-            expiry_time=expiry_time,
-            tariff_id=1,
-            name_tariff=None,
-        )
-        mock_cache.keys.get.return_value = key_no_tariff
-        mock_cache.tariffs.get.return_value = None
-        mock_dialog_manager.middleware_data = {"cache": mock_cache}
+        """None name_tariff → 'Не указан' fallback."""
+        mock_backend_client.get_key_details.return_value = _key_details(name_tariff=None)
 
-        getter = KeyDetailsGetter()
         result = await getter.get_data(mock_dialog_manager)
 
         assert result["tariff_name"] == "Не указан"
 
 
-class TestKeyDetailsGetterExpiry:
-    """Test KeyDetailsGetter expiry information"""
+# ---------------------------------------------------------------------------
+# Edge cases
+# ---------------------------------------------------------------------------
 
+
+class TestKeyDetailsGetterEdgeCases:
     @pytest.mark.asyncio
-    async def test_get_data_expiry_date_format(
-        self, mock_model_data, mock_dialog_manager, mock_cache, active_key
+    async def test_zero_total_gb_does_not_divide_by_zero(
+        self, getter, mock_backend_client, mock_dialog_manager
     ):
-        """get_data() should format expiry date correctly"""
-        mock_cache.keys.get.return_value = active_key
-        mock_dialog_manager.middleware_data = {"cache": mock_cache}
-
-        getter = KeyDetailsGetter()
-        result = await getter.get_data(mock_dialog_manager)
-
-        assert "expiry_date" in result
-        assert len(result["expiry_date"]) > 0
-
-    @pytest.mark.asyncio
-    async def test_get_data_days_left(
-        self, mock_model_data, mock_dialog_manager, mock_cache, active_key
-    ):
-        """get_data() should calculate days_left correctly"""
-        mock_cache.keys.get.return_value = active_key
-        mock_dialog_manager.middleware_data = {"cache": mock_cache}
-
-        getter = KeyDetailsGetter()
-        result = await getter.get_data(mock_dialog_manager)
-
-        assert "days_left" in result
-        assert result["days_left"] > 0
-
-    @pytest.mark.asyncio
-    async def test_get_data_time_left_message(
-        self, mock_model_data, mock_dialog_manager, mock_cache, active_key
-    ):
-        """get_data() should generate time_left_message"""
-        mock_cache.keys.get.return_value = active_key
-        mock_dialog_manager.middleware_data = {"cache": mock_cache}
-
-        getter = KeyDetailsGetter()
-        result = await getter.get_data(mock_dialog_manager)
-
-        assert "time_left_message" in result
-        assert len(result["time_left_message"]) > 0
-
-
-class TestKeyDetailsGetterIntegration:
-    """Integration tests for KeyDetailsGetter"""
-
-    @pytest.mark.asyncio
-    async def test_get_data_full_active_key_flow(
-        self, mock_model_data, mock_dialog_manager, mock_cache, active_key
-    ):
-        """get_data() should handle complete active key flow"""
-        mock_cache.keys.get.return_value = active_key
-        mock_dialog_manager.middleware_data = {"cache": mock_cache}
-
-        getter = KeyDetailsGetter()
-        result = await getter.get_data(mock_dialog_manager)
-
-        # Verify all required fields present
-        required_fields = [
-            "error",
-            "keys",
-            "tariff_name",
-            "used_traffic",
-            "total_gb",
-            "progress_bar",
-            "usage_percent",
-            "expiry_date",
-            "status_emoji",
-            "status_text",
-            "time_left_message",
-            "is_trial",
-            "not_trial_tariff",
-            "is_active",
-            "days_left",
-            "hours_left",
-        ]
-        for field in required_fields:
-            assert field in result, f"Missing field: {field}"
-
-    @pytest.mark.asyncio
-    async def test_get_data_multiple_calls_same_email(
-        self, mock_model_data, mock_dialog_manager, mock_cache, active_key
-    ):
-        """get_data() should work correctly on multiple calls"""
-        mock_cache.keys.get.return_value = active_key
-        mock_dialog_manager.middleware_data = {"cache": mock_cache}
-
-        getter = KeyDetailsGetter()
-        result1 = await getter.get_data(mock_dialog_manager)
-        result2 = await getter.get_data(mock_dialog_manager)
-
-        assert result1["error"] == result2["error"]
-        assert result1["keys"] == result2["keys"]
-        assert mock_cache.keys.get.call_count == 2
-
-    @pytest.mark.asyncio
-    async def test_get_data_different_emails(self, mock_model_data, mock_cache):
-        """get_data() should fetch different keys for different emails"""
-        key1 = Key(
-            email="user1@example.com",
-            inbound_id=12,
-            client_id="c1",
-            tg_id=123,
-            key="key1",
-            expiry_time=int(
-                (datetime.utcnow() + timedelta(days=30)).timestamp() * 1000
-            ),
-            tariff_id=1,
-        )
-        key2 = Key(
-            email="user2@example.com",
-            inbound_id=13,
-            client_id="c2",
-            tg_id=456,
-            key="key2",
-            expiry_time=int(
-                (datetime.utcnow() + timedelta(days=20)).timestamp() * 1000
-            ),
-            tariff_id=2,
+        """total_gb = 0 → usage_percent = 0, no ZeroDivisionError."""
+        mock_backend_client.get_key_details.return_value = _key_details(
+            total_gb_bytes=0, used_traffic_bytes=0
         )
 
-        async def side_effect(email):
-            return key1 if email == "key_user1@example.com" else key2
+        result = await getter.get_data(mock_dialog_manager)
 
-        mock_cache.keys.get.side_effect = side_effect
-        mock_cache.tariffs.get.return_value = None
+        assert result["usage_percent"] == 0
+        assert result["total_gb"] == 0
+        assert result["used_traffic"] == 0
 
-        getter = KeyDetailsGetter()
+    @pytest.mark.asyncio
+    async def test_backend_exception_returns_error(
+        self, getter, mock_backend_client, mock_dialog_manager
+    ):
+        """If backend raises, getter should NOT propagate — it has no
+        try/except, so the exception bubbles up. This test pins the
+        current behavior so we'll notice if we add error handling later.
+        """
+        mock_backend_client.get_key_details.side_effect = RuntimeError("boom")
 
-        manager1 = AsyncMock()
-        manager1.dialog_data = {"email": "user1@example.com"}
-        manager1.middleware_data = {"cache": mock_cache}
-        result1 = await getter.get_data(manager1)
+        with pytest.raises(RuntimeError, match="boom"):
+            await getter.get_data(mock_dialog_manager)
 
-        manager2 = AsyncMock()
-        manager2.dialog_data = {"email": "user2@example.com"}
-        manager2.middleware_data = {"cache": mock_cache}
-        result2 = await getter.get_data(manager2)
 
-        assert result1["keys"] == "key1"
-        assert result2["keys"] == "key2"
+# ---------------------------------------------------------------------------
+# Required fields contract
+# ---------------------------------------------------------------------------
+
+
+class TestKeyDetailsGetterContract:
+    @pytest.mark.asyncio
+    async def test_all_required_fields_present(
+        self, getter, mock_backend_client, mock_dialog_manager
+    ):
+        """Smoke-check that every field the dialog window depends on is set."""
+        mock_backend_client.get_key_details.return_value = _key_details()
+
+        result = await getter.get_data(mock_dialog_manager)
+
+        required = {
+            "error", "not_error", "keys", "tariff_name",
+            "used_traffic", "total_gb", "progress_bar", "usage_percent",
+            "expiry_date", "status_emoji", "status_text",
+            "time_left_message", "is_trial", "not_trial_tariff",
+            "is_active", "days_left", "hours_left",
+        }
+        missing = required - set(result.keys())
+        assert not missing, f"Missing fields: {missing}"

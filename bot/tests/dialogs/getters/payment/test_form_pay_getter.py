@@ -14,11 +14,13 @@ from dialogs.windows.getters.payment.form_pay import FormPaymentGetter
 @pytest.fixture
 def payment_response():
     """Default response for backend_client.create_payment used by these tests."""
-    return {
-        "payment_id": "backend_pay_001",
-        "confirmation_url": "https://yoomoney.ru/pay/001",
-        "amount": 500.0,
-    }
+    from api.schemas import PaymentCreateResponse
+
+    return PaymentCreateResponse(
+        payment_id="backend_pay_001",
+        confirmation_url="https://yoomoney.ru/pay/001",
+        amount=500.0,
+    )
 
 
 @pytest.fixture

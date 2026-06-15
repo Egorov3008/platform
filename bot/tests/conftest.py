@@ -36,26 +36,29 @@ def mock_backend_client():
     after fixture injection (e.g. ``mock.register_from_invite.return_value = ...``).
 
     Note: NOT using ``spec=BackendAPIClient`` because some methods return
-    ``dict`` (e.g. ``create_payment``) and tests rely on subscripting
-    those return values (``result["confirmation_url"]``). With ``spec=``,
-    ``AsyncMock`` produces a generic ``MagicMock`` for return values,
-    which breaks subscripting. Using a plain ``AsyncMock`` preserves
-    normal dict semantics.
+    ``dict`` and tests rely on subscripting those return values. With
+    ``spec=``, ``AsyncMock`` produces a generic ``MagicMock`` for return
+    values, which breaks subscripting. Using a plain ``AsyncMock``
+    preserves normal dict semantics.
     """
     from api.backend_client import BackendAPIClient
+    from api.schemas import PaymentCreateResponse
 
     client = AsyncMock()  # type: BackendAPIClient
     client.get_user = AsyncMock(return_value=None)
     client.get_user_keys = AsyncMock(return_value=[])
     client.get_key = AsyncMock(return_value=None)
+    client.get_key_details = AsyncMock(return_value=None)
     client.create_trial_key = AsyncMock(return_value=None)
-    # create_payment returns a dict; pre-stub so subscripting works by default.
+    # create_payment returns a typed DTO (PaymentCreateResponse). Tests that
+    # need to inspect fields should use attribute access; specific test
+    # files may override this with a custom DTO instance.
     client.create_payment = AsyncMock(
-        return_value={
-            "payment_id": "test_payment_001",
-            "confirmation_url": "https://example.com/pay",
-            "amount": 0.0,
-        }
+        return_value=PaymentCreateResponse(
+            payment_id="test_payment_001",
+            confirmation_url="https://example.com/pay",
+            amount=0.0,
+        )
     )
     client.get_payment_status = AsyncMock(return_value=None)
     return client
