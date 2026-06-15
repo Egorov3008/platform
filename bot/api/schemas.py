@@ -270,20 +270,26 @@ class GiftDTO(BaseModel):
 # =============================================================================
 
 class ReferralLinkDTO(BaseModel):
-    """Typed DTO for referral link data"""
-    token: str
-    owner_tg_id: int
+    """Typed DTO for referral link data.
+
+    Mirrors the backend response shape returned by
+    ``GET/POST /api/v1/admin/referrals/links[...]``. The id-of-the-owner
+    field is called ``referrer_tg_id`` on the backend (matching the
+    ``referrer_tg_id`` column in the DB and the ``ReferralLink`` dataclass).
+
+    Note: ``token`` is ``Optional`` because
+    ``GET /api/v1/admin/referrals/links/{tg_id}`` returns
+    ``{"token": null, "referrer_tg_id": tg_id}`` for users who do not
+    yet have a referral link (the endpoint signals "no link" via a
+    null token rather than HTTP 404). The dialog getter at
+    ``dialogs/windows/getters/referral/main.py`` handles the null case
+    with ``if link and link.token:``.
+    """
+    token: Optional[str] = None
+    referrer_tg_id: int
     is_active: bool = True
     created_at: Optional[datetime] = None
-
-
-class ReferralStatsDTO(BaseModel):
-    """Typed DTO for referral statistics"""
-    owner_tg_id: int
-    total_referrals: int
-    active_referrals: int
-    total_earnings: float
-    pending_bonus: float
+    id: Optional[int] = None
 
 
 # =============================================================================
