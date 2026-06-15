@@ -16,6 +16,7 @@ from api.schemas import (
     UserDTO,
     TariffDTO,
     KeyDTO,
+    KeyDetailDTO,
     KeyListResponse,
     PaymentDTO,
     PaymentCreateResponse,
@@ -26,16 +27,6 @@ from api.schemas import (
     AdminStatsDTO,
 )
 from logger import logger
-
-
-# Circuit breaker configuration for backend API calls
-# Fails after 5 consecutive failures, resets after 30 seconds, half-open tests 1 request
-_backend_circuit_breaker = pybreaker.CircuitBreaker(
-    fail_max=5,
-    reset_timeout=30,
-    success_threshold=1,
-    name="backend_api",
-)
 
 
 
@@ -82,6 +73,31 @@ class BackendAPIClient:
         """Access circuit breaker for monitoring/testing."""
         return self._circuit_breaker
 
+    @staticmethod
+    def _unwrap_list(data, key: str):
+        """Backend may return a bare list or {"key": [...]}. Normalize to list."""
+        if isinstance(data, dict):
+            return data.get(key, [])
+        return data if isinstance(data, list) else []
+
+    @staticmethod
+    def _to_dicts(items):
+        """Convert list of Pydantic models (or dicts) to list of dicts.
+
+        Several getters in bot code expect dict[str, Any] for legacy reasons.
+        Centralised here so callers don't sprinkle .model_dump() everywhere.
+        """
+        result = []
+        for item in items:
+            if isinstance(item, dict):
+                result.append(item)
+            elif hasattr(item, "model_dump"):
+                result.append(item.model_dump())
+            else:
+                # Pydantic v1 fallback or plain object
+                result.append(dict(item) if hasattr(item, "__dict__") else item)
+        return result
+
     async def _request_with_circuit_breaker(self, method: str, path: str, **kwargs) -> httpx.Response:
         """Execute HTTP request with circuit breaker protection."""
         async def _request() -> httpx.Response:
@@ -125,18 +141,39 @@ class BackendAPIClient:
             logger.error("BackendAPIClient.register_user failed", tg_id=tg_id, error=str(e))
             return None
 
-    async def get_user(self, tg_id: int) -> Optional[UserDTO]:
-        """
-        Fetch user by tg_id.
+    async def admin_register_user(self, payload: dict) -> Optional[dict]:
+        """Admin endpoint: register a new user (called by bot auto-registration).
 
-        Returns UserDTO or None if not found / error.
+        Returns dict with user data on success, None on error.
+        """
+        try:
+            r = await self._request_with_circuit_breaker(
+                "POST",
+                "/api/v1/admin/users/register",
+                json=payload,
+            )
+            r.raise_for_status()
+            return r.json()
+        except pybreaker.CircuitBreakerError:
+            logger.error("BackendAPIClient.admin_register_user: circuit breaker open", tg_id=payload.get("tg_id"))
+            return None
+        except Exception as e:
+            logger.error("BackendAPIClient.admin_register_user failed", tg_id=payload.get("tg_id"), error=str(e))
+            return None
+
+    async def get_user(self, tg_id: int) -> Optional[dict]:
+        """
+        Fetch user by tg_id (returns dict for legacy callers).
+
+        Returns dict or None if not found / error.
         """
         try:
             r = await self._request_with_circuit_breaker("GET", f"/api/v1/users/{tg_id}")
             if r.status_code == 404:
                 return None
             r.raise_for_status()
-            return UserDTO(**r.json())
+            data = r.json()
+            return data if isinstance(data, dict) else data.model_dump()
         except pybreaker.CircuitBreakerError:
             logger.error("BackendAPIClient.get_user: circuit breaker open", tg_id=tg_id)
             return None
@@ -144,13 +181,14 @@ class BackendAPIClient:
             logger.error("BackendAPIClient.get_user failed", tg_id=tg_id, error=str(e))
             return None
 
-    async def admin_list_users(self) -> List[AdminUserSummaryDTO]:
-        """List all users for admin panel."""
+    async def admin_list_users(self) -> List[dict]:
+        """List all users for admin panel (returns dicts for legacy callers)."""
         try:
             r = await self._request_with_circuit_breaker("GET", "/api/v1/admin/users")
             r.raise_for_status()
             data = r.json()
-            return [AdminUserSummaryDTO(**u) for u in data.get("users", [])]
+            items = self._unwrap_list(data, "users")
+            return self._to_dicts(items)
         except pybreaker.CircuitBreakerError:
             logger.error("BackendAPIClient.admin_list_users: circuit breaker open")
             return []
@@ -207,7 +245,12 @@ class BackendAPIClient:
             r = await self._request_with_circuit_breaker("GET", "/api/v1/keys/", params={"tg_id": tg_id})
             r.raise_for_status()
             data = r.json()
-            return [KeyDTO(**k) for k in data.get("keys", [])]
+            # Backend returns a bare list; some endpoints may wrap in {"keys": [...]}
+            if isinstance(data, dict):
+                items = data.get("keys", [])
+            else:
+                items = data
+            return [KeyDTO(**k) for k in items]
         except pybreaker.CircuitBreakerError:
             logger.error("BackendAPIClient.get_user_keys: circuit breaker open", tg_id=tg_id)
             return []
@@ -226,6 +269,35 @@ class BackendAPIClient:
             return None
         except Exception as e:
             logger.error("BackendAPIClient.get_key failed", email=email, error=str(e))
+            return None
+
+    async def get_key_details(self, email: str) -> Optional[dict]:
+        """
+        Get full key details (with status fields) by email.
+
+        Hits ``GET /api/v1/keys/{email}`` which returns ``KeyDetailResponse``:
+        email, tg_id, expiry_time, key, tariff_id, name_tariff, total_gb,
+        used_traffic, inbound_id, client_id, status_text, days_left,
+        hours_left, is_active, is_trial, expiry_date.
+
+        Returns a plain ``dict`` on success so existing getters in
+        ``bot/dialogs/`` (which use ``.get()``-style field access) keep
+        working without changes — matches the pattern of
+        ``get_user()`` / ``admin_list_keys()``.
+
+        Returns ``None`` on 404 / circuit-breaker open / any other error.
+        """
+        try:
+            r = await self._request_with_circuit_breaker("GET", f"/api/v1/keys/{email}")
+            if r.status_code == 404:
+                return None
+            r.raise_for_status()
+            return r.json()
+        except pybreaker.CircuitBreakerError:
+            logger.error("BackendAPIClient.get_key_details: circuit breaker open", email=email)
+            return None
+        except Exception as e:
+            logger.error("BackendAPIClient.get_key_details failed", email=email, error=str(e))
             return None
 
     async def delete_key(self, email: str, tg_id: int) -> bool:
@@ -267,7 +339,7 @@ class BackendAPIClient:
             r = await self._request_with_circuit_breaker("GET", "/api/v1/admin/keys")
             r.raise_for_status()
             data = r.json()
-            return [KeyDTO(**k) for k in data.get("keys", [])]
+            return self._to_dicts(self._unwrap_list(data, "keys"))
         except pybreaker.CircuitBreakerError:
             logger.error("BackendAPIClient.admin_list_keys: circuit breaker open")
             return []
@@ -298,7 +370,7 @@ class BackendAPIClient:
             r = await self._request_with_circuit_breaker("GET", "/api/v1/admin/tariffs")
             r.raise_for_status()
             data = r.json()
-            return [TariffDTO(**t) for t in data.get("tariffs", [])]
+            return self._to_dicts(self._unwrap_list(data, "tariffs"))
         except pybreaker.CircuitBreakerError:
             logger.error("BackendAPIClient.admin_list_tariffs: circuit breaker open")
             return []
@@ -373,7 +445,7 @@ class BackendAPIClient:
             r = await self._request_with_circuit_breaker("GET", "/api/v1/admin/payments")
             r.raise_for_status()
             data = r.json()
-            return [PaymentDTO(**p) for p in data.get("payments", [])]
+            return self._to_dicts(self._unwrap_list(data, "payments"))
         except pybreaker.CircuitBreakerError:
             logger.error("BackendAPIClient.admin_list_payments: circuit breaker open")
             return []
@@ -398,8 +470,8 @@ class BackendAPIClient:
             logger.error("BackendAPIClient.get_gift_by_token failed", token=token, error=str(e))
             return None
 
-    async def admin_list_gifts(self, sender_tg_id: Optional[int] = None) -> List[GiftDTO]:
-        """List gifts, optionally filtered by sender."""
+    async def admin_list_gifts(self, sender_tg_id: Optional[int] = None) -> List[dict]:
+        """List gifts, optionally filtered by sender (returns dicts for legacy callers)."""
         try:
             params = {}
             if sender_tg_id is not None:
@@ -407,7 +479,7 @@ class BackendAPIClient:
             r = await self._request_with_circuit_breaker("GET", "/api/v1/admin/gifts", params=params)
             r.raise_for_status()
             data = r.json()
-            return [GiftDTO(**g) for g in data.get("gifts", [])]
+            return self._to_dicts(self._unwrap_list(data, "gifts"))
         except Exception as e:
             logger.error("BackendAPIClient.admin_list_gifts failed", error=str(e))
             return []
@@ -596,7 +668,7 @@ class BackendAPIClient:
             r = await self._request_with_circuit_breaker("GET", "/api/v1/admin/inbounds")
             r.raise_for_status()
             data = r.json()
-            return data.get("inbounds", [])
+            return self._unwrap_list(data, "inbounds")
         except pybreaker.CircuitBreakerError:
             logger.error("BackendAPIClient.admin_list_inbounds: circuit breaker open")
             return []

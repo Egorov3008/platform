@@ -134,6 +134,42 @@ class KeyListResponse(BaseModel):
     total: int
 
 
+class KeyDetailDTO(BaseModel):
+    """
+    Typed DTO for full key details from backend API.
+
+    Mirrors backend/app/schemas/keys.py::KeyDetailResponse (which extends
+    KeyResponse with status fields: days_left, hours_left, is_active, etc.).
+
+    Returned as a dict by ``BackendAPIClient.get_key_details()`` so existing
+    getters can keep using ``.get()``-style field access — matches the
+    pattern of ``get_user()`` / ``admin_list_keys()``.
+    """
+    email: str
+    tg_id: int
+    client_id: str
+    expiry_time: int  # milliseconds timestamp
+    key: str
+    tariff_id: Optional[int] = None
+    name_tariff: Optional[str] = None
+    total_gb: Optional[int] = None
+    used_traffic: Optional[float] = None
+    inbound_id: int
+    public_link: Optional[str] = None
+    link_to_connect: Optional[str] = None
+    notified_10h: bool = False
+    notified_24h: bool = False
+    status_text: str
+    days_left: int
+    hours_left: int
+    is_active: bool
+    is_trial: bool
+    expiry_date: str
+
+    class Config:
+        from_attributes = True
+
+
 # =============================================================================
 # Payment DTOs
 # =============================================================================
