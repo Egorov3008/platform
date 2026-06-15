@@ -15,8 +15,8 @@ class ReferralMainGetter(DataGetter):
         tg_id = dialog_manager.event.from_user.id
 
         link = await self._backend.get_referral_link(tg_id)
-        if link and link.get("token"):
-            share_url = f"https://t.me/{BOT_NAME}?start={link['token']}"
+        if link and link.token:
+            share_url = f"https://t.me/{BOT_NAME}?start={link.token}"
             stats = await self._backend.get_referral_stats(tg_id)
             if not stats:
                 stats = {}

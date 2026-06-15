@@ -22,7 +22,6 @@ from api.schemas import (
     PaymentCreateResponse,
     GiftDTO,
     ReferralLinkDTO,
-    ReferralStatsDTO,
     AdminUserSummaryDTO,
     AdminStatsDTO,
 )
@@ -501,12 +500,20 @@ class BackendAPIClient:
             logger.error("BackendAPIClient.get_referral_link failed", tg_id=tg_id, error=str(e))
             return None
 
-    async def get_referral_stats(self, tg_id: int) -> Optional[ReferralStatsDTO]:
-        """Get referral statistics for user."""
+    async def get_referral_stats(self, tg_id: int) -> Optional[dict]:
+        """Get referral statistics for user.
+
+        Returns the raw backend dict (``referral_count``, ``rewards_count``,
+        ``rewards_total``, ``balance``) so that the dialog getter
+        ``dialogs/windows/getters/referral/main.py`` can keep using
+        ``dict.get(...)`` semantics. Mismatching field names into a typed
+        DTO caused Pydantic validation errors that broke the entire
+        referral window.
+        """
         try:
             r = await self._request_with_circuit_breaker("GET", f"/api/v1/admin/referrals/stats/{tg_id}")
             r.raise_for_status()
-            return ReferralStatsDTO(**r.json())
+            return r.json()
         except pybreaker.CircuitBreakerError:
             logger.error("BackendAPIClient.get_referral_stats: circuit breaker open", tg_id=tg_id)
             return None

@@ -43,7 +43,7 @@ class ReferralMainKeyboard(KeyboardBuilder):
             link = await self._backend.admin_create_referral_link(tg_id)
             if not link:
                 raise RuntimeError("Backend returned empty link")
-            token = link.get("token")
+            token = link.token
             share_url = f"https://t.me/{BOT_NAME}?start={token}"
             await callback.answer("Ссылка создана!", show_alert=True)
             logger.info("Реферальная ссылка создана через backend", tg_id=tg_id, token=token)
