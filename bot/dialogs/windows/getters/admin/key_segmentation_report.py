@@ -18,7 +18,10 @@ class KeySegmentationReportGetter:
         self.report = KeyAdminReport()
 
     async def _get_all_keys(self) -> List:
-        return await self._backend.admin_list_keys()
+        raw = await self._backend.admin_list_keys() or []
+        # backend returns dicts; KeyAdminReport expects Key objects
+        from models import Key
+        return [k if isinstance(k, Key) else Key.from_backend(k) for k in raw]
 
     async def get_key_report(
         self, dialog_manager: DialogManager, **kwargs
