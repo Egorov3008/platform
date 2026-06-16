@@ -76,7 +76,8 @@ async def handle_renew_key(query: types.CallbackQuery, dialog_manager: DialogMan
                 return
 
             tariff = Tariff.from_dict(tariff_dict)
-            amount = float(key.amount or tariff.amount)
+            # KeyDTO не содержит amount — стоимость продления всегда берётся из тарифа
+            amount = float(tariff.amount)
 
             logger.info(
                 "Paid key renewal - navigating to setting_pay",
