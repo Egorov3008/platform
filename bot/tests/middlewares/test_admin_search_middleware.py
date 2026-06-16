@@ -55,7 +55,7 @@ class TestAdminSearchMiddleware:
     # ------------------------------------------------------------------
 
     def test_extract_valid_token(self, middleware):
-        event = _make_update("/start searce_12345")
+        event = _make_update("/start search_12345")
         result = middleware._extract_search_tg_id(event)
         assert result == 12345
 
@@ -74,17 +74,17 @@ class TestAdminSearchMiddleware:
         assert result is None
 
     def test_extract_returns_none_for_non_numeric_id(self, middleware):
-        event = _make_update("/start searce_abc")
+        event = _make_update("/start search_abc")
         result = middleware._extract_search_tg_id(event)
         assert result is None
 
     def test_extract_returns_none_for_empty_id(self, middleware):
-        event = _make_update("/start searce_")
+        event = _make_update("/start search_")
         result = middleware._extract_search_tg_id(event)
         assert result is None
 
     def test_extract_returns_none_for_non_start_command(self, middleware):
-        event = _make_update("/help searce_12345")
+        event = _make_update("/help search_12345")
         result = middleware._extract_search_tg_id(event)
         assert result is None
 
@@ -101,7 +101,7 @@ class TestAdminSearchMiddleware:
     async def test_admin_search_token_sets_data(self, middleware):
         """Администратор с корректным токеном получает admin_search_tg_id в data."""
         handler = AsyncMock()
-        event = _make_update("/start searce_99999")
+        event = _make_update("/start search_99999")
         data = _make_data(user_id=100)  # 100 — в ADMIN_IDS
 
         await middleware(handler, event, data)
@@ -113,7 +113,7 @@ class TestAdminSearchMiddleware:
     async def test_non_admin_search_token_ignored(self, middleware):
         """Обычный пользователь с searce_ токеном не получает admin_search_tg_id."""
         handler = AsyncMock()
-        event = _make_update("/start searce_99999")
+        event = _make_update("/start search_99999")
         data = _make_data(user_id=777)  # не в ADMIN_IDS
 
         await middleware(handler, event, data)
@@ -137,7 +137,7 @@ class TestAdminSearchMiddleware:
     async def test_no_event_user_passes_through(self, middleware):
         """Если event_from_user не установлен, middleware не вмешивается."""
         handler = AsyncMock()
-        event = _make_update("/start searce_12345")
+        event = _make_update("/start search_12345")
         data = {"event_from_user": None}
 
         await middleware(handler, event, data)

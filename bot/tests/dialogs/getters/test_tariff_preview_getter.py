@@ -1,8 +1,13 @@
 """
 Tests for TariffPreviewGetter - tariff display data with pricing and discounts.
 
-TariffPreviewGetter.get_data() gathers tariff data with discount calculations.
-Side-effectful: requires mocking TariffData, PriceService, CacheService.
+TariffPreviewGetter.get_data() calls:
+- tariff_display.get(tg_id) → list[Tariff]
+- price_service.calculate_batch(tg_id, tariffs) → dict[tariff_id, PriceResult]
+
+Result includes: tariff_list (buttons), tariffs (processed), discount_value, discount_type.
+
+Source: dialogs/windows/getters/tariff/preview.py
 """
 
 from datetime import datetime
@@ -18,37 +23,30 @@ from services.core.price.result import PriceResult
 
 @pytest.fixture
 def mock_dialog_manager():
-    """Mock DialogManager"""
+    """Mock DialogManager with from_user.id."""
     manager = AsyncMock()
     manager.event = MagicMock()
     manager.event.from_user = MagicMock()
     manager.event.from_user.id = 123456789
+    manager.dialog_data = {}
     return manager
 
 
 @pytest.fixture
 def mock_tariff_data():
-    """Mock TariffData"""
+    """Mock TariffData (provides get(user_id) → list[Tariff])."""
     return AsyncMock()
 
 
 @pytest.fixture
 def mock_price_service():
-    """Mock PriceService"""
+    """Mock PriceService (provides calculate_batch(tg_id, tariffs) → dict)."""
     return AsyncMock()
 
 
 @pytest.fixture
-def mock_cache_service():
-    """Mock CacheService"""
-    cache = AsyncMock()
-    cache.tariffs = AsyncMock()
-    return cache
-
-
-@pytest.fixture
 def sample_tariffs():
-    """Sample tariffs"""
+    """Sample tariffs."""
     return [
         Tariff(
             id=1,
@@ -79,7 +77,7 @@ def sample_tariffs():
 
 @pytest.fixture
 def sample_stock():
-    """Sample valid stock (discount)"""
+    """Sample valid stock (discount)."""
     return Stock(
         tg_id=123456789,
         stock_type="fix",
@@ -117,6 +115,11 @@ def _with_discount_results(tariffs, discount=10.0):
     }
 
 
+# ---------------------------------------------------------------------------
+# TariffPreviewGetter — базовая функциональность
+# ---------------------------------------------------------------------------
+
+
 class TestTariffPreviewGetterBasic:
     """Test TariffPreviewGetter.get_data() basic functionality"""
 
@@ -125,17 +128,14 @@ class TestTariffPreviewGetterBasic:
         self,
         mock_tariff_data,
         mock_price_service,
-        mock_cache_service,
         mock_dialog_manager,
         sample_tariffs,
     ):
-        """get_data() should return tariff list without discount"""
+        """get_data() should return tariff list without discount."""
         mock_tariff_data.get.return_value = sample_tariffs
         mock_price_service.calculate_batch.return_value = _no_discount_results(sample_tariffs)
 
-        getter = TariffPreviewGetter(
-            mock_tariff_data, mock_price_service, mock_cache_service
-        )
+        getter = TariffPreviewGetter(mock_tariff_data, mock_price_service)
         result = await getter.get_data(mock_dialog_manager)
 
         assert "tariff_list" in result
@@ -151,18 +151,15 @@ class TestTariffPreviewGetterBasic:
         self,
         mock_tariff_data,
         mock_price_service,
-        mock_cache_service,
         mock_dialog_manager,
         sample_tariffs,
         sample_stock,
     ):
-        """get_data() should apply discounts to tariff prices"""
+        """get_data() should apply discounts to tariff prices."""
         mock_tariff_data.get.return_value = sample_tariffs
         mock_price_service.calculate_batch.return_value = _with_discount_results(sample_tariffs)
 
-        getter = TariffPreviewGetter(
-            mock_tariff_data, mock_price_service, mock_cache_service
-        )
+        getter = TariffPreviewGetter(mock_tariff_data, mock_price_service)
         result = await getter.get_data(mock_dialog_manager)
 
         # Should have tariff list
@@ -175,16 +172,13 @@ class TestTariffPreviewGetterBasic:
         self,
         mock_tariff_data,
         mock_price_service,
-        mock_cache_service,
         mock_dialog_manager,
     ):
-        """get_data() should handle no tariffs available"""
+        """get_data() should handle no tariffs available."""
         mock_tariff_data.get.return_value = []
         mock_price_service.calculate_batch.return_value = {}
 
-        getter = TariffPreviewGetter(
-            mock_tariff_data, mock_price_service, mock_cache_service
-        )
+        getter = TariffPreviewGetter(mock_tariff_data, mock_price_service)
         result = await getter.get_data(mock_dialog_manager)
 
         assert result["tariff_list"] == []
@@ -195,21 +189,23 @@ class TestTariffPreviewGetterBasic:
         self,
         mock_tariff_data,
         mock_price_service,
-        mock_cache_service,
         mock_dialog_manager,
         sample_tariffs,
     ):
-        """get_data() should call all required services"""
+        """get_data() should call all required services."""
         mock_tariff_data.get.return_value = sample_tariffs
         mock_price_service.calculate_batch.return_value = _no_discount_results(sample_tariffs)
 
-        getter = TariffPreviewGetter(
-            mock_tariff_data, mock_price_service, mock_cache_service
-        )
+        getter = TariffPreviewGetter(mock_tariff_data, mock_price_service)
         await getter.get_data(mock_dialog_manager)
 
         mock_tariff_data.get.assert_called_once_with(123456789)
         mock_price_service.calculate_batch.assert_called_once_with(123456789, sample_tariffs)
+
+
+# ---------------------------------------------------------------------------
+# TariffPreviewGetter — скидки
+# ---------------------------------------------------------------------------
 
 
 class TestTariffPreviewGetterDiscounts:
@@ -220,18 +216,14 @@ class TestTariffPreviewGetterDiscounts:
         self,
         mock_tariff_data,
         mock_price_service,
-        mock_cache_service,
         mock_dialog_manager,
         sample_tariffs,
     ):
-        """get_data() should ignore inactive stock"""
+        """get_data() should ignore inactive stock (PriceService returns no discount)."""
         mock_tariff_data.get.return_value = sample_tariffs
-        # PriceService уже учитывает is_valid — вернёт без скидки
         mock_price_service.calculate_batch.return_value = _no_discount_results(sample_tariffs)
 
-        getter = TariffPreviewGetter(
-            mock_tariff_data, mock_price_service, mock_cache_service
-        )
+        getter = TariffPreviewGetter(mock_tariff_data, mock_price_service)
         result = await getter.get_data(mock_dialog_manager)
 
         # Should not have SALE in button text
@@ -244,29 +236,49 @@ class TestTariffPreviewGetterDiscounts:
         self,
         mock_tariff_data,
         mock_price_service,
-        mock_cache_service,
         mock_dialog_manager,
         sample_tariffs,
         sample_stock,
     ):
-        """get_data() should structure processed_tariffs correctly"""
+        """get_data() should structure processed_tariffs correctly."""
         mock_tariff_data.get.return_value = sample_tariffs
         mock_price_service.calculate_batch.return_value = _with_discount_results(sample_tariffs)
 
-        getter = TariffPreviewGetter(
-            mock_tariff_data, mock_price_service, mock_cache_service
-        )
+        getter = TariffPreviewGetter(mock_tariff_data, mock_price_service)
         result = await getter.get_data(mock_dialog_manager)
 
-        # tariffs should have tariff_id as key
+        # tariffs should have tariff_id as key (string in result)
         processed = result["tariffs"]
-        assert "1" in processed or 1 in processed
+        assert "1" in processed
 
         # Each entry should have tariff and discounted_amount (non-None with discount)
         for _, value in processed.items():
             assert "tariff" in value
             assert "discounted_amount" in value
             assert value["discounted_amount"] is not None
+
+    @pytest.mark.asyncio
+    async def test_get_data_saves_processed_tariffs_to_dialog_data(
+        self,
+        mock_tariff_data,
+        mock_price_service,
+        mock_dialog_manager,
+        sample_tariffs,
+    ):
+        """get_data() should save processed_tariffs to dialog_data for handlers."""
+        mock_tariff_data.get.return_value = sample_tariffs
+        mock_price_service.calculate_batch.return_value = _no_discount_results(sample_tariffs)
+
+        getter = TariffPreviewGetter(mock_tariff_data, mock_price_service)
+        await getter.get_data(mock_dialog_manager)
+
+        assert "processed_tariffs" in mock_dialog_manager.dialog_data
+        assert len(mock_dialog_manager.dialog_data["processed_tariffs"]) == 3
+
+
+# ---------------------------------------------------------------------------
+# TariffPreviewGetter — интеграция
+# ---------------------------------------------------------------------------
 
 
 class TestTariffPreviewGetterIntegration:
@@ -277,12 +289,11 @@ class TestTariffPreviewGetterIntegration:
         self,
         mock_tariff_data,
         mock_price_service,
-        mock_cache_service,
         mock_dialog_manager,
         sample_tariffs,
         sample_stock,
     ):
-        """get_data() should handle complete tariff preview flow"""
+        """get_data() should handle complete tariff preview flow."""
         mock_tariff_data.get.return_value = sample_tariffs
         mock_price_service.calculate_batch.return_value = {
             t.id: PriceResult(
@@ -295,15 +306,14 @@ class TestTariffPreviewGetterIntegration:
             for t in sample_tariffs
         }
 
-        getter = TariffPreviewGetter(
-            mock_tariff_data, mock_price_service, mock_cache_service
-        )
+        getter = TariffPreviewGetter(mock_tariff_data, mock_price_service)
         result = await getter.get_data(mock_dialog_manager)
 
         # Should have all required fields
         assert "tariff_list" in result
         assert "tariffs" in result
-        assert "discount_value" in result or len(result["tariff_list"]) > 0
+        assert "discount_value" in result
+        assert "discount_type" in result
 
         # Should process all tariffs
         assert len(result["tariff_list"]) == 3
@@ -313,17 +323,14 @@ class TestTariffPreviewGetterIntegration:
         self,
         mock_tariff_data,
         mock_price_service,
-        mock_cache_service,
         mock_dialog_manager,
         sample_tariffs,
     ):
-        """get_data() should use tariff name without sale marker"""
+        """get_data() should use tariff name without sale marker when no discount."""
         mock_tariff_data.get.return_value = sample_tariffs
         mock_price_service.calculate_batch.return_value = _no_discount_results(sample_tariffs)
 
-        getter = TariffPreviewGetter(
-            mock_tariff_data, mock_price_service, mock_cache_service
-        )
+        getter = TariffPreviewGetter(mock_tariff_data, mock_price_service)
         result = await getter.get_data(mock_dialog_manager)
 
         # Button text should be tariff names without "SALE"

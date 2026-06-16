@@ -57,14 +57,13 @@ class TestRegistrationUsersMiddleware:
     @pytest.mark.asyncio
     async def test_check_event_message_with_update(self, middleware):
         """check_event_message returns True when event has message."""
-        # Создаём MagicMock, который проходит isinstance проверку
-        from aiogram.types import Update
+        # Use a real aiogram Update so isinstance(event, Update) passes.
+        from aiogram.types import Update, Message
+        from unittest.mock import MagicMock
 
-        event = MagicMock()
-        event.__class__ = Update  # Обманываем isinstance
-        event.message = MagicMock()
-        event.edited_message = None
-        assert middleware.check_event_message(event) is True
+        # Build a real Update with a non-None message
+        update = Update(update_id=1, message=MagicMock(spec=Message))
+        assert middleware.check_event_message(update) is True
 
     @pytest.mark.asyncio
     async def test_registered_user_from_backend(self, middleware, base_data):

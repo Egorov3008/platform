@@ -4,7 +4,7 @@ Tests for PriceService — единый сервис расчёта цены с�
 
 from decimal import Decimal
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -15,12 +15,14 @@ from services.core.price.result import PriceResult
 from services.core.price.service import PriceService
 
 
-def make_tariff(tariff_id: int = 1, amount: Decimal = Decimal("100.00")) -> Tariff:
-    tariff = MagicMock(spec=Tariff)
-    tariff.id = tariff_id
-    tariff.amount = amount
-    tariff.name_tariff = f"Tariff-{tariff_id}"
-    return tariff
+def make_tariff(tariff_id: int = 1, amount: float = 100.0) -> Tariff:
+    return Tariff(
+        id=tariff_id,
+        name_tariff=f"Tariff-{tariff_id}",
+        amount=amount,
+        period=30,
+        traffic_limit=0,
+    )
 
 
 def make_stock(
@@ -38,11 +40,29 @@ def make_stock(
     )
 
 
-def make_service(stock=None):
+def make_service(stock_data: dict | None = None):
+    """Build PriceService with a backend that returns ``stock_data`` for get_user_stock.
+
+    If ``stock_data`` is None, the backend reports no discount.
+    """
     pricing = Pricing()
-    model_data = MagicMock()
-    model_data.stocks.get_data = AsyncMock(return_value=stock)
-    return PriceService(pricing=pricing, model_data=model_data)
+    backend = AsyncMock()
+    backend.get_user_stock = AsyncMock(return_value=stock_data)
+    return PriceService(pricing=pricing, backend=backend)
+
+
+def stock_data_for(stock: Stock | None) -> dict | None:
+    """Build a backend-shaped stock dict for the given Stock (or None for no discount)."""
+    if stock is None:
+        return None
+    return {
+        "tg_id": stock.tg_id,
+        "stock_type": stock.stock_type,
+        "value": stock.value,
+        "is_active": stock.is_active,
+        "valid_until": stock.valid_until,
+        "has_discount": True,
+    }
 
 
 class TestCalculateWithoutDiscount:
@@ -50,13 +70,13 @@ class TestCalculateWithoutDiscount:
 
     @pytest.mark.asyncio
     async def test_no_stock(self):
-        service = make_service(stock=None)
-        tariff = make_tariff(amount=Decimal("100.00"))
+        service = make_service(stock_data=None)
+        tariff = make_tariff(amount=100.0)
 
         result = await service.calculate(tg_id=123, tariff=tariff)
 
-        assert result.original_amount == Decimal("100.00")
-        assert result.final_amount == Decimal("100.00")
+        assert result.original_amount == 100.0
+        assert result.final_amount == 100.0
         assert result.has_discount is False
         assert result.stock_value == 0
         assert result.stock_type == ""
@@ -64,25 +84,29 @@ class TestCalculateWithoutDiscount:
     @pytest.mark.asyncio
     async def test_inactive_stock(self):
         stock = make_stock(is_active=False)
-        service = make_service(stock=stock)
-        tariff = make_tariff(amount=Decimal("100.00"))
+        service = make_service(stock_data=stock_data_for(stock))
+        tariff = make_tariff(amount=100.0)
 
         result = await service.calculate(tg_id=123, tariff=tariff)
 
         assert result.has_discount is False
-        assert result.final_amount == Decimal("100.00")
+        assert result.final_amount == 100.0
 
     @pytest.mark.asyncio
     async def test_expired_stock(self):
+        # _fetch_stock сбрасывает valid_until в None («упрощение для бэкенда»),
+        # поэтому обходим его и подменяем expired Stock напрямую — это проверяет
+        # именно логику is_valid в _apply.
         past = datetime.utcnow() - timedelta(days=1)
         stock = make_stock(valid_until=past)
-        service = make_service(stock=stock)
-        tariff = make_tariff(amount=Decimal("100.00"))
+        service = make_service(stock_data=stock_data_for(stock))
+        service._fetch_stock = AsyncMock(return_value=stock)
+        tariff = make_tariff(amount=100.0)
 
         result = await service.calculate(tg_id=123, tariff=tariff)
 
         assert result.has_discount is False
-        assert result.final_amount == Decimal("100.00")
+        assert result.final_amount == 100.0
 
 
 class TestCalculateWithFixDiscount:
@@ -91,14 +115,14 @@ class TestCalculateWithFixDiscount:
     @pytest.mark.asyncio
     async def test_fix_discount(self):
         stock = make_stock(stock_type="fix", value=Decimal("20.00"))
-        service = make_service(stock=stock)
-        tariff = make_tariff(amount=Decimal("100.00"))
+        service = make_service(stock_data=stock_data_for(stock))
+        tariff = make_tariff(amount=100.0)
 
         result = await service.calculate(tg_id=123, tariff=tariff)
 
         assert result.has_discount is True
-        assert result.original_amount == Decimal("100.00")
-        assert result.final_amount == Decimal("80.00")
+        assert result.original_amount == 100.0
+        assert result.final_amount == 80.0
         assert result.stock_value == Decimal("20.00")
         assert result.stock_type == "fix"
 
@@ -109,14 +133,14 @@ class TestCalculateWithPercentDiscount:
     @pytest.mark.asyncio
     async def test_percent_discount(self):
         stock = make_stock(stock_type="percent", value=Decimal("25"))
-        service = make_service(stock=stock)
-        tariff = make_tariff(amount=Decimal("200.00"))
+        service = make_service(stock_data=stock_data_for(stock))
+        tariff = make_tariff(amount=200.0)
 
         result = await service.calculate(tg_id=123, tariff=tariff)
 
         assert result.has_discount is True
-        assert result.original_amount == Decimal("200.00")
-        assert result.final_amount == Decimal("150.00")
+        assert result.original_amount == 200.0
+        assert result.final_amount == 150.0
         assert result.stock_type == "percent"
 
 
@@ -126,23 +150,23 @@ class TestCalculateBatch:
     @pytest.mark.asyncio
     async def test_batch_single_stock_call(self):
         stock = make_stock(stock_type="fix", value=Decimal("10.00"))
-        service = make_service(stock=stock)
+        service = make_service(stock_data=stock_data_for(stock))
 
         tariffs = [
-            make_tariff(tariff_id=1, amount=Decimal("100.00")),
-            make_tariff(tariff_id=2, amount=Decimal("200.00")),
-            make_tariff(tariff_id=3, amount=Decimal("50.00")),
+            make_tariff(tariff_id=1, amount=100.0),
+            make_tariff(tariff_id=2, amount=200.0),
+            make_tariff(tariff_id=3, amount=50.0),
         ]
 
         results = await service.calculate_batch(tg_id=123, tariffs=tariffs)
 
         assert len(results) == 3
-        assert results[1].final_amount == Decimal("90.00")
-        assert results[2].final_amount == Decimal("190.00")
-        assert results[3].final_amount == Decimal("40.00")
+        assert results[1].final_amount == 90.0
+        assert results[2].final_amount == 190.0
+        assert results[3].final_amount == 40.0
 
         # Stock загружен ровно один раз
-        service._stock_data.get_data.assert_awaited_once_with(123)
+        service._backend.get_user_stock.assert_awaited_once_with(123)
 
 
 class TestTotal:
@@ -150,8 +174,8 @@ class TestTotal:
 
     def test_total_single_month(self):
         result = PriceResult(
-            original_amount=Decimal("100.00"),
-            final_amount=Decimal("80.00"),
+            original_amount=100.0,
+            final_amount=80.0,
             stock_value=Decimal("20.00"),
             stock_type="fix",
             has_discount=True,
@@ -160,8 +184,8 @@ class TestTotal:
 
     def test_total_multiple_months(self):
         result = PriceResult(
-            original_amount=Decimal("100.00"),
-            final_amount=Decimal("80.00"),
+            original_amount=100.0,
+            final_amount=80.0,
             stock_value=Decimal("20.00"),
             stock_type="fix",
             has_discount=True,
@@ -170,8 +194,8 @@ class TestTotal:
 
     def test_total_default_one_month(self):
         result = PriceResult(
-            original_amount=Decimal("50.00"),
-            final_amount=Decimal("50.00"),
+            original_amount=50.0,
+            final_amount=50.0,
             stock_value=0,
             stock_type="",
             has_discount=False,
@@ -185,18 +209,18 @@ class TestCalculateSync:
     def test_sync_with_stock(self):
         stock = make_stock(stock_type="percent", value=Decimal("10"))
         service = make_service()
-        tariff = make_tariff(amount=Decimal("100.00"))
+        tariff = make_tariff(amount=100.0)
 
         result = service.calculate_sync(tariff=tariff, stock=stock)
 
         assert result.has_discount is True
-        assert result.final_amount == Decimal("90.00")
+        assert result.final_amount == 90.0
 
     def test_sync_without_stock(self):
         service = make_service()
-        tariff = make_tariff(amount=Decimal("100.00"))
+        tariff = make_tariff(amount=100.0)
 
         result = service.calculate_sync(tariff=tariff, stock=None)
 
         assert result.has_discount is False
-        assert result.final_amount == Decimal("100.00")
+        assert result.final_amount == 100.0

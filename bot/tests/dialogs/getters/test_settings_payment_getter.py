@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from models import Tariff
+from models import Tariff, User
 from models.stocks.stock import Stock
 from dialogs.windows.getters.payment.setting_payment import SettingsPayment, PaymentContext
 from services.core.price.result import PriceResult, apply_volume_discount
@@ -34,13 +34,13 @@ def mock_price_service():
 
 
 @pytest.fixture
-def mock_model_data():
-    """Mock ServiceDataModel с пользователем без баланса."""
-    from models import User
-    model_data = AsyncMock()
-    model_data.users = AsyncMock()
-    model_data.users.get_data = AsyncMock(return_value=User(tg_id=123456789, balance=0.0))
-    return model_data
+def mock_backend():
+    """Mock BackendAPIClient: no balance, no referral discount."""
+    backend = AsyncMock()
+    backend.get_user = AsyncMock(
+        return_value={"tg_id": 123456789, "balance": 0.0}
+    )
+    return backend
 
 
 @pytest.fixture
@@ -144,7 +144,7 @@ class TestSettingsPaymentGetterBasic:
 
     @pytest.mark.asyncio
     async def test_get_data_with_dialog_data(
-        self, mock_price_service, mock_model_data, mock_dialog_manager, sample_tariff
+        self, mock_price_service, mock_backend, mock_dialog_manager, sample_tariff
     ):
         """get_data() should return payment params from dialog_data"""
         mock_dialog_manager.dialog_data = {
@@ -154,7 +154,7 @@ class TestSettingsPaymentGetterBasic:
             "amount": 49.99,
         }
 
-        getter = SettingsPayment(mock_price_service, mock_model_data)
+        getter = SettingsPayment(mock_price_service, mock_backend)
         result = await getter.get_data(mock_dialog_manager)
 
         assert result is not None
@@ -163,7 +163,7 @@ class TestSettingsPaymentGetterBasic:
 
     @pytest.mark.asyncio
     async def test_get_data_with_discounted_amount(
-        self, mock_price_service, mock_model_data, mock_dialog_manager, sample_tariff
+        self, mock_price_service, mock_backend, mock_dialog_manager, sample_tariff
     ):
         """get_data() should use discounted_amount if available"""
         mock_dialog_manager.dialog_data = {
@@ -174,7 +174,7 @@ class TestSettingsPaymentGetterBasic:
             "discounted_amount": 39.99,
         }
 
-        getter = SettingsPayment(mock_price_service, mock_model_data)
+        getter = SettingsPayment(mock_price_service, mock_backend)
         result = await getter.get_data(mock_dialog_manager)
 
         # Should use discounted_amount
@@ -182,7 +182,7 @@ class TestSettingsPaymentGetterBasic:
 
     @pytest.mark.asyncio
     async def test_get_data_without_discounted_amount(
-        self, mock_price_service, mock_model_data, mock_dialog_manager, sample_tariff
+        self, mock_price_service, mock_backend, mock_dialog_manager, sample_tariff
     ):
         """get_data() should use original amount when no discount"""
         mock_dialog_manager.dialog_data = {
@@ -200,7 +200,7 @@ class TestSettingsPaymentGetterBasic:
             has_discount=False,
         )
 
-        getter = SettingsPayment(mock_price_service, mock_model_data)
+        getter = SettingsPayment(mock_price_service, mock_backend)
         result = await getter.get_data(mock_dialog_manager)
 
         # Should use original amount (no stock discount found either)
@@ -208,7 +208,7 @@ class TestSettingsPaymentGetterBasic:
 
     @pytest.mark.asyncio
     async def test_get_data_multiple_months(
-        self, mock_price_service, mock_model_data, mock_dialog_manager, sample_tariff
+        self, mock_price_service, mock_backend, mock_dialog_manager, sample_tariff
     ):
         """get_data() should handle multiple months"""
         mock_dialog_manager.dialog_data = {
@@ -218,14 +218,14 @@ class TestSettingsPaymentGetterBasic:
             "amount": 149.97,
         }
 
-        getter = SettingsPayment(mock_price_service, mock_model_data)
+        getter = SettingsPayment(mock_price_service, mock_backend)
         result = await getter.get_data(mock_dialog_manager)
 
         assert result["number_of_months"] == 3
 
     @pytest.mark.asyncio
     async def test_get_data_with_start_data(
-        self, mock_price_service, mock_model_data, mock_dialog_manager, sample_tariff
+        self, mock_price_service, mock_backend, mock_dialog_manager, sample_tariff
     ):
         """get_data() should use start_data when dialog_data empty"""
         mock_dialog_manager.dialog_data = {}
@@ -236,7 +236,7 @@ class TestSettingsPaymentGetterBasic:
             "amount": 49.99,
         }
 
-        getter = SettingsPayment(mock_price_service, mock_model_data)
+        getter = SettingsPayment(mock_price_service, mock_backend)
         result = await getter.get_data(mock_dialog_manager)
 
         assert result["tariff_name"] == "Premium"
@@ -247,7 +247,7 @@ class TestSettingsPaymentGetterDiscounts:
 
     @pytest.mark.asyncio
     async def test_get_data_discount_priority(
-        self, mock_price_service, mock_model_data, mock_dialog_manager, sample_tariff
+        self, mock_price_service, mock_backend, mock_dialog_manager, sample_tariff
     ):
         """get_data() should prioritize discounted_amount over amount"""
         mock_dialog_manager.dialog_data = {
@@ -258,7 +258,7 @@ class TestSettingsPaymentGetterDiscounts:
             "discounted_amount": 29.99,
         }
 
-        getter = SettingsPayment(mock_price_service, mock_model_data)
+        getter = SettingsPayment(mock_price_service, mock_backend)
         result = await getter.get_data(mock_dialog_manager)
 
         # discounted_amount should take precedence
@@ -266,7 +266,7 @@ class TestSettingsPaymentGetterDiscounts:
 
     @pytest.mark.asyncio
     async def test_get_data_zero_discount_uses_amount(
-        self, mock_price_service, mock_model_data, mock_dialog_manager, sample_tariff
+        self, mock_price_service, mock_backend, mock_dialog_manager, sample_tariff
     ):
         """get_data() should use amount when discounted_amount is None"""
         mock_dialog_manager.dialog_data = {
@@ -285,7 +285,7 @@ class TestSettingsPaymentGetterDiscounts:
             has_discount=False,
         )
 
-        getter = SettingsPayment(mock_price_service, mock_model_data)
+        getter = SettingsPayment(mock_price_service, mock_backend)
         result = await getter.get_data(mock_dialog_manager)
 
         # Should fall back to amount
@@ -293,7 +293,7 @@ class TestSettingsPaymentGetterDiscounts:
 
     @pytest.mark.asyncio
     async def test_get_data_stock_discount_on_direct_entry(
-        self, mock_price_service, mock_model_data, mock_dialog_manager, sample_tariff
+        self, mock_price_service, mock_backend, mock_dialog_manager, sample_tariff
     ):
         """get_data() должен вычислять скидку Stock при прямом входе в setting_pay"""
         mock_dialog_manager.dialog_data = {
@@ -312,7 +312,7 @@ class TestSettingsPaymentGetterDiscounts:
             has_discount=True,
         )
 
-        getter = SettingsPayment(mock_price_service, mock_model_data)
+        getter = SettingsPayment(mock_price_service, mock_backend)
         result = await getter.get_data(mock_dialog_manager)
 
         # Скидка Stock должна быть применена
@@ -321,7 +321,7 @@ class TestSettingsPaymentGetterDiscounts:
 
     @pytest.mark.asyncio
     async def test_get_data_no_stock_recalc_when_discounted(
-        self, mock_price_service, mock_model_data, mock_dialog_manager, sample_tariff
+        self, mock_price_service, mock_backend, mock_dialog_manager, sample_tariff
     ):
         """get_data() не должен пересчитывать скидку, если discounted_amount уже есть"""
         mock_dialog_manager.dialog_data = {
@@ -332,7 +332,7 @@ class TestSettingsPaymentGetterDiscounts:
             "discounted_amount": 39.99,
         }
 
-        getter = SettingsPayment(mock_price_service, mock_model_data)
+        getter = SettingsPayment(mock_price_service, mock_backend)
         result = await getter.get_data(mock_dialog_manager)
 
         # PriceService.calculate не должен вызываться — скидка уже вычислена
@@ -345,7 +345,7 @@ class TestSettingsPaymentGetterDialogData:
 
     @pytest.mark.asyncio
     async def test_get_data_updates_dialog_data(
-        self, mock_price_service, mock_model_data, mock_dialog_manager, sample_tariff
+        self, mock_price_service, mock_backend, mock_dialog_manager, sample_tariff
     ):
         """get_data() should update dialog_data with payment params"""
         mock_dialog_manager.dialog_data = {
@@ -355,7 +355,7 @@ class TestSettingsPaymentGetterDialogData:
             "amount": 49.99,
         }
 
-        getter = SettingsPayment(mock_price_service, mock_model_data)
+        getter = SettingsPayment(mock_price_service, mock_backend)
         await getter.get_data(mock_dialog_manager)
 
         assert mock_dialog_manager.dialog_data["payment_type"] == "create_key|1"
@@ -364,7 +364,7 @@ class TestSettingsPaymentGetterDialogData:
 
     @pytest.mark.asyncio
     async def test_get_data_sets_discounted_amount_in_dialog(
-        self, mock_price_service, mock_model_data, mock_dialog_manager, sample_tariff
+        self, mock_price_service, mock_backend, mock_dialog_manager, sample_tariff
     ):
         """get_data() should set discounted_amount in dialog_data"""
         mock_dialog_manager.dialog_data = {
@@ -374,7 +374,7 @@ class TestSettingsPaymentGetterDialogData:
             "amount": 49.99,
         }
 
-        getter = SettingsPayment(mock_price_service, mock_model_data)
+        getter = SettingsPayment(mock_price_service, mock_backend)
         await getter.get_data(mock_dialog_manager)
 
         assert "discounted_amount" in mock_dialog_manager.dialog_data
@@ -385,9 +385,9 @@ class TestSettingsPaymentGetterErrorHandling:
 
     @pytest.mark.asyncio
     async def test_get_data_missing_payment_type(
-        self, mock_price_service, mock_model_data, mock_dialog_manager, sample_tariff
+        self, mock_price_service, mock_backend, mock_dialog_manager, sample_tariff
     ):
-        """get_data() should raise AttributeError when payment_type missing"""
+        """get_data() should call dialog_manager.start() and event.answer() when payment_type missing"""
         mock_dialog_manager.dialog_data = {
             "tariff": sample_tariff,
             "number_of_months": 1,
@@ -396,7 +396,7 @@ class TestSettingsPaymentGetterErrorHandling:
         mock_dialog_manager.start.return_value = AsyncMock()
         mock_dialog_manager.event.answer = AsyncMock()
 
-        getter = SettingsPayment(mock_price_service, mock_model_data)
+        getter = SettingsPayment(mock_price_service, mock_backend)
         await getter.get_data(mock_dialog_manager)
 
         assert mock_dialog_manager.start.called
@@ -404,7 +404,7 @@ class TestSettingsPaymentGetterErrorHandling:
 
     @pytest.mark.asyncio
     async def test_get_data_missing_tariff(
-        self, mock_price_service, mock_model_data, mock_dialog_manager
+        self, mock_price_service, mock_backend, mock_dialog_manager
     ):
         """get_data() should handle missing tariff"""
         mock_dialog_manager.dialog_data = {
@@ -416,7 +416,7 @@ class TestSettingsPaymentGetterErrorHandling:
         mock_dialog_manager.start.return_value = AsyncMock()
         mock_dialog_manager.event.answer = AsyncMock()
 
-        getter = SettingsPayment(mock_price_service, mock_model_data)
+        getter = SettingsPayment(mock_price_service, mock_backend)
         await getter.get_data(mock_dialog_manager)
 
         assert mock_dialog_manager.event.answer.called
@@ -427,7 +427,7 @@ class TestSettingsPaymentGetterIntegration:
 
     @pytest.mark.asyncio
     async def test_get_data_full_payment_flow(
-        self, mock_price_service, mock_model_data, mock_dialog_manager, sample_tariff
+        self, mock_price_service, mock_backend, mock_dialog_manager, sample_tariff
     ):
         """get_data() should handle complete payment setup flow with volume discount"""
         mock_dialog_manager.dialog_data = {
@@ -438,7 +438,7 @@ class TestSettingsPaymentGetterIntegration:
             "discounted_amount": 96.98,
         }
 
-        getter = SettingsPayment(mock_price_service, mock_model_data)
+        getter = SettingsPayment(mock_price_service, mock_backend)
         result = await getter.get_data(mock_dialog_manager)
 
         assert result["tariff_name"] == "Premium"
@@ -453,7 +453,7 @@ class TestSettingsPaymentGetterIntegration:
 
     @pytest.mark.asyncio
     async def test_get_data_renewal_flow(
-        self, mock_price_service, mock_model_data, mock_dialog_manager, sample_tariff
+        self, mock_price_service, mock_backend, mock_dialog_manager, sample_tariff
     ):
         """get_data() should handle renewal payment type"""
         mock_dialog_manager.dialog_data = {
@@ -463,7 +463,7 @@ class TestSettingsPaymentGetterIntegration:
             "amount": 149.97,
         }
 
-        getter = SettingsPayment(mock_price_service, mock_model_data)
+        getter = SettingsPayment(mock_price_service, mock_backend)
         result = await getter.get_data(mock_dialog_manager)
 
         assert result["tariff_name"] == "Premium"
@@ -472,7 +472,7 @@ class TestSettingsPaymentGetterIntegration:
 
     @pytest.mark.asyncio
     async def test_get_data_tariff_from_amount(
-        self, mock_price_service, mock_model_data, mock_dialog_manager
+        self, mock_price_service, mock_backend, mock_dialog_manager
     ):
         """get_data() should use tariff.amount when amount not in data"""
         sample_tariff = Tariff(
@@ -498,7 +498,7 @@ class TestSettingsPaymentGetterIntegration:
             has_discount=False,
         )
 
-        getter = SettingsPayment(mock_price_service, mock_model_data)
+        getter = SettingsPayment(mock_price_service, mock_backend)
         result = await getter.get_data(mock_dialog_manager)
 
         assert result["amount"] == 19.99
@@ -537,7 +537,7 @@ class TestVolumeDiscount:
 
     @pytest.mark.asyncio
     async def test_volume_discount_for_2_months_in_getter(
-        self, mock_price_service, mock_model_data, mock_dialog_manager, sample_tariff
+        self, mock_price_service, mock_backend, mock_dialog_manager, sample_tariff
     ):
         """get_data() должен применять 3% скидку за 2 месяца"""
         mock_dialog_manager.dialog_data = {
@@ -548,7 +548,7 @@ class TestVolumeDiscount:
             "discounted_amount": 49.99,
         }
 
-        getter = SettingsPayment(mock_price_service, mock_model_data)
+        getter = SettingsPayment(mock_price_service, mock_backend)
         result = await getter.get_data(mock_dialog_manager)
 
         # 49.99 * 2 = 99.98, скидка 3% = 96.9806 → 96.98
@@ -559,7 +559,7 @@ class TestVolumeDiscount:
 
     @pytest.mark.asyncio
     async def test_volume_discount_for_3_months_in_getter(
-        self, mock_price_service, mock_model_data, mock_dialog_manager, sample_tariff
+        self, mock_price_service, mock_backend, mock_dialog_manager, sample_tariff
     ):
         """get_data() должен применять 3% скидку за 3 месяца"""
         mock_dialog_manager.dialog_data = {
@@ -570,7 +570,7 @@ class TestVolumeDiscount:
             "discounted_amount": 49.99,
         }
 
-        getter = SettingsPayment(mock_price_service, mock_model_data)
+        getter = SettingsPayment(mock_price_service, mock_backend)
         result = await getter.get_data(mock_dialog_manager)
 
         # 49.99 * 3 = 149.97, скидка 3% = 145.4709 → 145.47
@@ -580,7 +580,7 @@ class TestVolumeDiscount:
 
     @pytest.mark.asyncio
     async def test_no_volume_discount_for_1_month_in_getter(
-        self, mock_price_service, mock_model_data, mock_dialog_manager, sample_tariff
+        self, mock_price_service, mock_backend, mock_dialog_manager, sample_tariff
     ):
         """get_data() не должен применять скидку за 1 месяц"""
         mock_dialog_manager.dialog_data = {
@@ -591,7 +591,7 @@ class TestVolumeDiscount:
             "discounted_amount": 49.99,
         }
 
-        getter = SettingsPayment(mock_price_service, mock_model_data)
+        getter = SettingsPayment(mock_price_service, mock_backend)
         result = await getter.get_data(mock_dialog_manager)
 
         assert result["amount"] == 49.99
@@ -600,7 +600,7 @@ class TestVolumeDiscount:
 
     @pytest.mark.asyncio
     async def test_volume_and_stock_discounts_stack(
-        self, mock_price_service, mock_model_data, mock_dialog_manager, sample_tariff
+        self, mock_price_service, mock_backend, mock_dialog_manager, sample_tariff
     ):
         """Stock + Volume скидки стакаются мультипликативно"""
         # Stock-скидка уже применена: 49.99 → 39.99 за месяц
@@ -612,7 +612,7 @@ class TestVolumeDiscount:
             "discounted_amount": 39.99,  # после Stock-скидки
         }
 
-        getter = SettingsPayment(mock_price_service, mock_model_data)
+        getter = SettingsPayment(mock_price_service, mock_backend)
         result = await getter.get_data(mock_dialog_manager)
 
         # 39.99 * 3 = 119.97, volume 3% off = 116.3709 → 116.37
@@ -626,7 +626,7 @@ class TestSettingsPaymentConcurrency:
 
     @pytest.mark.asyncio
     async def test_no_shared_state_between_concurrent_calls(
-        self, mock_price_service, mock_model_data, sample_tariff
+        self, mock_price_service, mock_backend, sample_tariff
     ):
         """get_data() should not share state between concurrent calls from different users"""
         # Create two separate dialog managers for different users
@@ -654,7 +654,7 @@ class TestSettingsPaymentConcurrency:
         }
         manager_b.start_data = {}
 
-        getter = SettingsPayment(mock_price_service, mock_model_data)
+        getter = SettingsPayment(mock_price_service, mock_backend)
 
         # Run both requests concurrently
         result_a, result_b = await asyncio.gather(
