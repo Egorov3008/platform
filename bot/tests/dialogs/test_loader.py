@@ -14,7 +14,13 @@ class TestDialogRegistry:
         assert isinstance(ALL_WINDOW_CONFIGS, (list, tuple))
 
     def test_all_state_groups_registered(self):
-        """Verify all state groups have at least one window config"""
+        """Verify all state groups have at least one window config.
+
+        Note: ``Register`` is intentionally absent — registration is handled
+        by ``RegistrationUsersMiddleware`` (auto-registration flow), so the
+        dialog windows for it were removed. See ``register_windows = []``
+        in ``dialogs/windows/__init__.py``.
+        """
         registered_state_groups = {
             c["state"].group.__name__ for c in ALL_WINDOW_CONFIGS
         }
@@ -24,7 +30,6 @@ class TestDialogRegistry:
             "Tariff",
             "GiftStates",
             "PaymentState",
-            "Register",
             "KeysInit",
             "Instruction",
             "UsageRules",

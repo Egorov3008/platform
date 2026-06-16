@@ -1,16 +1,21 @@
 """
 Comprehensive async tests for CreateFerstKeyScenario — full first-key creation flow.
 
-Covers: get_data() with/without gift, create_key invocation, DB save, trial installation,
-transition to KeysInit.create_trial / create_gift_key, error handling.
+Covers: get_data() with/without dialog_manager, can_handle() based on user.trial,
+start() with trial/gift/no-key/exception paths, dialog state transitions.
+
+Scenario API (post-refactor):
+    CreateFerstKeyScenario(backend_client, dialog_manager=None)
+    - get_data()  → Optional[dict] (raw user dict from backend)
+    - can_handle() → bool (True if user is registered and trial == 0)
+    - start(tg_id, server_id) → drives the full flow via backend_client
 """
 from unittest.mock import AsyncMock
 
 import pytest
 from aiogram_dialog import StartMode
 
-from config import DEFAULT_PRICING_PLAN
-from models import GiftLink, Tariff, User
+from api.schemas import KeyDTO
 from services.scenarios.create_first_key_scenario import CreateFerstKeyScenario
 from states.key import KeysInit
 
@@ -19,87 +24,71 @@ from states.key import KeysInit
 # Helpers                                                              #
 # ------------------------------------------------------------------ #
 
-def _make_user(tg_id: int = 555001, trial: int = 0, server_id: int = 2) -> User:
-    return User(tg_id=tg_id, trial=trial, server_id=server_id)
+def _make_user_dict(tg_id: int = 555001, trial: int = 0, server_id: int = 2) -> dict:
+    """User dict returned by BackendAPIClient.get_user()."""
+    return {"tg_id": tg_id, "trial": trial, "server_id": server_id}
 
 
-def _make_tariff(tariff_id: int = 1) -> Tariff:
-    return Tariff(id=tariff_id, name_tariff="Trial Tariff", period=30, traffic_limit=10, limit_ip=2)
+def _make_key_dto(
+    email: str = "trial@555001.vpn",
+    tg_id: int = 555001,
+    public_link: str = "vpn://trial_key",
+    link_to_connect: str = "https://sub.example.com/trial_key",
+) -> KeyDTO:
+    return KeyDTO(
+        email=email,
+        tg_id=tg_id,
+        inbound_id=11,
+        client_id="abc123",
+        key=public_link,
+        expiry_time=9999999999000,
+        tariff_id=1,
+        name_tariff="Trial",
+        total_gb=50 * (1024 ** 3),
+        used_traffic=0.0,
+        public_link=public_link,
+        link_to_connect=link_to_connect,
+    )
 
 
 def _make_dialog_manager(
     user_id: int = 555001,
-    session=None,
-    middleware_data: dict | None = None,
+    dialog_data: dict | None = None,
 ) -> AsyncMock:
     manager = AsyncMock()
     manager.event = AsyncMock()
     manager.event.from_user = AsyncMock()
     manager.event.from_user.id = user_id
-    manager.middleware_data = middleware_data or {"session": session or AsyncMock()}
+    manager.dialog_data = dialog_data if dialog_data is not None else {}
     return manager
 
 
 def _make_scenario(
-    user: User | None = None,
-    tariff: Tariff | None = None,
-    gift: GiftLink | None = None,
-    dialog_manager=None,
-    create_key_result=None,
-) -> tuple[CreateFerstKeyScenario, dict]:
-    """Build a CreateFerstKeyScenario with all dependencies mocked."""
-    _user = user or _make_user()
-    _tariff = tariff or _make_tariff()
-    _dm = dialog_manager or _make_dialog_manager(_user.tg_id)
+    user: dict | None = None,
+    key_dto: KeyDTO | None = None,
+    dialog_manager: AsyncMock | None = None,
+    create_trial_key_side_effect=None,
+) -> tuple[CreateFerstKeyScenario, AsyncMock]:
+    """Build a CreateFerstKeyScenario with mocked BackendAPIClient.
 
-    cache = AsyncMock()
-    # temporary_get returns gift data if gift provided
-    if gift:
-        cache.gifts.temporary_get = AsyncMock(return_value={"gift": gift})
+    Returns (scenario, backend_client_mock) for assertion convenience.
+    """
+    _user = user if user is not None else _make_user_dict()
+    _key = key_dto if key_dto is not None else _make_key_dto(tg_id=_user["tg_id"])
+    _dm = dialog_manager if dialog_manager is not None else _make_dialog_manager(_user["tg_id"])
+
+    backend = AsyncMock()
+    backend.get_user = AsyncMock(return_value=_user)
+    if create_trial_key_side_effect is not None:
+        backend.create_trial_key = AsyncMock(side_effect=create_trial_key_side_effect)
     else:
-        cache.gifts.temporary_get = AsyncMock(return_value=None)
-
-    model_data = AsyncMock()
-    model_data.users.get_data = AsyncMock(return_value=_user)
-    model_data.tariffs.get_data = AsyncMock(return_value=_tariff)
-
-    create_key = AsyncMock()
-    _key_result = create_key_result or {
-        "public_link": "vpn://test_key",
-        "link_to_connect": "vpn://test_key",
-        "email": "test@555001.example.com",
-        "days": 30,
-    }
-    create_key.proces = AsyncMock(return_value=_key_result)
-
-    gift_service = AsyncMock()
-    gift_service.application = AsyncMock()
-
-    trial_user = AsyncMock()
-    trial_user.installation_trial = AsyncMock()
-
-    conn = AsyncMock()
+        backend.create_trial_key = AsyncMock(return_value=_key)
 
     scenario = CreateFerstKeyScenario(
-        cache=cache,
-        model_data=model_data,
-        create_key=create_key,
-        gift_service=gift_service,
-        trial_user=trial_user,
-        conn=conn,
+        backend_client=backend,
         dialog_manager=_dm,
     )
-
-    deps = {
-        "cache": cache,
-        "model_data": model_data,
-        "create_key": create_key,
-        "gift_service": gift_service,
-        "trial_user": trial_user,
-        "conn": conn,
-        "dialog_manager": _dm,
-    }
-    return scenario, deps
+    return scenario, backend
 
 
 # ------------------------------------------------------------------ #
@@ -107,71 +96,41 @@ def _make_scenario(
 # ------------------------------------------------------------------ #
 
 class TestGetData:
-    async def test_get_data_no_gift_uses_default_tariff(self):
-        """Without gift, tariff is fetched using DEFAULT_PRICING_PLAN (cast to int)."""
-        user = _make_user()
-        scenario, deps = _make_scenario(user=user)
+    async def test_get_data_returns_user_dict(self):
+        """get_data() returns whatever backend.get_user() returns."""
+        user = _make_user_dict(trial=0)
+        scenario, backend = _make_scenario(user=user)
 
-        await scenario.get_data()
+        result = await scenario.get_data()
 
-        expected_id = int(DEFAULT_PRICING_PLAN) if DEFAULT_PRICING_PLAN else 10
-        deps["model_data"].tariffs.get_data.assert_called_once_with(expected_id)
-        assert scenario._user == user
-        assert scenario._gift is None
+        assert result == user
+        backend.get_user.assert_called_once_with(user["tg_id"])
 
-    async def test_get_data_with_gift_uses_gift_tariff_id(self):
-        """When gift is in temporary cache, its tariff_id is used."""
-        gift = GiftLink(sender_tg_id=42, tariff_id=7, token="gtok")
-        user = _make_user()
-        scenario, deps = _make_scenario(user=user, gift=gift)
-
-        await scenario.get_data()
-
-        deps["model_data"].tariffs.get_data.assert_called_once_with(7)
-        assert scenario._gift == gift
-
-    async def test_get_data_sets_conn_from_middleware(self):
-        """_conn is set from dialog_manager.middleware_data['session']."""
-        session = AsyncMock()
-        dm = _make_dialog_manager(session=session)
-        scenario, _ = _make_scenario(dialog_manager=dm)
-
-        await scenario.get_data()
-
-        assert scenario._conn is session
-
-    async def test_get_data_raises_when_no_dialog_manager(self):
-        """get_data without dialog_manager raises ValueError."""
-        cache = AsyncMock()
-        model_data = AsyncMock()
-        create_key = AsyncMock()
-        gift_service = AsyncMock()
-        trial_user = AsyncMock()
-        conn = AsyncMock()
-
+    async def test_get_data_returns_none_for_unregistered(self):
+        """Backend returns None → get_data() returns None."""
+        backend = AsyncMock()
+        backend.get_user = AsyncMock(return_value=None)
         scenario = CreateFerstKeyScenario(
-            cache=cache,
-            model_data=model_data,
-            create_key=create_key,
-            gift_service=gift_service,
-            trial_user=trial_user,
-            conn=conn,
-            dialog_manager=AsyncMock(),
+            backend_client=backend,
+            dialog_manager=_make_dialog_manager(),
         )
-        scenario.dialog_manager = None  # type: ignore
 
-        with pytest.raises(ValueError, match="DialogManager"):
-            await scenario.get_data()
+        result = await scenario.get_data()
 
-    async def test_get_data_default_plan_env_is_cast_to_int(self):
-        """Ensures DEFAULT_PRICING_PLAN is passed as int, not str, to get_data."""
-        scenario, deps = _make_scenario()
+        assert result is None
 
-        await scenario.get_data()
+    async def test_get_data_no_dialog_manager_returns_none(self):
+        """Without dialog_manager, get_data() short-circuits and returns None."""
+        backend = AsyncMock()
+        backend.get_user = AsyncMock()
+        scenario = CreateFerstKeyScenario(
+            backend_client=backend, dialog_manager=None
+        )
 
-        call_args = deps["model_data"].tariffs.get_data.call_args
-        tariff_id_arg = call_args[0][0]
-        assert isinstance(tariff_id_arg, int), f"Expected int, got {type(tariff_id_arg)}"
+        result = await scenario.get_data()
+
+        assert result is None
+        backend.get_user.assert_not_called()
 
 
 # ------------------------------------------------------------------ #
@@ -179,23 +138,49 @@ class TestGetData:
 # ------------------------------------------------------------------ #
 
 class TestCanHandle:
-    async def test_can_handle_returns_true_when_trial_is_zero(self):
-        """User with trial=0 has not used the trial period yet."""
-        user = _make_user(trial=0)
+    async def test_can_handle_true_when_trial_is_zero(self):
+        """trial=0 → user has not used the trial period → scenario applies."""
+        user = _make_user_dict(trial=0)
         scenario, _ = _make_scenario(user=user)
 
         result = await scenario.can_handle()
 
         assert result is True
 
-    async def test_can_handle_returns_false_when_trial_used(self):
-        """User with trial=1 already consumed trial → can_handle is False."""
-        user = _make_user(trial=1)
+    async def test_can_handle_false_when_trial_used(self):
+        """trial=1 → already consumed trial → can_handle is False."""
+        user = _make_user_dict(trial=1)
         scenario, _ = _make_scenario(user=user)
 
         result = await scenario.can_handle()
 
         assert result is False
+
+    async def test_can_handle_false_when_user_unregistered(self):
+        """Backend returns None (user not registered) → False, register first."""
+        backend = AsyncMock()
+        backend.get_user = AsyncMock(return_value=None)
+        scenario = CreateFerstKeyScenario(
+            backend_client=backend,
+            dialog_manager=_make_dialog_manager(),
+        )
+
+        result = await scenario.can_handle()
+
+        assert result is False
+
+    async def test_can_handle_false_without_dialog_manager(self):
+        """Without DialogManager, scenario cannot proceed → False."""
+        backend = AsyncMock()
+        backend.get_user = AsyncMock()
+        scenario = CreateFerstKeyScenario(
+            backend_client=backend, dialog_manager=None
+        )
+
+        result = await scenario.can_handle()
+
+        assert result is False
+        backend.get_user.assert_not_called()
 
 
 # ------------------------------------------------------------------ #
@@ -203,199 +188,231 @@ class TestCanHandle:
 # ------------------------------------------------------------------ #
 
 class TestStartTrialFlow:
-    async def test_create_first_key_creates_key_via_create_key_service(self):
-        """start() calls create_key.proces with correct user/tariff/server args."""
-        user = _make_user(tg_id=555002, server_id=2)
-        tariff = _make_tariff(tariff_id=1)
-        scenario, deps = _make_scenario(user=user, tariff=tariff)
+    async def test_start_calls_backend_create_trial_key(self):
+        """start() invokes backend.create_trial_key with tg_id."""
+        user = _make_user_dict(tg_id=555002, trial=0)
+        key = _make_key_dto(tg_id=555002)
+        scenario, backend = _make_scenario(user=user, key_dto=key)
 
-        await scenario.get_data()
-        await scenario.start(tg_id=user.tg_id, server_id=2)
+        await scenario.start(tg_id=555002, server_id=2)
 
-        deps["create_key"].proces.assert_called_once_with(
-            tg_id=user.tg_id,
-            tariff=tariff,
-            server_id=2,
-            conn=scenario._conn,
+        backend.create_trial_key.assert_awaited_once_with(555002, gift_token=None)
+
+    async def test_start_passes_gift_token_from_dialog_data(self):
+        """If dialog_data has 'gift_token', it is forwarded to backend."""
+        user = _make_user_dict(tg_id=555003, trial=0)
+        key = _make_key_dto(tg_id=555003)
+        dm = _make_dialog_manager(user_id=555003, dialog_data={"gift_token": "gift_abc"})
+        scenario, backend = _make_scenario(user=user, key_dto=key, dialog_manager=dm)
+
+        await scenario.start(tg_id=555003, server_id=2)
+
+        backend.create_trial_key.assert_awaited_once_with(555003, gift_token="gift_abc")
+
+    async def test_start_registers_user_before_creating_key(self):
+        """Unregistered user → backend.admin_register_user is called first."""
+        user = _make_user_dict(tg_id=555004, trial=0)
+        key = _make_key_dto(tg_id=555004)
+        dm = _make_dialog_manager(user_id=555004)
+        backend = AsyncMock()
+        # First get_user returns None (unregistered), then after registration returns user
+        backend.get_user = AsyncMock(side_effect=[None, user])
+        backend.admin_register_user = AsyncMock(return_value=user)
+        backend.create_trial_key = AsyncMock(return_value=key)
+        scenario = CreateFerstKeyScenario(
+            backend_client=backend, dialog_manager=dm
         )
 
-    async def test_create_first_key_installs_trial_after_key_creation(self):
-        """Trial installation is called after successful key creation."""
-        user = _make_user(tg_id=555003)
-        scenario, deps = _make_scenario(user=user)
+        await scenario.start(tg_id=555004, server_id=2)
 
-        await scenario.get_data()
-        await scenario.start(tg_id=user.tg_id, server_id=2)
+        backend.admin_register_user.assert_awaited_once()
+        register_arg = backend.admin_register_user.await_args[0][0]
+        assert register_arg["tg_id"] == 555004
+        assert register_arg["server_id"] == 2
+        assert register_arg["username"] == dm.event.from_user.username
+        backend.create_trial_key.assert_awaited_once()
 
-        deps["trial_user"].installation_trial.assert_called_once_with(
-            user.tg_id, scenario._conn
-        )
+    async def test_start_with_gift_starts_gift_dialog(self):
+        """Gift token present → dialog is KeysInit.create_gift_key."""
+        user = _make_user_dict(tg_id=555010, trial=0)
+        key = _make_key_dto(tg_id=555010)
+        dm = _make_dialog_manager(user_id=555010, dialog_data={"gift_token": "gift_xyz"})
+        scenario, _ = _make_scenario(user=user, key_dto=key, dialog_manager=dm)
 
-    async def test_create_first_key_starts_trial_dialog(self):
-        """Without gift, transitions to KeysInit.create_trial with link data."""
-        user = _make_user(tg_id=555004)
-        dm = _make_dialog_manager(user.tg_id)
-        scenario, _ = _make_scenario(user=user, dialog_manager=dm)
-
-        await scenario.get_data()
-        await scenario.start(tg_id=user.tg_id, server_id=2)
-
-        call_kwargs = dm.start.call_args
-        assert call_kwargs[0][0] == KeysInit.create_trial
-
-    async def test_start_passes_link_data_to_dialog(self):
-        """Dialog is started with public_link and link_to_connect in data dict."""
-        user = _make_user(tg_id=555005)
-        dm = _make_dialog_manager(user.tg_id)
-        scenario, _ = _make_scenario(user=user, dialog_manager=dm)
-
-        await scenario.get_data()
-        await scenario.start(tg_id=user.tg_id, server_id=2)
-
-        call = dm.start.call_args
-        data_arg = call[1].get("data") or (call[0][1] if len(call[0]) > 1 else None)
-        assert data_arg is not None
-        assert "public_link" in data_arg
-        assert "link_to_connect" in data_arg
-
-
-class TestStartGiftFlow:
-    async def test_create_first_key_with_gift_calls_gift_service_application(self):
-        """When gift is present, gift_service.application is called."""
-        user = _make_user(tg_id=555010)
-        gift = GiftLink(sender_tg_id=42, tariff_id=3, token="gift_tok")
-        scenario, deps = _make_scenario(user=user, gift=gift)
-
-        await scenario.get_data()
-        await scenario.start(tg_id=user.tg_id, server_id=2)
-
-        deps["gift_service"].application.assert_called_once()
-
-    async def test_create_first_key_with_gift_starts_gift_key_dialog(self):
-        """Gift flow transitions to KeysInit.create_gift_key."""
-        user = _make_user(tg_id=555011)
-        dm = _make_dialog_manager(user.tg_id)
-        gift = GiftLink(sender_tg_id=42, tariff_id=3, token="gift_tok")
-        scenario, _ = _make_scenario(user=user, gift=gift, dialog_manager=dm)
-
-        await scenario.get_data()
-        await scenario.start(tg_id=user.tg_id, server_id=2)
+        await scenario.start(tg_id=555010, server_id=2)
 
         dm.start.assert_called()
         started_state = dm.start.call_args[0][0]
         assert started_state == KeysInit.create_gift_key
 
+    async def test_start_without_gift_starts_trial_dialog(self):
+        """No gift token → dialog is KeysInit.create_trial."""
+        user = _make_user_dict(tg_id=555011, trial=0)
+        key = _make_key_dto(tg_id=555011)
+        dm = _make_dialog_manager(user_id=555011)
+        scenario, _ = _make_scenario(user=user, key_dto=key, dialog_manager=dm)
+
+        await scenario.start(tg_id=555011, server_id=2)
+
+        dm.start.assert_called()
+        started_state = dm.start.call_args[0][0]
+        assert started_state == KeysInit.create_trial
+
+    async def test_start_passes_link_data_to_dialog(self):
+        """Dialog receives public_link and link_to_connect in data dict."""
+        user = _make_user_dict(tg_id=555012, trial=0)
+        key = _make_key_dto(
+            tg_id=555012,
+            public_link="vpn://specific",
+            link_to_connect="https://sub.example.com/specific",
+        )
+        dm = _make_dialog_manager(user_id=555012)
+        scenario, _ = _make_scenario(user=user, key_dto=key, dialog_manager=dm)
+
+        await scenario.start(tg_id=555012, server_id=2)
+
+        call = dm.start.call_args
+        data_arg = call[1].get("data") or (call[0][1] if len(call[0]) > 1 else None)
+        assert data_arg is not None
+        assert data_arg["public_link"] == "vpn://specific"
+        assert data_arg["link_to_connect"] == "https://sub.example.com/specific"
+
+    async def test_start_falls_back_to_key_field_when_dto_links_missing(self):
+        """If public_link / link_to_connect are None, fallback to key field."""
+        user = _make_user_dict(tg_id=555013, trial=0)
+        key = _make_key_dto(
+            tg_id=555013,
+            public_link="vpn://fallback_key",
+            link_to_connect="vpn://fallback_key",
+        )
+        # Simulate backend returning no separate link fields, only `key`
+        key.public_link = None
+        key.link_to_connect = None
+        key.key = "vpn://fallback_key"
+        dm = _make_dialog_manager(user_id=555013)
+        scenario, _ = _make_scenario(user=user, key_dto=key, dialog_manager=dm)
+
+        await scenario.start(tg_id=555013, server_id=2)
+
+        call = dm.start.call_args
+        data_arg = call[1].get("data") or (call[0][1] if len(call[0]) > 1 else None)
+        assert data_arg["public_link"] == "vpn://fallback_key"
+        assert data_arg["link_to_connect"] == "vpn://fallback_key"
+
 
 # ------------------------------------------------------------------ #
-# Tests: error handling                                                #
+# Tests: start() — error and edge paths                                #
 # ------------------------------------------------------------------ #
 
 class TestStartErrorHandling:
-    async def test_error_handling_when_create_key_returns_none(self):
-        """If create_key.proces returns None, starts KeysInit.error."""
-        user = _make_user(tg_id=555020)
-        dm = _make_dialog_manager(user.tg_id)
-        scenario, deps = _make_scenario(
-            user=user, dialog_manager=dm, create_key_result=None
-        )
-        deps["create_key"].proces = AsyncMock(return_value=None)
+    async def test_start_routes_to_error_when_trial_already_used(self):
+        """User with trial=1 → start() goes to KeysInit.error, no key creation."""
+        user = _make_user_dict(tg_id=555020, trial=1)
+        dm = _make_dialog_manager(user_id=555020)
+        scenario, backend = _make_scenario(user=user, dialog_manager=dm)
 
-        await scenario.get_data()
-        await scenario.start(tg_id=user.tg_id, server_id=2)
+        await scenario.start(tg_id=555020, server_id=2)
 
+        backend.create_trial_key.assert_not_called()
         dm.start.assert_called()
         started_state = dm.start.call_args[0][0]
         assert started_state == KeysInit.error
 
-    async def test_error_handling_when_tariff_not_found(self):
-        """Tariff not in DB (get_data returns None tariff) → start leads to error dialog."""
-        user = _make_user(tg_id=555021)
-        dm = _make_dialog_manager(user.tg_id)
-        scenario, deps = _make_scenario(user=user, dialog_manager=dm)
-        deps["model_data"].tariffs.get_data = AsyncMock(return_value=None)
-
-        await scenario.get_data()
-        # _tariff is None → create_key.proces call will fail internally
-        # scenario.start catches and routes to error
-        deps["create_key"].proces = AsyncMock(side_effect=AttributeError("tariff is None"))
-
-        await scenario.start(tg_id=user.tg_id, server_id=2)
-
-        dm.start.assert_called()
-        started_state = dm.start.call_args[0][0]
-        assert started_state == KeysInit.error
-
-    async def test_error_handling_when_trial_already_used(self):
-        """User with trial=1 → can_handle returns False → exception raised → error dialog started."""
-        user = _make_user(tg_id=555022, trial=1)
-        dm = _make_dialog_manager(user.tg_id)
-        scenario, _ = _make_scenario(user=user, dialog_manager=dm)
-
-        await scenario.get_data()
-        await scenario.start(tg_id=user.tg_id, server_id=2)
-
-        dm.start.assert_called()
-        started_state = dm.start.call_args[0][0]
-        assert started_state == KeysInit.error
-
-    async def test_error_dialog_started_with_reset_stack_mode(self):
+    async def test_start_error_dialog_uses_reset_stack(self):
         """Error dialog is started with StartMode.RESET_STACK."""
-        user = _make_user(tg_id=555023, trial=1)
-        dm = _make_dialog_manager(user.tg_id)
+        user = _make_user_dict(tg_id=555021, trial=1)
+        dm = _make_dialog_manager(user_id=555021)
         scenario, _ = _make_scenario(user=user, dialog_manager=dm)
 
-        await scenario.get_data()
-        await scenario.start(tg_id=user.tg_id, server_id=2)
+        await scenario.start(tg_id=555021, server_id=2)
 
         call_kwargs = dm.start.call_args[1]
         assert call_kwargs.get("mode") == StartMode.RESET_STACK
 
-    async def test_create_key_exception_routes_to_error_dialog(self):
-        """Unexpected exception from create_key.proces → error dialog."""
-        user = _make_user(tg_id=555024)
-        dm = _make_dialog_manager(user.tg_id)
-        scenario, deps = _make_scenario(user=user, dialog_manager=dm)
-        deps["create_key"].proces = AsyncMock(side_effect=RuntimeError("xui crash"))
+    async def test_start_routes_to_error_when_backend_returns_none(self):
+        """create_trial_key returns None (failure) → KeysInit.error."""
+        user = _make_user_dict(tg_id=555022, trial=0)
+        dm = _make_dialog_manager(user_id=555022)
+        backend = AsyncMock()
+        backend.get_user = AsyncMock(return_value=user)
+        backend.create_trial_key = AsyncMock(return_value=None)
+        scenario = CreateFerstKeyScenario(
+            backend_client=backend, dialog_manager=dm
+        )
 
-        await scenario.get_data()
-        await scenario.start(tg_id=user.tg_id, server_id=2)
+        await scenario.start(tg_id=555022, server_id=2)
 
         dm.start.assert_called()
         started_state = dm.start.call_args[0][0]
         assert started_state == KeysInit.error
 
+    async def test_start_routes_to_error_when_user_registration_fails(self):
+        """Unregistered + admin_register_user returns falsy → error dialog."""
+        dm = _make_dialog_manager(user_id=555023)
+        backend = AsyncMock()
+        backend.get_user = AsyncMock(return_value=None)
+        backend.admin_register_user = AsyncMock(return_value=None)
+        backend.create_trial_key = AsyncMock()
+        scenario = CreateFerstKeyScenario(
+            backend_client=backend, dialog_manager=dm
+        )
 
-# ------------------------------------------------------------------ #
-# Tests: key cache pattern (email identifier)                          #
-# ------------------------------------------------------------------ #
+        await scenario.start(tg_id=555023, server_id=2)
 
-class TestKeyCacheIdentifier:
-    async def test_key_saved_to_db_via_save_data(self):
-        """CreateKey.proces internally calls key_data.save_data — proxy through create_key mock."""
-        user = _make_user(tg_id=555030)
-        scenario, deps = _make_scenario(user=user)
+        backend.create_trial_key.assert_not_called()
+        dm.start.assert_called()
+        started_state = dm.start.call_args[0][0]
+        assert started_state == KeysInit.error
 
-        await scenario.get_data()
-        await scenario.start(tg_id=user.tg_id, server_id=2)
+    async def test_start_routes_to_error_on_registration_no_dialog_manager(self):
+        """Cannot register without DialogManager (no from_user data) → error."""
+        backend = AsyncMock()
+        backend.get_user = AsyncMock(return_value=None)
+        backend.admin_register_user = AsyncMock()
+        backend.create_trial_key = AsyncMock()
+        scenario = CreateFerstKeyScenario(
+            backend_client=backend, dialog_manager=None
+        )
 
-        # create_key.proces was called (save_data is internal to CreateKey, verified via mock)
-        deps["create_key"].proces.assert_called_once()
+        # No exception: just early-return
+        await scenario.start(tg_id=555024, server_id=2)
 
-    async def test_create_key_called_with_email_in_result(self):
-        """The result from create_key.proces includes 'email' key (used for cache key)."""
-        user = _make_user(tg_id=555031)
-        key_result = {
-            "public_link": "vpn://link",
-            "link_to_connect": "https://example.com",
-            "email": "user_555031@test.com",
-            "days": 30,
-        }
-        scenario, deps = _make_scenario(user=user, create_key_result=key_result)
-        deps["create_key"].proces = AsyncMock(return_value=key_result)
+        backend.admin_register_user.assert_not_called()
+        backend.create_trial_key.assert_not_called()
 
-        await scenario.get_data()
-        await scenario.start(tg_id=user.tg_id, server_id=2)
+    async def test_start_routes_to_error_on_exception(self):
+        """Unexpected exception from backend → caught, error dialog started."""
+        user = _make_user_dict(tg_id=555025, trial=0)
+        dm = _make_dialog_manager(user_id=555025)
+        backend = AsyncMock()
+        backend.get_user = AsyncMock(return_value=user)
 
-        result = deps["create_key"].proces.return_value
-        assert "email" in result
-        assert result["email"] == "user_555031@test.com"
+        async def _explode(*args, **kwargs):
+            raise RuntimeError("backend on fire")
+
+        backend.create_trial_key = AsyncMock(side_effect=_explode)
+        scenario = CreateFerstKeyScenario(
+            backend_client=backend, dialog_manager=dm
+        )
+
+        await scenario.start(tg_id=555025, server_id=2)
+
+        dm.start.assert_called()
+        started_state = dm.start.call_args[0][0]
+        assert started_state == KeysInit.error
+
+    async def test_start_handles_no_dialog_manager_gracefully(self):
+        """start() without dialog_manager must not raise even on errors."""
+        user = _make_user_dict(tg_id=555026, trial=0)
+        key = _make_key_dto(tg_id=555026)
+        backend = AsyncMock()
+        backend.get_user = AsyncMock(return_value=user)
+        backend.create_trial_key = AsyncMock(return_value=key)
+        scenario = CreateFerstKeyScenario(
+            backend_client=backend, dialog_manager=None
+        )
+
+        # Should not raise
+        await scenario.start(tg_id=555026, server_id=2)
+
+        backend.create_trial_key.assert_awaited_once()

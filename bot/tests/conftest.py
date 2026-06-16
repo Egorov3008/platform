@@ -122,15 +122,6 @@ def expiry_calculator():
     return ExpiryCalculator()
 
 
-@pytest.fixture
-def trial_service(user_data):
-    from services.core.user.utils.trial import TrialService
-
-    service = AsyncMock(spec=TrialService)
-    service.user_data = user_data
-    return service
-
-
 # Остальные фикстуры, не относящиеся к конкретным модулям
 @pytest.fixture
 async def tariff_data(mock_cache):
