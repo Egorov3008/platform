@@ -21,11 +21,10 @@ class AdminKeyListGetter(DataGetter):
         self._backend = backend_client
 
     async def get_data(self, dialog_manager: DialogManager, **kwargs) -> Dict[str, Any]:
+        current_segment = dialog_manager.dialog_data.get("current_segment", "all")
         try:
             raw_keys = await self._backend.admin_list_keys()
             all_keys = [Key.from_backend(k) for k in raw_keys]
-
-            current_segment = dialog_manager.dialog_data.get("current_segment", "all")
 
             segmentation = KeySegmentationService()
             if current_segment == "expiring_24h":

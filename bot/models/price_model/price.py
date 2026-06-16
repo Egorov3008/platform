@@ -27,13 +27,18 @@ class Price:
     def format_price(self) -> Number:
         """
         Возвращает итоговую цену с учётом скидки.
+
+        Поддерживает смешанные типы ``amount`` (float) и ``stock`` (Decimal) —
+        всё приводится к ``Decimal`` для арифметики, чтобы избежать
+        ``TypeError`` от смешения ``float`` и ``Decimal``.
         """
-        if self.stock == 0.0:
+        amount = Decimal(str(self.amount))
+        if self.stock == 0 or self.stock == Decimal("0"):
             return self.amount
         if self.type_stock == "fix":
-            return max(0.0, self.amount - self.stock)
+            return max(Decimal("0"), amount - Decimal(str(self.stock)))
         if self.type_stock == "percent":
-            return self.amount * (1 - self.stock / 100)
+            return amount * (Decimal("1") - Decimal(str(self.stock)) / Decimal("100"))
         return self.amount
 
     def __repr__(self) -> str:
