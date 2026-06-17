@@ -433,7 +433,6 @@ class TestKeyDBFields:
             "created_at",
             "expiry_time",
             "key",
-            "total_gb",
             "reset_date",
             "inbound_id",
             "notified_10h",

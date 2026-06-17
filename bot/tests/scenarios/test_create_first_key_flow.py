@@ -44,7 +44,6 @@ def _make_key_dto(
         expiry_time=9999999999000,
         tariff_id=1,
         name_tariff="Trial",
-        total_gb=50 * (1024 ** 3),
         used_traffic=0.0,
         public_link=public_link,
         link_to_connect=link_to_connect,

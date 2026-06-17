@@ -275,7 +275,7 @@ class BackendAPIClient:
         Get full key details (with status fields) by email.
 
         Hits ``GET /api/v1/keys/{email}`` which returns ``KeyDetailResponse``:
-        email, tg_id, expiry_time, key, tariff_id, name_tariff, total_gb,
+        email, tg_id, expiry_time, key, tariff_id, name_tariff,
         used_traffic, inbound_id, client_id, status_text, days_left,
         hours_left, is_active, is_trial, expiry_date.
 

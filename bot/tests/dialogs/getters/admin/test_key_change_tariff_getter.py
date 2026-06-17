@@ -123,7 +123,6 @@ class TestAdminKeyChangeTariffConfirmGetterTariffObject:
 
         assert result["email"] == "user@example.com"
         assert result["tariff_name"] == "Premium"
-        assert result["total_gb"] == 1000
 
     async def test_returns_empty_when_tariff_missing(
         self, mock_backend, mock_dialog_manager
@@ -136,4 +135,4 @@ class TestAdminKeyChangeTariffConfirmGetterTariffObject:
         getter = AdminKeyChangeTariffConfirmGetter(mock_backend)
         result = await getter.get_data(mock_dialog_manager)
 
-        assert result == {"email": "", "tariff_name": "", "total_gb": ""}
+        assert result == {"email": "", "tariff_name": ""}

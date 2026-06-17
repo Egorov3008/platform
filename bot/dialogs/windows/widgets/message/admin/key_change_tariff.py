@@ -25,7 +25,6 @@ class AdminKeyChangeTariffConfirmMessage(MessageBuilder):
         return Format(
             "✅ <b>Подтверждение изменения тарифа</b>\n\n"
             "<b>Email ключа:</b> <code>{email}</code>\n"
-            "<b>Новый тариф:</b> <code>{tariff_name}</code>\n"
-            "<b>Объём трафика:</b> <code>{total_gb} GB</code>\n\n"
+            "<b>Новый тариф:</b> <code>{tariff_name}</code>\n\n"
             "Подтвердите изменение:"
         )

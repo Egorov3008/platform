@@ -54,7 +54,6 @@ def make_key_data_dict(
         "expiry_time": now_ms + expiry_offset_ms,
         "tariff_id": 1,
         "name_tariff": "Pro",
-        "total_gb": 10 * (1024 ** 3),
         "used_traffic": 0,
         "is_active": True,
         "days_left": 30,
@@ -259,8 +258,6 @@ class TestKeyDetailsGetterReadsEmail:
         assert result.get("error") is False
         assert "tariff_name" in result
         assert "used_traffic" in result
-        assert "total_gb" in result
-        assert "progress_bar" in result
         assert "status_emoji" in result
 
 

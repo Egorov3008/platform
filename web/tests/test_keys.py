@@ -56,7 +56,6 @@ async def test_list_keys_with_tg_id(client):
             "amount": 0,
             "period": 30,
             "used_traffic": 0,
-            "total_gb": 10,
         }
     ])
     client.cookies.set("access_token", make_auth_token(tg_id=123))

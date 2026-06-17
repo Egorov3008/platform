@@ -21,13 +21,8 @@ class KeyDetailsGetter(DataGetter):
         if not data:
             return {"error": True, "error_message": "❌ Ключ не найден", "keys": "", "not_error": False}
 
-        total_gb_bytes = data.get("total_gb") or 0
         used_bytes = data.get("used_traffic") or 0
-        total_gb = round(total_gb_bytes / (1024 ** 3), 2)
         used_traffic = round(used_bytes / (1024 ** 3), 2)
-        usage_percent = round(used_traffic / total_gb * 100, 1) if total_gb > 0 else 0
-        filled = int(usage_percent / 100 * 10)
-        progress_bar = "█" * filled + "░" * (10 - filled)
 
         days_left = data.get("days_left", 0)
         hours_left = data.get("hours_left", 0)
@@ -48,9 +43,6 @@ class KeyDetailsGetter(DataGetter):
             "keys": data.get("key", ""),
             "tariff_name": data.get("name_tariff") or "Не указан",
             "used_traffic": used_traffic,
-            "total_gb": total_gb,
-            "progress_bar": progress_bar,
-            "usage_percent": usage_percent,
             "expiry_date": data.get("expiry_date", ""),
             "status_emoji": status_emoji,
             "status_text": data.get("status_text", ""),

@@ -116,7 +116,6 @@ class KeyDTO(BaseModel):
     expiry_time: int  # milliseconds timestamp
     tariff_id: int
     name_tariff: Optional[str] = None
-    total_gb: Optional[int] = None
     used_traffic: Optional[float] = None
     public_link: Optional[str] = None
     link_to_connect: Optional[str] = None
@@ -152,7 +151,6 @@ class KeyDetailDTO(BaseModel):
     key: str
     tariff_id: Optional[int] = None
     name_tariff: Optional[str] = None
-    total_gb: Optional[int] = None
     used_traffic: Optional[float] = None
     inbound_id: int
     public_link: Optional[str] = None

@@ -18,7 +18,6 @@ class KeyResponse(BaseModel):
     amount: Optional[float] = None
     period: Optional[int] = None
     used_traffic: Optional[float] = None
-    total_gb: Optional[float] = None
 
 
 class CreateKeyRequest(BaseModel):
