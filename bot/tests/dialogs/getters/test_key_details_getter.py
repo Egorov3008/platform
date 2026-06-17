@@ -8,8 +8,8 @@ async method and asserts the getter formats the dict into the dialog data
 that the bot's key-details window expects.
 
 Fields expected by the dialog window (from key_details.py):
-    error, not_error, keys, tariff_name, used_traffic, total_gb,
-    progress_bar, usage_percent, expiry_date, status_emoji, status_text,
+    error, not_error, keys, tariff_name, used_traffic,
+    expiry_date, status_emoji, status_text,
     time_left_message, is_trial, not_trial_tariff, is_active,
     days_left, hours_left.
 """
@@ -33,7 +33,6 @@ def _key_details(
     key: str = "vpn_key_data",
     tariff_id: int = 1,
     name_tariff: str | None = "Premium",
-    total_gb_bytes: int = 10 * (1024**3),  # 10 GiB
     used_traffic_bytes: float = 1 * (1024**3),  # 1 GiB
     days_left: int = 30,
     hours_left: int = 0,
@@ -51,7 +50,6 @@ def _key_details(
         "key": key,
         "tariff_id": tariff_id,
         "name_tariff": name_tariff,
-        "total_gb": total_gb_bytes,
         "used_traffic": used_traffic_bytes,
         "inbound_id": 12,
         "public_link": key,
@@ -104,11 +102,8 @@ class TestKeyDetailsGetterBasic:
         assert result["not_error"] is True
         assert result["keys"] == "vpn_key_data"
         assert result["tariff_name"] == "Premium"
-        # 1 GiB / 10 GiB = 10% = 1 of 10 filled
+        # 1 GiB used
         assert result["used_traffic"] == 1.0
-        assert result["total_gb"] == 10.0
-        assert result["usage_percent"] == 10.0
-        assert "█" in result["progress_bar"] or "░" in result["progress_bar"]
 
     @pytest.mark.asyncio
     async def test_get_data_key_not_found(
@@ -248,19 +243,18 @@ class TestKeyDetailsGetterTariff:
 
 class TestKeyDetailsGetterEdgeCases:
     @pytest.mark.asyncio
-    async def test_zero_total_gb_does_not_divide_by_zero(
+    async def test_zero_used_traffic_does_not_raise(
         self, getter, mock_backend_client, mock_dialog_manager
     ):
-        """total_gb = 0 → usage_percent = 0, no ZeroDivisionError."""
+        """used_traffic = 0 → 0 ГБ, не падает."""
         mock_backend_client.get_key_details.return_value = _key_details(
-            total_gb_bytes=0, used_traffic_bytes=0
+            used_traffic_bytes=0
         )
 
         result = await getter.get_data(mock_dialog_manager)
 
-        assert result["usage_percent"] == 0
-        assert result["total_gb"] == 0
         assert result["used_traffic"] == 0
+        assert result["is_active"] is True
 
     @pytest.mark.asyncio
     async def test_backend_exception_returns_error(
@@ -293,7 +287,7 @@ class TestKeyDetailsGetterContract:
 
         required = {
             "error", "not_error", "keys", "tariff_name",
-            "used_traffic", "total_gb", "progress_bar", "usage_percent",
+            "used_traffic",
             "expiry_date", "status_emoji", "status_text",
             "time_left_message", "is_trial", "not_trial_tariff",
             "is_active", "days_left", "hours_left",

@@ -23,7 +23,6 @@ class Key:
     key: str
     inbound_id: int
     tariff_id: Optional[int] = None
-    total_gb: Optional[int] = 10
     created_at: int = None
     reset_date: int = 0
     notified_10h: bool = False
@@ -49,7 +48,6 @@ class Key:
             "created_at",
             "expiry_time",
             "key",
-            "total_gb",
             "reset_date",
             "inbound_id",
             "notified_10h",
@@ -84,7 +82,6 @@ class Key:
             key=d.get("key"),
             inbound_id=d.get("inbound_id"),
             tariff_id=d.get("tariff_id"),
-            total_gb=d.get("total_gb", 10),
             name_tariff=d.get("name_tariff"),
             used_traffic=d.get("used_traffic", 0.0),
             limit_ip=d.get("limit_ip"),

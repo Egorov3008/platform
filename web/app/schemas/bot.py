@@ -52,7 +52,6 @@ class KeyResponse(BaseModel):
     email: str
     key: str  # Subscription URL
     expiry_time: int  # Epoch ms
-    total_gb: float
     tariff_id: int
     inbound_id: int
     created_at: int

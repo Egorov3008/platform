@@ -72,7 +72,7 @@ async def test_get_user_keys_returns_list(client, mock_http):
                 "key": "https://sub.example.com/abc", "inbound_id": 11,
                 "tariff_id": 9, "name_tariff": "Pro",
                 "client_id": "abc-123",
-                "total_gb": None, "used_traffic": 0.0,
+                "used_traffic": 0.0,
             }
         ]
     }))

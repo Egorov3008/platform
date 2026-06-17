@@ -113,16 +113,15 @@ class AdminKeyChangeTariffConfirmGetter(DataGetter):
             email = dialog_manager.start_data.get("email")
             selected_tariff_id = dialog_manager.dialog_data.get("selected_tariff_id")
             if not email or not selected_tariff_id:
-                return {"email": "", "tariff_name": "", "total_gb": ""}
+                return {"email": "", "tariff_name": ""}
             key = await self._backend.get_key_details(email)
             tariff = await self._backend.get_tariff(int(selected_tariff_id))
             if not key or not tariff:
-                return {"email": "", "tariff_name": "", "total_gb": ""}
+                return {"email": "", "tariff_name": ""}
             return {
                 "email": key.get("email", ""),
                 "tariff_name": tariff.get("name_tariff", ""),
-                "total_gb": tariff.get("traffic_limit", ""),
             }
         except Exception as e:
             logger.error("Ошибка при получении данных для подтверждения тарифа", error=str(e), exc_info=True)
-            return {"email": "", "tariff_name": "", "total_gb": ""}
+            return {"email": "", "tariff_name": ""}

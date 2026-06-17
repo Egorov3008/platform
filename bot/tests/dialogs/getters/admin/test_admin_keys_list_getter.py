@@ -27,7 +27,6 @@ def make_key_dict(
     email: str,
     tg_id: int,
     expiry_offset_ms: int,
-    total_gb: int = 10,
     tariff_id: int = 10,
 ) -> dict:
     """Build a backend-shaped dict for a Key with expiry relative to now.
@@ -42,7 +41,6 @@ def make_key_dict(
         "key": "k",
         "inbound_id": 1,
         "expiry_time": now_ms + expiry_offset_ms,
-        "total_gb": total_gb,
         "tariff_id": tariff_id,
     }
 
@@ -51,7 +49,6 @@ def make_key_obj(
     email: str,
     tg_id: int,
     expiry_offset_ms: int,
-    total_gb: int = 10,
     tariff_id: int = 10,
 ) -> Key:
     """Build a Key dataclass with expiry relative to now."""
@@ -63,7 +60,6 @@ def make_key_obj(
         key="k",
         inbound_id=1,
         expiry_time=now_ms + expiry_offset_ms,
-        total_gb=total_gb,
         tariff_id=tariff_id,
     )
 
@@ -327,7 +323,7 @@ class TestAdminKeyDetailsGetterResultShape:
     ):
         """Returns all fields from KeyModel.to_dict()."""
         key = make_key_obj(
-            "user@example.com", 123456, 10 * 24 * 3600 * 1000, total_gb=5
+            "user@example.com", 123456, 10 * 24 * 3600 * 1000
         )
         tariff = _make_tariff_dict(10, "Trial")
 
@@ -343,7 +339,6 @@ class TestAdminKeyDetailsGetterResultShape:
         assert "status_text" in result
         assert "is_trial" in result
         assert "is_active" in result
-        assert "total_gb" in result
         assert "used_traffic" in result
 
     async def test_includes_admin_fields(

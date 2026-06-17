@@ -341,9 +341,9 @@ export const Pages = {
                     const isExpiring = expiryDate && !isExpired && (expiryDate.getTime() / 1000 - now) < 3 * 24 * 3600;
                     const badgeClass = isExpired ? 'expired' : (isExpiring ? 'expiring' : 'active');
                     const badgeText = isExpired ? 'Истёк' : (isExpiring ? 'Скоро истекает' : 'Активен');
-                    const trafficStr = (k.used_traffic !== null && k.total_gb !== null)
-                        ? `${(k.used_traffic / 1073741824).toFixed(2)} / ${k.total_gb.toFixed(1)} ГБ`
-                        : 'Не ограничен';
+                    const trafficStr = (k.used_traffic !== null && k.used_traffic !== undefined)
+                        ? `${(k.used_traffic / 1073741824).toFixed(2)} ГБ`
+                        : '—';
 
                     html += `
                     <div class="card key-card" data-client-id="${k.client_id}">
@@ -388,7 +388,7 @@ export const Pages = {
                         <div class="tariff-price">${t.amount} ₽ <span>/ ${_periodStr(t.period)}</span></div>
                         <ul class="tariff-features">
                             <li>${t.limit_ip} ${_pluralize(t.limit_ip, 'подключение', 'подключения', 'подключений')}</li>
-                            <li>${t.traffic_limit >= 1024 ? (t.traffic_limit / 1024).toFixed(0) + ' ТБ' : t.traffic_limit.toFixed(0) + ' ГБ'} трафика</li>
+                            <li>${(t.traffic_limit > 0) ? (t.traffic_limit >= 1024 ? (t.traffic_limit / 1024).toFixed(0) + ' ТБ' : t.traffic_limit.toFixed(0) + ' ГБ') + ' трафика' : 'Безлимитный трафик'}</li>
                             <li>Срок: ${_periodStr(t.period)}</li>
                         </ul>
                         <button class="btn btn-primary btn-buy" data-id="${t.id}" data-name="${_esc(t.name_tariff)}" data-amount="${t.amount}">Купить</button>
