@@ -93,9 +93,13 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    environment:
+      BOT_SECRET_KEY: ${BOT_SECRET_KEY}
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx:/etc/nginx/conf.d:ro
       - ./nginx_certs:/etc/nginx/certs:ro
+      - ./web/landing:/usr/share/nginx/landing:ro
+    entrypoint: ["/bin/sh", "/etc/nginx/conf.d/entrypoint.sh"]
     depends_on:
       backend:
         condition: service_healthy
