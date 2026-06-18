@@ -44,6 +44,7 @@ playwright-report/
 
 # Worktrees
 .worktrees/
+.claude/worktrees/
 
 # Certificates (Let's Encrypt / nginx)
 /nginx_certs/
