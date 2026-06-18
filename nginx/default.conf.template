@@ -6,6 +6,12 @@ upstream web {
     server web:8000;
 }
 
+# Inject X-Bot-Secret for /api/v1/landing/* from env var BOT_SECRET_KEY.
+# Rendered by envsubst at container start (see entrypoint.sh).
+map $uri $bot_secret_value {
+    default "$BOT_SECRET_KEY";
+}
+
 server {
     listen 80;
     server_name tolko-dlya-svoih.ru;
@@ -44,6 +50,37 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+
+    # Static landing assets (read-only mount of ./web/landing)
+    # ^~  =  static prefix, beats regex locations
+    # Trailing slash on alias path is CRITICAL.
+    location ^~ /landing/ {
+        alias /usr/share/nginx/landing/;
+        index index.html;
+        try_files $uri $uri/ /landing/index.html;
+    }
+
+    # Cache static assets 7d immutable
+    location ~* ^/landing/.+\.(css|js|svg|png|jpg|jpeg|webp|ico|woff2)$ {
+        expires 7d;
+        add_header Cache-Control "public, immutable";
+        add_header X-Content-Type-Options "nosniff";
+        access_log off;
+    }
+
+    # Landing API — proxy directly to backend with X-Bot-Secret injected.
+    # MUST be before the generic /api/v1/ (which proxies to web).
+    location /api/v1/landing/ {
+        proxy_pass http://backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Bot-Secret $bot_secret_value;
         proxy_connect_timeout 60s;
         proxy_send_timeout 60s;
         proxy_read_timeout 60s;
