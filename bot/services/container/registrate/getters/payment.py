@@ -35,9 +35,7 @@ class PaymentRegistrar(ContainerProtocol):
             return TariffSelectBuilder()
 
         def builder_payment_form_keybord():
-            return PaymentFormKeyboard(
-                backend_client=container.resolve(BackendAPIClient),
-            )
+            return PaymentFormKeyboard()
 
         container.register(
             SettingsPayment, factory=build_settings_payment, scope=punq.Scope.singleton
