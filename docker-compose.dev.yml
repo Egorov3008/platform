@@ -1,0 +1,120 @@
+# ===================================================================
+# DEV environment — isolated from production
+# ===================================================================
+#
+# Usage:
+#   make dev-up          # start everything
+#   make dev-down        # stop everything
+#   make dev-db-reset    # recreate the dev DB
+#   make dev-ngrok       # expose backend for YooKassa webhook
+#
+# Notes:
+#   - Postgres uses host port 5434 (prod uses 5433).
+#   - Backend is on host port 8000, web on 8001.
+#   - Bot uses polling, no webhook port exposed.
+#   - All services read .env.dev, never .env (prod).
+# ===================================================================
+
+name: vpn_platform_dev
+
+services:
+  postgres_dev:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./bot/assets/schema_fixed.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    ports:
+      - "127.0.0.1:5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dev
+
+  backend_dev:
+    build: ./backend
+    restart: unless-stopped
+    env_file: ./.env.dev
+    environment:
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres_dev:5432/${DB_NAME}
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./.env.dev:/app/.env:ro
+      - ./backend:/app
+      - ./shared:/app/shared
+    depends_on:
+      postgres_dev:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - dev
+
+  bot_dev:
+    build: ./bot
+    restart: unless-stopped
+    env_file: ./.env.dev
+    environment:
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres_dev:5432/${DB_NAME}
+      BACKEND_URL: http://backend_dev:8000
+    volumes:
+      - ./.env.dev:/app/.env:ro
+      - ./bot/logs:/app/logs
+      - ./bot/logs_error:/app/logs_error
+      - ./bot/video_instructions:/app/video_instructions:ro
+      - ./shared:/app/shared
+    depends_on:
+      postgres_dev:
+        condition: service_healthy
+      backend_dev:
+        condition: service_healthy
+    networks:
+      - dev
+
+  web_dev:
+    build: ./web
+    restart: unless-stopped
+    env_file: ./.env.dev
+    environment:
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres_dev:5432/${DB_NAME}
+      BACKEND_URL: http://backend_dev:8000
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      BOT_TOKEN: ${BOT_TOKEN}
+    command: bash /app/run.sh
+    ports:
+      - "127.0.0.1:8001:8000"
+    volumes:
+      - ./.env.dev:/app/.env:ro
+      - ./web:/app
+    depends_on:
+      postgres_dev:
+        condition: service_healthy
+      backend_dev:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - dev
+
+volumes:
+  postgres_dev_data:
+
+networks:
+  dev:
+    driver: bridge
