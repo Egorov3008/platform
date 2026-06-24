@@ -29,6 +29,7 @@ error_log /dev/stderr warn;
 pid /tmp/nginx.pid;
 events { worker_connections 1024; }
 http {
+    include /etc/nginx/mime.types;
     include /tmp/conf.d/*.conf;
 }
 NGINX
