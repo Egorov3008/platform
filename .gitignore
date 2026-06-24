@@ -68,3 +68,6 @@ backend/debug_sync.py
 
 # Codegraph — local SQLite index
 .codegraph/
+
+# Database dumps / manual backups
+/backups/
