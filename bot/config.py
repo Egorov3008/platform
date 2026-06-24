@@ -118,17 +118,17 @@ BASE_DIR = Path(__file__).parent
 VIDEOS_DIR = BASE_DIR / "video_instructions"
 SUBSTACTION_URL = "https://host-vps.duckdns.org:2096/TolkoDlyaSv0ih_Bot"
 CONNECT_ANDROID = (
-    "https://play.google.com/store/apps/details?id=com.v2raytun.android&hl=ru"
+    "https://play.google.com/store/apps/details?id=com.happproxy&hl=ru"
 )
-DOWNLOAD_IOS = "https://apps.apple.com/ru/app/happ-proxy-utility-plus/id6746188973"
+DOWNLOAD_IOS = "https://apps.apple.com/us/app/happ-proxy-utility/id6504287215"
 DOWNLOAD_ANDROID = (
-    "https://play.google.com/store/apps/details?id=com.v2raytun.android&hl=ru"
+    "https://play.google.com/store/apps/details?id=com.happproxy&hl=ru"
 )
-DOWNLOAD_WIN = "https://disk.yandex.ru/d/Tcl7KKIt0hiKng"
-DOWNLOAD_LIN = "https://github.com/hiddify/hiddify-next/releases/download/v2.5.7/Hiddify-Debian-x64.deb"
+DOWNLOAD_WIN = "https://github.com/Happ-proxy/happ-desktop/releases/latest/download/setup-Happ.x64.exe"
+DOWNLOAD_LIN = "https://github.com/Happ-proxy/happ-desktop/releases/latest/download/Happ.linux.x64.deb"
 
 RENEWAL_PRICES = {"1": 1}
-CONNECT_WINDOWS = "https://github.com/hiddify/hiddify-next/releases/latest/download/Hiddify-Windows-Setup-x64.Msix"
+CONNECT_WINDOWS = "https://github.com/Happ-proxy/happ-desktop/releases/latest/download/setup-Happ.x64.exe"
 # TRIAL_TIME — shared.core_settings is the canonical default
 TRIAL_TIME = int(os.getenv("TRIAL_TIME", str(core_settings.trial_time)))
 
