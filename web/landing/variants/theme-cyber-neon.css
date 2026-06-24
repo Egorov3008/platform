@@ -1,0 +1,570 @@
+/* ============================================================================
+   Вариант 2: Cyber Neon
+   ------------------------------------------------------------------------
+   Ретро-футуристика: тёмный фон, неоновые акценты, glow, моноширинный шрифт.
+   Ассоциации с обходом блокировок, хакер-эстетикой, технологичностью.
+   ============================================================================ */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+:root {
+    --bg: #050505;
+    --bg-elevated: #0a0a0f;
+    --bg-card: #111118;
+    --text: #f5f5f7;
+    --text-dim: #8b8b9e;
+    --accent: #00d9ff;
+    --accent-hover: #80eeff;
+    --accent-glow: rgba(0, 217, 255, 0.45);
+    --primary: #ff006e;
+    --primary-hover: #ff4d9a;
+    --success: #39ff14;
+    --error: #ff2a6d;
+    --warning: #ffb81c;
+    --border: rgba(255, 255, 255, 0.1);
+    --radius: 10px;
+    --radius-lg: 14px;
+    --shadow: 0 0 30px rgba(0, 217, 255, 0.08);
+}
+
+html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "IBM Plex Mono", "SF Mono", "Courier New", Consolas, monospace;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    background:
+        radial-gradient(ellipse 70% 40% at 20% 20%, rgba(255, 0, 110, 0.12), transparent),
+        radial-gradient(ellipse 60% 50% at 80% 80%, rgba(0, 217, 255, 0.1), transparent),
+        var(--bg);
+    background-attachment: fixed;
+    min-height: 100vh;
+}
+
+/* Тонкие scanlines */
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+        linear-gradient(0deg, transparent 24%, rgba(255, 255, 255, 0.025) 25%, rgba(255, 255, 255, 0.025) 26%, transparent 27%, transparent 74%, rgba(255, 255, 255, 0.025) 75%, rgba(255, 255, 255, 0.025) 76%, transparent 77%, transparent);
+    background-size: 100% 6px;
+    pointer-events: none;
+    z-index: 0;
+}
+
+main {
+    position: relative;
+    z-index: 1;
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 32px 20px 80px;
+}
+
+/* ----- Screens ----- */
+
+.screen {
+    animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(12px); filter: blur(2px); }
+    to   { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+/* ----- Hero ----- */
+
+.hero {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: rgba(255, 0, 110, 0.12);
+    border: 1px solid rgba(255, 0, 110, 0.5);
+    color: var(--primary-hover);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border-radius: var(--radius);
+    margin-bottom: 28px;
+    box-shadow: 0 0 20px rgba(255, 0, 110, 0.2);
+}
+
+.badge::before {
+    content: '◉';
+    color: var(--primary);
+    animation: neon-pulse 1.5s infinite alternate;
+}
+
+@keyframes neon-pulse {
+    from { opacity: 1; text-shadow: 0 0 8px var(--primary); }
+    to   { opacity: 0.6; text-shadow: 0 0 16px var(--primary); }
+}
+
+.badge-success {
+    background: rgba(57, 255, 20, 0.08);
+    border-color: rgba(57, 255, 20, 0.5);
+    color: var(--success);
+    box-shadow: 0 0 20px rgba(57, 255, 20, 0.15);
+}
+
+.badge-success::before {
+    content: '▶';
+}
+
+.badge-error {
+    background: rgba(255, 42, 109, 0.08);
+    border-color: rgba(255, 42, 109, 0.5);
+    color: var(--error);
+    box-shadow: 0 0 20px rgba(255, 42, 109, 0.15);
+}
+
+.badge-error::before {
+    content: '!';
+}
+
+h1 {
+    font-size: 38px;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 12px;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+    text-shadow:
+        0 0 10px rgba(0, 217, 255, 0.4),
+        0 0 40px rgba(0, 217, 255, 0.15);
+}
+
+.subtitle {
+    font-size: 22px;
+    color: var(--accent);
+    font-weight: 700;
+    margin-bottom: 28px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-shadow: 0 0 16px rgba(0, 217, 255, 0.3);
+}
+
+.news {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--primary);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    margin: 28px 0;
+    text-align: left;
+    font-size: 14px;
+    box-shadow: var(--shadow);
+}
+
+.news p + p {
+    margin-top: 10px;
+}
+
+.news-bold {
+    color: var(--accent);
+    font-weight: 700;
+}
+
+/* ----- Buttons ----- */
+
+.btn-primary, .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 18px 26px;
+    font-size: 16px;
+    font-weight: 800;
+    border: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transition: transform 0.15s, background 0.2s, box-shadow 0.2s;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: #fff;
+    border: 2px solid var(--primary);
+    box-shadow:
+        0 0 24px rgba(255, 0, 110, 0.4),
+        inset 0 0 10px rgba(255, 255, 255, 0.15);
+}
+
+.btn-primary:hover, .btn-primary:focus {
+    background: transparent;
+    color: var(--primary-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 0 40px rgba(255, 0, 110, 0.55);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+.btn-primary:disabled {
+    background: var(--text-dim);
+    border-color: var(--text-dim);
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.btn-secondary {
+    background: transparent;
+    color: var(--accent);
+    border: 2px solid var(--accent);
+    box-shadow: 0 0 16px rgba(0, 217, 255, 0.1);
+}
+
+.btn-secondary:hover {
+    background: rgba(0, 217, 255, 0.1);
+    box-shadow: 0 0 28px rgba(0, 217, 255, 0.3);
+}
+
+.hint {
+    margin-top: 14px;
+    font-size: 13px;
+    color: var(--text-dim);
+    text-align: center;
+}
+
+/* ----- Features ----- */
+
+.features {
+    display: grid;
+    gap: 16px;
+    margin: 44px 0;
+}
+
+.feature {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+    transition: transform 0.2s, border-color 0.2s;
+}
+
+.feature:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent);
+    box-shadow: 0 0 24px rgba(0, 217, 255, 0.12);
+}
+
+.feature-icon {
+    font-size: 28px;
+    margin-bottom: 10px;
+    text-shadow: 0 0 12px rgba(0, 217, 255, 0.4);
+}
+
+.feature h3 {
+    font-size: 16px;
+    font-weight: 800;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.feature p {
+    color: var(--text-dim);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+/* ----- Links ----- */
+
+.links {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 36px 0;
+}
+
+.link-secondary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    text-align: center;
+    padding: 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    text-decoration: none;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    transition: border-color 0.2s, color 0.2s;
+}
+
+.link-secondary:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    box-shadow: 0 0 16px rgba(0, 217, 255, 0.1);
+}
+
+/* ----- Countdown ----- */
+
+.countdown {
+    font-size: 58px;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    color: var(--accent);
+    margin: 18px 0 6px;
+    text-shadow: 0 0 30px rgba(0, 217, 255, 0.5);
+}
+
+#countdown-hint {
+    font-size: 15px;
+    margin-top: 0;
+    margin-bottom: 28px;
+    color: var(--text-dim);
+}
+
+/* ----- Key box ----- */
+
+.key-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px;
+    margin: 28px 0;
+    box-shadow: var(--shadow);
+}
+
+.key-box label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 10px;
+    font-weight: 800;
+}
+
+.key-value {
+    display: block;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-family: "SF Mono", Menlo, Monaco, "Courier New", monospace;
+    font-size: 13px;
+    color: var(--accent);
+    word-break: break-all;
+    line-height: 1.4;
+    margin-bottom: 14px;
+    max-height: 120px;
+    overflow-y: auto;
+    box-shadow: inset 0 0 20px rgba(0, 217, 255, 0.05);
+}
+
+/* ----- Instruction ----- */
+
+.instruction {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px;
+    margin: 28px 0;
+    box-shadow: var(--shadow);
+}
+
+.instruction h3 {
+    font-size: 16px;
+    font-weight: 800;
+    margin-bottom: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--accent);
+}
+
+.instruction ol {
+    padding-left: 24px;
+    margin-bottom: 14px;
+}
+
+.instruction li {
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.instruction li::marker {
+    color: var(--primary);
+    font-weight: 800;
+}
+
+.instruction p {
+    font-size: 14px;
+    color: var(--text-dim);
+}
+
+.instruction-hint {
+    margin-top: 14px;
+    font-size: 13px;
+}
+
+.instruction-hint a {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 700;
+}
+
+.instruction-hint a:hover {
+    text-decoration: underline;
+}
+
+/* ----- Actions ----- */
+
+.actions {
+    margin: 28px 0;
+}
+
+/* ----- CTA box (expiring) ----- */
+
+.cta-box {
+    background: rgba(255, 184, 28, 0.08);
+    border: 1px solid var(--warning);
+    border-radius: var(--radius);
+    padding: 26px;
+    margin: 28px 0;
+    text-align: center;
+    box-shadow: 0 0 24px rgba(255, 184, 28, 0.1);
+}
+
+.cta-box p {
+    margin-bottom: 14px;
+    font-size: 15px;
+}
+
+.cta-box strong {
+    color: var(--warning);
+    text-shadow: 0 0 10px rgba(255, 184, 28, 0.3);
+}
+
+/* ----- Divider ----- */
+
+.divider {
+    display: flex;
+    align-items: center;
+    margin: 28px 0;
+    color: var(--text-dim);
+    font-size: 13px;
+}
+
+.divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+}
+
+.divider span {
+    padding: 0 16px;
+}
+
+/* ----- Footer ----- */
+
+footer {
+    margin-top: 64px;
+    padding-top: 28px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-dim);
+}
+
+footer p {
+    margin-bottom: 10px;
+}
+
+footer a {
+    color: var(--text);
+    text-decoration: none;
+    margin: 0 8px;
+    transition: color 0.2s;
+}
+
+footer a:hover {
+    color: var(--accent);
+}
+
+.footer-hint {
+    font-size: 12px;
+    opacity: 0.6;
+}
+
+/* ----- Toast ----- */
+
+.toast {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-card);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 22px;
+    font-size: 14px;
+    box-shadow: var(--shadow);
+    z-index: 1000;
+    animation: slideUp 0.3s ease-out;
+    max-width: calc(100% - 40px);
+}
+
+.toast-success {
+    border-color: var(--success);
+}
+
+.toast-error {
+    border-color: var(--error);
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translate(-50%, 16px); }
+    to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* ----- Mobile tweaks ----- */
+
+@media (max-width: 480px) {
+    main { padding: 24px 16px 60px; }
+    h1 { font-size: 30px; }
+    .subtitle { font-size: 18px; }
+    .countdown { font-size: 46px; }
+    .feature { padding: 18px; }
+}
+
+/* ----- Desktop tweaks ----- */
+
+@media (min-width: 768px) {
+    main { padding: 48px 32px 100px; }
+    h1 { font-size: 48px; }
+    .features { grid-template-columns: repeat(3, 1fr); }
+    .key-value { font-size: 14px; }
+}
