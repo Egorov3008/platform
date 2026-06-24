@@ -123,13 +123,9 @@ keys = await cache_service.keys.all()
 key = await cache_service.keys.get(email)        # ⚠️ Key использует email, не id!
 await cache_service.keys.set(email, key_obj)
 
-inbounds = await cache_service.inbounds.all()
-inbound = await cache_service.inbounds.get((server_id, inbound_id))  # Кортеж!
-
 # ❌ Неправильно:
 await cache.get_key(email)         # Legacy API - ЗАПРЕЩЕНО
 await cache_service.keys.get(key.id)  # Key.id не существует, используй email!
-await cache_service.inbounds.get(inbound_id)  # Неполный ID
 ```
 
 ## 🎬 Основные обработчики (on_click handlers)

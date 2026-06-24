@@ -15,18 +15,6 @@ class GenKeyInputTgIdMessage(MessageBuilder):
         )
 
 
-class GenKeyChooseInboundMessage(MessageBuilder):
-    """Сообщение для выбора inbound."""
-
-    def build(self):
-        return Format(
-            "<b>🔑 Генерация ключа</b>\n\n"
-            "🆔 ID: <code>{tg_id}</code>\n"
-            "Статус: {user_status}\n\n"
-            "<b>Выберите подключение:</b>"
-        )
-
-
 class GenKeyChooseTariffMessage(MessageBuilder):
     """Сообщение для выбора тарифа."""
 
@@ -34,7 +22,7 @@ class GenKeyChooseTariffMessage(MessageBuilder):
         return Format(
             "<b>🔑 Генерация ключа</b>\n\n"
             "🆔 ID: <code>{tg_id}</code>\n"
-            "📡 Подключение: {inbound_name}\n\n"
+            "Статус: {user_status}\n\n"
             "<b>Выберите тариф:</b>"
         )
 
@@ -46,7 +34,6 @@ class GenKeyConfirmMessage(MessageBuilder):
         return Format(
             "<b>🔑 Подтверждение генерации ключа</b>\n\n"
             "🆔 ID: <code>{tg_id}</code>\n"
-            "📡 Подключение: {inbound_name}\n"
             "💰 Тариф: {tariff_name}\n\n"
             "Подтвердите генерацию ключа."
         )

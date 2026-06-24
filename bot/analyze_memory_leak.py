@@ -124,7 +124,6 @@ async def analyze_cache_memory():
             'servers': cache_service.servers,
             'tariffs': cache_service.tariffs,
             'gifts': cache_service.gifts,
-            'inbounds': cache_service.inbounds,
             'payments': cache_service.payments,
         }
         

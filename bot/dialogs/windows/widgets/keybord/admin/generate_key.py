@@ -36,30 +36,6 @@ class GenKeyInputTgIdKeyboard(KeyboardBuilder):
         )  # type: ignore
 
 
-class GenKeyChooseInboundKeyboard(KeyboardBuilder):
-    """Клавиатура выбора inbound для генерации ключа."""
-
-    def build(self):
-        return (
-            Group(
-                Radio(
-                    checked_text=Format("✅ {item.name_inbound}"),
-                    unchecked_text=Format("⚪️ {item.name_inbound}"),
-                    id="gen_inbound_radio",
-                    item_id_getter=lambda inbound: str(inbound.inbound_id),
-                    items="inbounds",
-                ),
-                width=3,
-            ),
-            SwitchTo(
-                Const("➡️ Далее"),
-                id="gen_key_next",
-                state=AdminGenerateKeySG.choosing_tariff,
-            ),
-            Cancel(Const("🔙 Отмена")),
-        )
-
-
 class GenKeyChooseTariffKeyboard(KeyboardBuilder):
     """Клавиатура выбора тарифа для генерации ключа."""
 
@@ -82,8 +58,8 @@ class GenKeyChooseTariffKeyboard(KeyboardBuilder):
             ),
             SwitchTo(
                 Const("🔙 Назад"),
-                id="gen_key_back_to_inbound",
-                state=AdminGenerateKeySG.choosing_inbound,
+                id="gen_key_back_to_tg_id",
+                state=AdminGenerateKeySG.input_tg_id,
             ),
             Cancel(Const("❌ Отмена")),
         )
@@ -110,7 +86,6 @@ class GenKeyConfirmKeyboard(KeyboardBuilder):
             backend = container.resolve(BackendAPIClient)
 
             widget_data = dialog_manager.current_context().widget_data
-            selected_inbound_id = widget_data.get("gen_inbound_radio")
             selected_tariff_id = widget_data.get("gen_tariff_radio")
             if not selected_tariff_id:
                 await callback.answer("❌ Пожалуйста, выберите тариф", show_alert=True)
@@ -119,7 +94,6 @@ class GenKeyConfirmKeyboard(KeyboardBuilder):
             result = await backend.admin_generate_key(
                 tg_id=tg_id,
                 tariff_id=int(selected_tariff_id),
-                inbound_id=int(selected_inbound_id) if selected_inbound_id else None,
             )
 
             if not result:

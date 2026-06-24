@@ -229,23 +229,6 @@ class ServerDTO(BaseModel):
 
 
 # =============================================================================
-# Inbound DTOs
-# =============================================================================
-
-class InboundDTO(BaseModel):
-    """Typed DTO for inbound data"""
-    inbound_id: int
-    server_id: int
-    name_inbound: str
-    port: Optional[int] = None
-    protocol: Optional[str] = None
-    is_active: bool = True
-
-    class Config:
-        from_attributes = True
-
-
-# =============================================================================
 # Gift DTOs
 # =============================================================================
 

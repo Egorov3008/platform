@@ -109,7 +109,6 @@ from .widgets.message.admin import (
     MailingConfirmMessage,
     AdminKeysListMessage,
     GenKeyInputTgIdMessage,
-    GenKeyChooseInboundMessage,
     GenKeyChooseTariffMessage,
     GenKeyConfirmMessage,
     GenKeyResultMessage,
@@ -155,7 +154,6 @@ from .widgets.keybord.admin import (
     MailingInputKeyboard,
     MailingConfirmKeyboard,
     GenKeyInputTgIdKeyboard,
-    GenKeyChooseInboundKeyboard,
     GenKeyChooseTariffKeyboard,
     GenKeyConfirmKeyboard,
     GenKeyResultKeyboard,
@@ -547,12 +545,6 @@ admin_generate_key_windows = [
         "message_cls": GenKeyInputTgIdMessage,
         "keyboard_cls": GenKeyInputTgIdKeyboard,
         "getter_cls": None,
-    },
-    {
-        "state": AdminGenerateKeySG.choosing_inbound,
-        "message_cls": GenKeyChooseInboundMessage,
-        "keyboard_cls": GenKeyChooseInboundKeyboard,
-        "getter_cls": AdminGenKeyGetter,
     },
     {
         "state": AdminGenerateKeySG.choosing_tariff,

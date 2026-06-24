@@ -161,7 +161,6 @@ class TestDataServiceRepositories:
         assert hasattr(data_service, "servers")
         assert hasattr(data_service, "payments")
         assert hasattr(data_service, "tariffs")
-        assert hasattr(data_service, "inbounds")
 
     async def test_users_repository_crud(self, data_service, mock_pool, mock_user):
         """Тест операций CRUD для репозитория users."""
@@ -315,40 +314,4 @@ class TestDataServiceRepositories:
         # Test delete
         repo.delete = AsyncMock(return_value=True)
         await repo.delete(mock_pool, id=mock_tariff.id)
-        repo.delete.assert_called_once()
-
-    async def test_inbounds_repository_crud(
-        self, data_service, mock_pool, mock_inbound_full
-    ):
-        """Тест операций CRUD для репозитория inbounds."""
-        repo = data_service.inbounds
-
-        # Test create
-        repo.create = AsyncMock(return_value=True)
-        await repo.create(mock_pool, **mock_inbound_full.to_dict())
-        repo.create.assert_called_once()
-
-        # Test get
-        repo.get = AsyncMock(return_value=mock_inbound_full)
-        result = await repo.get(mock_pool, inbound_id=mock_inbound_full.inbound_id)
-        assert result == mock_inbound_full
-
-        # Test get_all
-        repo.get_all = AsyncMock(return_value=[mock_inbound_full])
-        results = await repo.get_all(mock_pool)
-        assert len(results) == 1
-        assert results[0] == mock_inbound_full
-
-        # Test update
-        repo.update = AsyncMock(return_value=True)
-        await repo.update(
-            mock_pool,
-            {"inbound_id": mock_inbound_full.inbound_id},
-            name_inbound="updated",
-        )
-        repo.update.assert_called_once()
-
-        # Test delete
-        repo.delete = AsyncMock(return_value=True)
-        await repo.delete(mock_pool, inbound_id=mock_inbound_full.inbound_id)
         repo.delete.assert_called_once()

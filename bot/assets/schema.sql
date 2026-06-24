@@ -45,16 +45,6 @@ CREATE TABLE IF NOT EXISTS tariff
     traffic_limit REAL NOT NULL DEFAULT 0.0
 );
 
-CREATE TABLE IF NOT EXISTS inbound
-(
-    id SERIAL PRIMARY KEY,
-    server_id INTEGER NOT NULL,
-    inbound_id INTEGER NOT NULL,
-    name_inbound TEXT,
-    UNIQUE (server_id, inbound_id),
-    CONSTRAINT fk_inbound_server FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE RESTRICT
-);
-
 -- ============================================================================
 -- 3. Users (depends on servers)
 -- ============================================================================
@@ -123,7 +113,7 @@ BEGIN
 END $$;
 
 -- ============================================================================
--- 5. Keys (depends on users, inbound, tariff)
+-- 5. Keys (depends on users, tariff)
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS keys
@@ -136,7 +126,7 @@ CREATE TABLE IF NOT EXISTS keys
     key TEXT NOT NULL,
     total_gb REAL NOT NULL DEFAULT 10.0,
     reset_date BIGINT NOT NULL DEFAULT 0,
-    inbound_id INTEGER NOT NULL REFERENCES inbound(id) ON DELETE CASCADE,
+    inbound_id INTEGER NOT NULL,
     notified_10h BOOLEAN NOT NULL DEFAULT FALSE,
     notified_24h BOOLEAN NOT NULL DEFAULT FALSE,
     tariff_id INTEGER REFERENCES tariff(id) ON DELETE SET NULL,

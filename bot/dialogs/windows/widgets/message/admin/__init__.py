@@ -4,7 +4,6 @@ from .mailing import MailingInputMessage, MailingConfirmMessage
 from .keys_list import AdminKeysListMessage
 from .generate_key import (
     GenKeyInputTgIdMessage,
-    GenKeyChooseInboundMessage,
     GenKeyChooseTariffMessage,
     GenKeyConfirmMessage,
     GenKeyResultMessage,
@@ -29,7 +28,6 @@ __all__ = [
     "MailingConfirmMessage",
     "AdminKeysListMessage",
     "GenKeyInputTgIdMessage",
-    "GenKeyChooseInboundMessage",
     "GenKeyChooseTariffMessage",
     "GenKeyConfirmMessage",
     "GenKeyResultMessage",

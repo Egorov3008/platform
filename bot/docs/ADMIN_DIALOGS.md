@@ -564,10 +564,6 @@ await cache.get_all_keys()  # cache_instance из legacy
 
 # ❌ Попытка получить Key по ID (Key использует email!)
 await cache_service.keys.get(key.id)
-
-# ❌ Доступ к Inbound без обоих параметров
-await cache_service.inbounds.get(inbound_id)  # НЕПРАВИЛЬНО!
-await cache_service.inbounds.get((server_id, inbound_id))  # ✓ ПРАВИЛЬНО!
 ```
 
 ---

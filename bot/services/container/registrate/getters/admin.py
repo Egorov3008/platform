@@ -45,7 +45,6 @@ from dialogs.windows.widgets.message.admin.mailing import (
 from dialogs.windows.widgets.message.admin.keys_list import AdminKeysListMessage
 from dialogs.windows.widgets.message.admin.generate_key import (
     GenKeyInputTgIdMessage,
-    GenKeyChooseInboundMessage,
     GenKeyChooseTariffMessage,
     GenKeyConfirmMessage,
     GenKeyResultMessage,
@@ -90,7 +89,6 @@ from dialogs.windows.widgets.keybord.admin.keys_list import (
 )
 from dialogs.windows.widgets.keybord.admin.generate_key import (
     GenKeyInputTgIdKeyboard,
-    GenKeyChooseInboundKeyboard,
     GenKeyChooseTariffKeyboard,
     GenKeyConfirmKeyboard,
     GenKeyResultKeyboard,
@@ -324,7 +322,6 @@ class AdminRegistrar(ContainerProtocol):
             AdminKeyChangeTariffConfirmMessage,
             AdminDashboardMessage,
             GenKeyInputTgIdMessage,
-            GenKeyChooseInboundMessage,
             GenKeyChooseTariffMessage,
             GenKeyConfirmMessage,
             GenKeyResultMessage,
@@ -361,7 +358,6 @@ class AdminRegistrar(ContainerProtocol):
             AdminKeyChangeTariffKeyboard,
             AdminKeyChangeTariffConfirmKeyboard,
             GenKeyInputTgIdKeyboard,
-            GenKeyChooseInboundKeyboard,
             GenKeyChooseTariffKeyboard,
             GenKeyConfirmKeyboard,
             GenKeyResultKeyboard,

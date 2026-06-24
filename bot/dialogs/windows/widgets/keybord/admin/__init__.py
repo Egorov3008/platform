@@ -4,7 +4,6 @@ from .mailing import MailingInputKeyboard, MailingConfirmKeyboard
 from .keys_list import AdminKeysListKeyboard, AdminKeyDetailsKeyboard
 from .generate_key import (
     GenKeyInputTgIdKeyboard,
-    GenKeyChooseInboundKeyboard,
     GenKeyChooseTariffKeyboard,
     GenKeyConfirmKeyboard,
     GenKeyResultKeyboard,
@@ -28,7 +27,6 @@ __all__ = [
     "AdminKeysListKeyboard",
     "AdminKeyDetailsKeyboard",
     "GenKeyInputTgIdKeyboard",
-    "GenKeyChooseInboundKeyboard",
     "GenKeyChooseTariffKeyboard",
     "GenKeyConfirmKeyboard",
     "GenKeyResultKeyboard",

@@ -35,12 +35,13 @@
   `total_gb` (общий лимит трафика), `used_traffic` (использованный трафик), `tariff_id`, `amount` (стоимость), `limit_ip`, `period`.
 - **Особенности:** Содержит свойство `warp_expiry_time`, которое возвращает форматированную дату истечения.
 
-### 3. `models/servers/server.py` и `models/servers/inbound.py` — `Server`, `Inbound`
+### 3. `models/servers/server.py` — `Server`
 
-Описывают инфраструктуру VPN.
+Описывает инфраструктуру VPN.
 
 - **`Server`:** `id`, `cluster_name`, `server_name`, `api_url` (для управления через 3x-ui), `subscription_url` (для подключения клиента), `login`, `password`.
-- **`Inbound`:** `server_id`, `inbound_id`, `name_inbound`. Обозначает конкретный "вход" (inbound) на сервере, к которому можно привязать ключ.
+
+> **Примечание:** Сущность `Inbound` и таблица `inbound` удалены. Доступные подключения (inbound) теперь берутся из панели 3x-UI, отфильтрованные по `AVAILABLE_CONNECTIONS` из `.env (см. `FormConnectionData` в backend). Поле `keys.inbound_id` хранит panel inbound_id из 3x-UI.
 
 ### 4. `models/tariffs/tariff.py` — `Tariff`
 

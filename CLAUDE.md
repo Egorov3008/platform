@@ -76,7 +76,6 @@ cd bot && make formatting
 |---|---|---|
 | `User` | `tg_id` | `user_123456` |
 | `Key` | **`email`** (not `id`!) | `key_user@example.com` |
-| `Inbound` | `(server_id, inbound_id)` | `inbound_1_5` |
 | `PaymentModel` | **`payment_id`** (not `id`!) | `payment_yoo_12345` |
 
 ## Bot Architecture (aiogram 3)

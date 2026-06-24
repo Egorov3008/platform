@@ -8,7 +8,6 @@ Every model has a specific identifier field that must be used:
 - Server → id
 - Tariff → id
 - GiftLink → id
-- Inbound → (server_id, inbound_id)
 - PaymentModel → payment_id
 - Stock → tg_id
 """
@@ -47,13 +46,6 @@ class TestCacheKeyManagerBasicKeys:
         assert CacheKeyManager.gift(1) == "gift_1"
         assert CacheKeyManager.gift("token_abc123") == "gift_token_abc123"
 
-    def test_inbound_key(self):
-        """CacheKeyManager.inbound() should generate inbound_{server_id}_{inbound_id}"""
-        assert CacheKeyManager.inbound(1, 12) == "inbound_1_12"
-        assert CacheKeyManager.inbound(2, 5) == "inbound_2_5"
-        # Test with string IDs
-        assert CacheKeyManager.inbound("1", "12") == "inbound_1_12"
-
     def test_payment_key(self):
         """CacheKeyManager.payment() should generate payment_{payment_id}"""
         assert CacheKeyManager.payment("yoo_12345") == "payment_yoo_12345"
@@ -91,10 +83,6 @@ class TestCacheKeyManagerTemporaryKeys:
         """CacheKeyManager.temporary_tariff_data() for pre-payment tariff data"""
         assert CacheKeyManager.temporary_tariff_data(123) == "temporary_tariff_123"
 
-    def test_temporary_inbound_key(self):
-        """CacheKeyManager.temporary_inbound() for inbound_id storage"""
-        assert CacheKeyManager.temporary_inbound(123) == "temporary_inbound_123"
-
 
 class TestCacheKeyManagerHelpers:
     """Test helper methods for key manipulation"""
@@ -109,12 +97,6 @@ class TestCacheKeyManagerHelpers:
         """extract_id() should handle email (with underscore)"""
         # Key format: key_user@example.com
         assert CacheKeyManager.extract_id("key_test@example.com") == "test@example.com"
-
-    def test_extract_id_from_inbound_key(self):
-        """extract_id() should handle inbound key with multiple underscores"""
-        # Format: inbound_1_12 → should return "1_12"
-        assert CacheKeyManager.extract_id("inbound_1_12") == "1_12"
-        assert CacheKeyManager.extract_id("inbound_2_5") == "2_5"
 
     def test_extract_id_from_payment_key(self):
         """extract_id() should handle payment_id with underscores"""
@@ -132,7 +114,6 @@ class TestCacheKeyManagerHelpers:
         """is_temporary() should return True for temporary keys"""
         assert CacheKeyManager.is_temporary("temporary_payment_123") is True
         assert CacheKeyManager.is_temporary("temporary_tariff_456") is True
-        assert CacheKeyManager.is_temporary("temporary_inbound_789") is True
         assert CacheKeyManager.is_temporary("temporary_registration_user_456") is True
 
     def test_is_temporary_false(self):
@@ -157,14 +138,6 @@ class TestCacheKeyManagerConsistency:
         key2 = CacheKeyManager.user(124)
         assert key1 != key2
 
-    def test_inbound_key_order_matters(self):
-        """Inbound key should use correct order (server_id, inbound_id)"""
-        key1 = CacheKeyManager.inbound(1, 12)
-        key2 = CacheKeyManager.inbound(12, 1)
-        assert key1 != key2
-        assert key1 == "inbound_1_12"
-        assert key2 == "inbound_12_1"
-
     def test_all_keys_unique_prefixes(self):
         """Each entity type should have unique prefix"""
         test_cases = [
@@ -173,7 +146,6 @@ class TestCacheKeyManagerConsistency:
             (CacheKeyManager.server(1), "server_"),
             (CacheKeyManager.tariff(1), "tariff_"),
             (CacheKeyManager.gift(1), "gift_"),
-            (CacheKeyManager.inbound(1, 1), "inbound_"),
             (CacheKeyManager.payment("test"), "payment_"),
             (CacheKeyManager.stock(1), "stock_"),
         ]

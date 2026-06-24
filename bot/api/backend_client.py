@@ -669,20 +669,6 @@ class BackendAPIClient:
             logger.error("BackendAPIClient.admin_change_key_tariff failed", email=email, error=str(e))
             return False
 
-    async def admin_list_inbounds(self) -> List[dict]:
-        """List all inbounds."""
-        try:
-            r = await self._request_with_circuit_breaker("GET", "/api/v1/admin/inbounds")
-            r.raise_for_status()
-            data = r.json()
-            return self._unwrap_list(data, "inbounds")
-        except pybreaker.CircuitBreakerError:
-            logger.error("BackendAPIClient.admin_list_inbounds: circuit breaker open")
-            return []
-        except Exception as e:
-            logger.error("BackendAPIClient.admin_list_inbounds failed", error=str(e))
-            return []
-
     async def admin_sync(self) -> dict:
         """Trigger manual cache and panel synchronization."""
         try:

@@ -81,23 +81,6 @@ END $$;
 -- 5. Проверка целостности FOREIGN KEY
 -- ----------------------------------------------------------------------------
 
--- Проверяем, что все ключи имеют корректные ссылки
-DO $$
-DECLARE
-    orphan_keys INTEGER;
-BEGIN
-    SELECT COUNT(*) INTO orphan_keys
-    FROM keys k
-    LEFT JOIN inbound i ON k.inbound_id = i.inbound_id
-    WHERE i.inbound_id IS NULL AND k.inbound_id IS NOT NULL;
-    
-    IF orphan_keys > 0 THEN
-        RAISE WARNING 'Найдено сиротских записей keys (без inbound): %', orphan_keys;
-    ELSE
-        RAISE NOTICE 'Все записи keys имеют корректные ссылки на inbound';
-    END IF;
-END $$;
-
 DO $$
 DECLARE
     orphan_gifts INTEGER;
@@ -120,7 +103,6 @@ END $$;
 ANALYZE users;
 ANALYZE keys;
 ANALYZE tariff;
-ANALYZE inbound;
 ANALYZE gifts;
 ANALYZE gift_links;
 ANALYZE gift_redemptions;

@@ -15,7 +15,7 @@ from unittest.mock import AsyncMock
 import asyncpg
 import pytest
 
-from models import Inbound, GiftLink, PaymentModel, User, Tariff, Key, Server
+from models import GiftLink, PaymentModel, User, Tariff, Key, Server
 
 
 # Оставляем базовые фикстуры, от которых зависят другие
@@ -87,7 +87,6 @@ def data_service():
     service.servers = AsyncMock()
     service.payments = AsyncMock()
     service.gift_links = AsyncMock()
-    service.inbounds = AsyncMock()
     service.gifts = AsyncMock()
     return service
 
@@ -193,11 +192,6 @@ def server():
 
 
 @pytest.fixture
-def inbound():
-    return Inbound(inbound_id=12, name_inbound="test", server_id=1)
-
-
-@pytest.fixture
 def key():
     return Key(
         email="test@test.com",
@@ -238,11 +232,6 @@ def payment():
 @pytest.fixture
 def gift_link():
     return GiftLink(sender_tg_id=123, tariff_id=1, token="gift_token_123")
-
-
-@pytest.fixture
-def inbound_full():
-    return Inbound(server_id=1, inbound_id=12, name_inbound="test_inbound")
 
 
 def convert_ms_to_date(expiry_time):

@@ -69,9 +69,9 @@ Pattern: `container.register(Cls, factory=build_fn, scope=punq.Scope.singleton)`
 
 The bot no longer accesses the database directly. All business data is fetched from the **backend API** via `BackendAPIClient` (`api/backend_client.py`).
 
-`CacheService` (in-memory with TTL) is still used locally for caching data fetched from the backend: users, keys, tariffs, servers, inbounds, stocks.
+`CacheService` (in-memory with TTL) is still used locally for caching data fetched from the backend: users, keys, tariffs, servers, stocks.
 
-Entry point for legacy getters: `ServiceDataModel` (wraps cache + backend client). Entities: `.users`, `.keys`, `.servers`, `.tariffs`, `.gifts`, `.inbounds`, `.payments`, `.stocks`.
+Entry point for legacy getters: `ServiceDataModel` (wraps cache + backend client). Entities: `.users`, `.keys`, `.servers`, `.tariffs`, `.gifts`, `.payments`, `.stocks`.
 
 **See:** [docs/database.md](docs/database.md), [docs/MODELS_MODULE.md](docs/MODELS_MODULE.md)
 
@@ -187,7 +187,6 @@ Each entity uses a **specific field** as its cache key identifier. **NEVER** use
 | `Server` | `id` | `server_{id}` | `cache_service.servers.set(keys.server(1), server)` |
 | `Tariff` | `id` | `tariff_{id}` | `cache_service.tariffs.set(keys.tariff(10), tariff)` |
 | `GiftLink` | `id` | `gift_{id}` | `cache_service.gifts.set(keys.gift(42), gift)` |
-| `Inbound` | **(server_id, inbound_id)** ⚠️ | `inbound_{server_id}_{inbound_id}` | `cache_service.inbounds.set(keys.inbound(1, 5), inbound)` |
 | `PaymentModel` | **`payment_id`** ⚠️ | `payment_{payment_id}` | `cache_service.payments.set(keys.payment("yoo_12345"), payment)` |
 | `Stock` | `tg_id` | `stock_{tg_id}` | `cache_service.stocks.set(keys.stock(123456), stock)` |
 
@@ -196,9 +195,6 @@ Each entity uses a **specific field** as its cache key identifier. **NEVER** use
 ```python
 # WRONG: Key doesn't have .id attribute
 cache_service.keys.set(keys.key(key_obj.id), key_obj)  # AttributeError!
-
-# WRONG: Inbound requires TWO parameters, not one
-cache_service.inbounds.set(keys.inbound(inbound_obj.id), inbound_obj)  # Wrong signature!
 
 # WRONG: PaymentModel uses payment_id, not id
 cache_service.payments.set(keys.payment(payment.id), payment)  # Uses wrong field!
@@ -214,7 +210,7 @@ key = await cache_service.keys.get(keys.key("user@example.com"))  # Use email!
 await cache_service.keys.set(keys.key(key.email), key)
 
 # Delete from cache
-await cache_service.inbounds.delete(keys.inbound(inbound.server_id, inbound.inbound_id))
+await cache_service.users.delete(keys.user(user.tg_id))
 
 # Update in cache
 await cache_service.payments.set(keys.payment(payment.payment_id), payment)

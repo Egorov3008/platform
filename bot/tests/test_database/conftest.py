@@ -24,8 +24,3 @@ def mock_payment(payment):
 @pytest.fixture
 def mock_tariff(tariff):
     return tariff
-
-
-@pytest.fixture
-def mock_inbound_full(inbound_full):
-    return inbound_full

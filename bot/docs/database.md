@@ -115,12 +115,6 @@ database/
 - `subscription_url` — URL подписки
 - `login`, `password` — Учетные данные
 
-### `Inbound`
-Входящее соединение
-- `server_id` — Ссылка на сервер
-- `inbound_id` — ID входящего
-- `name_inbound` — Название
-
 ### `Tariff`
 Тарифный план
 - `id` — ID тарифа

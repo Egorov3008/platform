@@ -51,7 +51,6 @@ class AdminUserDeleteSG(StatesGroup):
 
 class AdminGenerateKeySG(StatesGroup):
     input_tg_id = State()
-    choosing_inbound = State()
     choosing_tariff = State()
     confirm_generate = State()
     result = State()

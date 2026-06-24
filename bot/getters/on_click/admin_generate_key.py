@@ -30,7 +30,7 @@ async def on_tg_id_entered(
         user_exists=user_exists,
     )
 
-    await dialog_manager.switch_to(AdminGenerateKeySG.choosing_inbound)
+    await dialog_manager.switch_to(AdminGenerateKeySG.choosing_tariff)
 
 
 async def error_gen_tg_id(

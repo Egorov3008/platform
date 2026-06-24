@@ -133,7 +133,6 @@ class TestCacheService:
         assert isinstance(cache_service.servers, ModelCache)
         assert isinstance(cache_service.tariffs, ModelCache)
         assert isinstance(cache_service.gifts, ModelCache)
-        assert isinstance(cache_service.inbounds, ModelCache)
         assert isinstance(cache_service.payments, ModelCache)
 
         # Проверяем namespaces
@@ -142,7 +141,6 @@ class TestCacheService:
         assert cache_service.servers.namespace == "servers"
         assert cache_service.tariffs.namespace == "tariffs"
         assert cache_service.gifts.namespace == "gift_links"
-        assert cache_service.inbounds.namespace == "inbounds"
         assert cache_service.payments.namespace == "payments"
 
     def test_cache_service_stores_same_storage(self, storage):
@@ -154,7 +152,6 @@ class TestCacheService:
         assert cache_service.servers.storage == storage
         assert cache_service.tariffs.storage == storage
         assert cache_service.gifts.storage == storage
-        assert cache_service.inbounds.storage == storage
         assert cache_service.payments.storage == storage
 
     async def test_cache_service_start_calls_storage_start(
