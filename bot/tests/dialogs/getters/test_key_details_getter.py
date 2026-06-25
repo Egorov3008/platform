@@ -121,9 +121,11 @@ class TestKeyDetailsGetterBasic:
 
     @pytest.mark.asyncio
     async def test_get_data_no_email(self, getter, mock_backend_client):
-        """get_data() should bail out early when dialog_data has no email."""
+        """get_data() should bail out early when neither dialog_data nor
+        start_data carry an email."""
         manager = AsyncMock()
         manager.dialog_data = {}  # no "email" key
+        manager.start_data = {}   # и start_data пуст
 
         result = await getter.get_data(manager)
 
@@ -131,6 +133,31 @@ class TestKeyDetailsGetterBasic:
         mock_backend_client.get_key_details.assert_not_awaited()
         assert result["error"] is True
         assert "email" in result["error_message"].lower()
+
+    @pytest.mark.asyncio
+    async def test_get_data_email_from_start_data(
+        self, getter, mock_backend_client
+    ):
+        """Лендинг-флоу: email приходит через dialog_manager.start(data=...),
+        который в aiogram-dialog 2.4.0 кладёт данные в start_data, а не в
+        dialog_data. Геттер обязан читать start_data как fallback — иначе после
+        /start landing_<uid> окно ключа покажет «Ключ не найден» при живом ключе.
+        """
+        manager = AsyncMock()
+        manager.dialog_data = {}                       # пусто — как после start()
+        manager.start_data = {"email": "test@example.com"}  # email здесь
+
+        mock_backend_client.get_key_details.return_value = _key_details()
+
+        result = await getter.get_data(manager)
+
+        mock_backend_client.get_key_details.assert_awaited_once_with("test@example.com")
+        assert result["error"] is False
+        assert result["not_error"] is True
+        assert result["keys"] == "vpn_key_data"
+        # email должен быть сохранён в dialog_data, чтобы кнопки продления и
+        # окно удаления (читающие dialog_data) находили его.
+        assert manager.dialog_data.get("email") == "test@example.com"
 
 
 # ---------------------------------------------------------------------------

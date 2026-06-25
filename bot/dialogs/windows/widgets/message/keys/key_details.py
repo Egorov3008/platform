@@ -15,7 +15,9 @@ def create_key_details_widget() -> Text:
     return Multi(
         Case(
             {
-                True: Const("❌ Ключ не найден"),
+                # Показываем реальный error_message из геттера
+                # («Email не найден» / «Ключ не найден»), а не захардкоженный текст.
+                True: Format("{error_message}"),
                 False: Const("")
             },
             selector="error"

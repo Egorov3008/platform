@@ -13,9 +13,23 @@ class KeyDetailsGetter(DataGetter):
         self._backend = backend_client
 
     async def get_data(self, dialog_manager: DialogManager, **kwargs) -> Dict[str, Any]:
-        email = dialog_manager.dialog_data.get("email")
+        # email может прийти как из dialog_data (переход через switch_to из
+        # списка ключей), так и из start_data (вход через dialog_manager.start(
+        # data={"email": ...}) — например, лендинг-конверсия /start landing_<uid>).
+        # В aiogram-dialog 2.4.0 start(data=...) кладёт данные в start_data,
+        # оставляя dialog_data пустым — поэтому без fallback здесь геттер
+        # получал None и окно ключа показывало «Ключ не найден» при живом ключе.
+        start_data = dialog_manager.start_data
+        email = dialog_manager.dialog_data.get("email") or (
+            start_data.get("email") if isinstance(start_data, dict) else None
+        )
         if not email:
             return {"error": True, "error_message": "❌ Email не найден", "keys": "", "not_error": False}
+
+        # Сохраним email в dialog_data, чтобы остальные окна и обработчики этого
+        # диалога (кнопки продления, окно удаления) находили его в dialog_data,
+        # а не только в start_data.
+        dialog_manager.dialog_data.setdefault("email", email)
 
         data = await self._backend.get_key_details(email)
         if not data:
