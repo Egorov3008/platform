@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Unify key creation/renewal around a single 3x-ui `Client` per `Key`, with inbound `7` always attached and `AVAILABLE_CONNECTIONS [11,12]` as a payment-gated overlay that detaches into a 7-day Telegram-only grace window on subscription expiry.
+**Goal:** Unify key creation/renewal around a single 3x-ui `Client` per `Key`, with inbound `7` always attached and `AVAILABLE_CONNECTIONS` (env `[2,3,4,5]` in this deployment) as a payment-gated overlay that detaches into a 7-day Telegram-only grace window on subscription expiry.
 
 **Architecture:** Derived status (`active`/`grace`/`expired`) from a new `keys.grace_expiry` column; a `GraceManager` service encapsulates panel `attach`/`detach` transitions via a new `XUISession.set_inbounds`; panel `expiryTime` is pre-set to `grace_expiry` at creation so the `active→grace` transition is just a detach. A hourly scheduler job + a `panel_sync` reconcile step converge panel state to the DB-derived status. Landing 24h keys become the future paid `Client` via `upgrade_from_landing` on claim/first payment.
 
@@ -15,7 +15,7 @@
 - Backend is the only layer that touches the DB and 3x-ui panel. Bot/web call backend via `X-Bot-Secret`.
 - Cache identifiers are immutable: `Key` → `key_{email}` (`CacheKeyManager.key`). Inbound sets are NOT stored in DB (`inbound_ids` not in `_DB_FIELDS`); the panel is source of truth, reconciled by `panel_sync`.
 - 3x-ui standalone API: `attach`/`detach`/`update` per email; `expiryTime` is per-client (not per-inbound).
-- `XUI_INBOUND_ID_LANDING` (=7) is the always-on baseline inbound; `AVAILABLE_CONNECTIONS` (env, `[11,12]`) is the paid overlay.
+- `XUI_INBOUND_ID_LANDING` (=7) is the always-on baseline inbound; `AVAILABLE_CONNECTIONS` (env; `[2,3,4,5]` in this deployment) is the paid overlay. Tests assert env-derived values, never hardcode the overlay.
 - `DEFAULT_PRICING_PLAN` (env, `10`) is the trial tariff id; trial is a subscription (gets grace).
 - Tests use `AsyncMock`/`MagicMock`; pure-unit tests must NOT require a live DB. Integration tests gate on `TEST_DATABASE_URL`.
 - Conventional commit messages, end with `Co-Authored-By: Claude <noreply@anthropic.com>`.
@@ -62,30 +62,39 @@
 ```python
 # backend/tests/unit/test_inbounds.py
 from unittest.mock import MagicMock
+from config import settings, LIST_AVAILABLE_CONNECTIONS, DEFAULT_PRICING_PLAN
 from services.core.keys.utils import inbounds as ib
+
+LANDING = settings.xui_inbound_id_landing  # 7 in the real .env
+TRIAL_ID = int(DEFAULT_PRICING_PLAN)       # 10 in the real .env
 
 
 def test_baseline_and_overlay():
-    assert ib.BASELINE_INBOUNDS == [7]
-    assert ib.PAID_OVERLAY_INBOUNDS == [11, 12]
+    assert ib.BASELINE_INBOUNDS == [LANDING]
+    assert ib.PAID_OVERLAY_INBOUNDS == list(LIST_AVAILABLE_CONNECTIONS)
 
 
 def test_paid_grace_expired_sets():
-    assert ib.paid_inbound_ids() == [7, 11, 12]
-    assert ib.grace_inbound_ids() == [7]
+    # paid = baseline + overlay, deduped, order-preserving
+    expected_paid = []
+    for i in [LANDING] + list(LIST_AVAILABLE_CONNECTIONS):
+        if i not in expected_paid:
+            expected_paid.append(i)
+    assert ib.paid_inbound_ids() == expected_paid
+    assert ib.grace_inbound_ids() == [LANDING]
     assert ib.expired_inbound_ids() == []
 
 
 def test_expected_inbound_ids_by_status():
-    assert ib.expected_inbound_ids("active") == [7, 11, 12]
-    assert ib.expected_inbound_ids("grace") == [7]
+    assert ib.expected_inbound_ids("active") == ib.paid_inbound_ids()
+    assert ib.expected_inbound_ids("grace") == ib.grace_inbound_ids()
     assert ib.expected_inbound_ids("expired") == []
     assert ib.expected_inbound_ids("none") == []
 
 
 def test_is_subscription_paid_and_trial():
     paid = MagicMock(id=5, amount=100.0)
-    trial = MagicMock(id=10, amount=0.0)
+    trial = MagicMock(id=TRIAL_ID, amount=0.0)
     free = MagicMock(id=2, amount=0.0)
     assert ib.is_subscription(paid) is True
     assert ib.is_subscription(trial) is True
@@ -93,11 +102,11 @@ def test_is_subscription_paid_and_trial():
 
 
 def test_grace_period_ms():
-    assert ib.GRACE_PERIOD_DAYS == 7
-    assert ib.GRACE_PERIOD_MS == 7 * 86_400_000
+    assert ib.GRACE_PERIOD_DAYS == settings.grace_period_days
+    assert ib.GRACE_PERIOD_MS == settings.grace_period_days * 86_400_000
 ```
 
-> NOTE: this test asserts the env values `[7]`/`[11,12]`. Set them in the test via monkeypatching `inbounds.BASELINE_INBOUNDS` if your `.env` differs. If `.env` already has `XUI_INBOUND_ID_LANDING=7` and `AVAILABLE_CONNECTIONS=[11,12]`, the assertions hold as-is.
+> NOTE: assertions are **env-derived** (read from `config`), not hardcoded — the real `/home/admin/platform/.env` has `XUI_INBOUND_ID_LANDING=7` and `AVAILABLE_CONNECTIONS=[2,3,4,5]`, so `paid_inbound_ids()` resolves to `[7,2,3,4,5]` at runtime. Do not hardcode `[11,12]` anywhere.
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -123,12 +132,14 @@ GRACE_PERIOD_DAYS: int = settings.grace_period_days
 """Inbound-set helpers for the grace model.
 
 XUI_INBOUND_ID_LANDING (7) is the always-on baseline inbound.
-AVAILABLE_CONNECTIONS ([11,12]) is the paid overlay, toggled by subscription state.
+AVAILABLE_CONNECTIONS (env; [2,3,4,5] in this deployment) is the paid overlay,
+toggled by subscription state.
 """
 from config import (
     LIST_AVAILABLE_CONNECTIONS,
     settings,
     GRACE_PERIOD_DAYS,
+    DEFAULT_PRICING_PLAN,
 )
 from models import Tariff  # noqa: F401  (type hint only)
 
@@ -141,7 +152,7 @@ PAID_OVERLAY_INBOUNDS: list[int] = list(LIST_AVAILABLE_CONNECTIONS)
 
 GRACE_PERIOD_MS: int = GRACE_PERIOD_DAYS * 86_400_000
 
-_TRIAL_TARIFF_ID = 10  # DEFAULT_PRICING_PLAN
+_TRIAL_TARIFF_ID = int(DEFAULT_PRICING_PLAN)
 
 
 def paid_inbound_ids() -> list[int]:
@@ -183,7 +194,7 @@ def is_subscription(tariff) -> bool:
 - [ ] **Step 5: Run test to verify it passes**
 
 Run: `cd backend && pytest tests/unit/test_inbounds.py -v`
-Expected: PASS (5 tests). If `.env` lacks `XUI_INBOUND_ID_LANDING=7`/`AVAILABLE_CONNECTIONS=[11,12]`, set them in `backend/.env` first — they are required by the spec.
+Expected: PASS (6 tests). No `.env` editing needed — assertions read from `config`, which loads the repo-root `.env` (`XUI_INBOUND_ID_LANDING=7`, `AVAILABLE_CONNECTIONS=[2,3,4,5]`, `DEFAULT_PRICING_PLAN=10`, `GRACE_PERIOD_DAYS` defaults to 7).
 
 - [ ] **Step 6: Commit**
 
@@ -548,6 +559,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 from services.core.keys.utils.grace import GraceManager
 from services.core.keys.utils.status import KeyStatus
+from services.core.keys.utils.inbounds import paid_inbound_ids, GRACE_PERIOD_MS
 
 
 def _key(expiry=2000, grace=9000, tg_id=1, email="a@b.c",
@@ -629,10 +641,10 @@ async def test_renew_from_grace_reattaches_and_sets_expiry_grace():
                                                   name_tariff="m", limit_ip=3), 1)
     assert out is not None
     assert out.expiry_time == 5000          # new expiry (from mocked calc)
-    assert out.grace_expiry == 5000 + 7 * 86_400_000
+    assert out.grace_expiry == 5000 + GRACE_PERIOD_MS
     # panel inbounds converged to paid set, panel expiryTime set via extend_client_key
     sets = [c.args[1] for c in xui.set_inbounds.call_args_list]
-    assert [7, 11, 12] in sets or [7, 11, 12] in sets
+    assert paid_inbound_ids() in sets
     xui.extend_client_key.assert_awaited_once()
     md.keys.update.assert_awaited_once()
 
@@ -648,7 +660,7 @@ async def test_upgrade_from_landing_transfers_tg_and_reattaches():
     assert out.tg_id == 42
     assert out.converted_tg_id == 42
     sets = [c.args[1] for c in xui.set_inbounds.call_args_list]
-    assert [7, 11, 12] in sets or sets[-1] == [7, 11, 12]
+    assert paid_inbound_ids() in sets or sets[-1] == paid_inbound_ids()
     xui.extend_client_key.assert_awaited_once()
     md.keys.update.assert_awaited_once()
 
@@ -659,7 +671,7 @@ async def test_reconcile_converges_to_active():
     k = _key(expiry=10**13, grace_expiry=10**13 + 1)  # far future => active
     await mgr.reconcile(k)
     target = xui.set_inbounds.call_args.args[1]
-    assert target == [7, 11, 12]
+    assert target == paid_inbound_ids()
 ```
 
 > NOTE: `_key()` passes `grace=9000` and `grace_expiry=9000` both so the MagicMock has the attribute regardless of which name the implementation reads — the implementation reads `key.grace_expiry` only.
@@ -817,6 +829,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock
 
 from services.core.keys.utils.formtion import FormationKey
+from services.core.keys.utils.inbounds import paid_inbound_ids, GRACE_PERIOD_MS
 
 
 def _formation(cache_all_keys=()):
@@ -837,8 +850,8 @@ async def test_subscription_key_gets_paid_inbounds_and_grace():
     f, _ = _formation()
     paid_tariff = MagicMock(id=5, amount=100.0, period=30, limit_ip=3)
     key = await f.form_new_key(tg_id=1, tariff=paid_tariff, server_id=1, number_of_months=1)
-    assert key.inbound_ids == [7, 11, 12]
-    assert key.grace_expiry == 2000 + 7 * 86_400_000
+    assert key.inbound_ids == paid_inbound_ids()
+    assert key.grace_expiry == 2000 + GRACE_PERIOD_MS
 
 
 @pytest.mark.asyncio
@@ -863,7 +876,7 @@ async def test_free_non_trial_key_has_no_grace():
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `cd backend && pytest tests/unit/test_formation_grace.py -v`
-Expected: FAIL (`key.grace_expiry` not set / inbound_ids not `[7,11,12]`).
+Expected: FAIL (`key.grace_expiry` not set / inbound_ids not `paid_inbound_ids()`).
 
 - [ ] **Step 3: Update `FormationKey.form_new_key`**
 
@@ -902,7 +915,7 @@ from services.core.keys.utils.inbounds import paid_inbound_ids, is_subscription,
         return key
 ```
 
-> NOTE: for non-subscription free keys we fall back to `server_data["inbound_ids"]` (the old `[11,12]` behaviour) — free keys keep whatever the panel offers, no grace. Verify `paid_inbound_ids()` returns `[7,11,12]` under your `.env` (Task 1).
+> NOTE: for non-subscription free keys we fall back to `server_data["inbound_ids"]` (the old behaviour) — free keys keep whatever the panel offers, no grace. Under the real `.env`, `paid_inbound_ids()` returns `[7,2,3,4,5]` (`XUI_INBOUND_ID_LANDING=7` + `AVAILABLE_CONNECTIONS=[2,3,4,5]`); do not hardcode the overlay.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -1044,6 +1057,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock
 
 from services.core.keys.utils.renewal import KeyRenewal
+from services.core.keys.utils.inbounds import GRACE_PERIOD_MS
 
 
 def _key(status, expiry=2000, grace_expiry=9000, tariff_id=5, email="a@b.c"):
@@ -1086,7 +1100,7 @@ async def test_active_renewal_sets_grace_expiry_and_reconciles():
     refresh.refresh_key = MagicMock(side_effect=lambda key, *a, **kw: setattr(key, "expiry_time", 5000) or key)
     out = await kr.extension_key(k, conn=MagicMock(), server=MagicMock(), tariff=tariff, number_of_months=1)
     assert out.expiry_time == 5000
-    assert out.grace_expiry == 5000 + 7 * 86_400_000
+    assert out.grace_expiry == 5000 + GRACE_PERIOD_MS
     xui.set_inbounds.assert_awaited()  # reconcile to paid set
     xui.extend_client_key.assert_awaited_once()
     md.keys.update.assert_awaited_once()
