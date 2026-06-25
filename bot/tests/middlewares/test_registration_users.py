@@ -140,3 +140,122 @@ class TestRegistrationUsersMiddleware:
         event.message = None
         event.edited_message = None
         assert not middleware.check_event_message(event)
+
+    @pytest.mark.asyncio
+    async def test_existing_user_with_landing_token(self, middleware, base_data):
+        """Существующий юзер пришёл по /start landing_<uid> → type='landing',
+        is_registered=True (handler вызовет mark-converted)."""
+        from api.backend_client import BackendAPIClient
+        from api.schemas import UserDTO
+
+        backend_user = UserDTO(
+            tg_id=123, username="u", first_name="F",
+            balance=0.0, trial=1, server_id=1,
+            is_admin=False, is_blocked=False,
+        )
+        mock_backend = AsyncMock(spec=BackendAPIClient)
+        mock_backend.get_user = AsyncMock(return_value=backend_user)
+        base_data["container"].resolve = MagicMock(return_value=mock_backend)
+
+        from aiogram.types import Update
+        event = MagicMock()
+        event.__class__ = Update
+        msg = MagicMock()
+        msg.text = "/start landing_abc123def456"
+        event.message = msg
+        event.edited_message = None
+
+        handler = AsyncMock()
+        await middleware(handler, event, base_data)
+
+        rr = base_data["registration_result"]
+        assert rr["type"] == "landing"
+        assert rr["is_registered"] is True
+        assert rr["landing_uid"] == "abc123def456"
+        assert rr["trial"] == 1
+        handler.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_existing_user_plain_start_still_registered_user(self, middleware, base_data):
+        """Существующий юзер с /start без landing-токена → обычный registered_user
+        (регрессия: landing-ветка не должна перехватывать обычные /start)."""
+        from api.backend_client import BackendAPIClient
+        from api.schemas import UserDTO
+
+        backend_user = UserDTO(
+            tg_id=123, username="u", first_name="F",
+            balance=0.0, trial=0, server_id=1,
+            is_admin=False, is_blocked=False,
+        )
+        mock_backend = AsyncMock(spec=BackendAPIClient)
+        mock_backend.get_user = AsyncMock(return_value=backend_user)
+        base_data["container"].resolve = MagicMock(return_value=mock_backend)
+
+        from aiogram.types import Update
+        event = MagicMock()
+        event.__class__ = Update
+        msg = MagicMock()
+        msg.text = "/start"
+        event.message = msg
+        event.edited_message = None
+
+        handler = AsyncMock()
+        await middleware(handler, event, base_data)
+
+        assert base_data["registration_result"]["type"] == "registered_user"
+
+    @pytest.mark.asyncio
+    async def test_new_user_with_landing_token(self, middleware, base_data):
+        """Новый юзер с /start landing_<uid> → factory возвращает type='landing',
+        is_registered=False (handler вызовет авто-регистрацию + claim)."""
+        from api.backend_client import BackendAPIClient
+        from registration.registration_factory import RegistrationFactory
+        from registration.landing_registration import LandingRegistration
+        from registration.gift_registration import GiftRegistration
+        from registration.referral_registration import ReferralRegistration
+
+        mock_backend = AsyncMock(spec=BackendAPIClient)
+        mock_backend.get_user = AsyncMock(return_value=None)
+
+        factory = MagicMock()
+        factory.register_handler = MagicMock()
+        factory.handle_registration = AsyncMock(
+            return_value={
+                "success": True,
+                "type": "landing",
+                "landing_uid": "abc123def456",
+                "is_registered": False,
+            }
+        )
+
+        def resolve(cls):
+            if cls is RegistrationFactory:
+                return factory
+            if cls is LandingRegistration:
+                return LandingRegistration()
+            if cls is GiftRegistration:
+                return MagicMock()
+            if cls is ReferralRegistration:
+                return MagicMock()
+            if cls is BackendAPIClient:
+                return mock_backend
+            raise AssertionError(f"unexpected resolve: {cls}")
+
+        base_data["container"].resolve = MagicMock(side_effect=resolve)
+
+        from aiogram.types import Update
+        event = MagicMock()
+        event.__class__ = Update
+        msg = MagicMock()
+        msg.text = "/start landing_abc123def456"
+        event.message = msg
+        event.edited_message = None
+
+        handler = AsyncMock()
+        await middleware(handler, event, base_data)
+
+        rr = base_data["registration_result"]
+        assert rr["type"] == "landing"
+        assert rr["landing_uid"] == "abc123def456"
+        assert rr["is_registered"] is False
+        handler.assert_awaited_once()

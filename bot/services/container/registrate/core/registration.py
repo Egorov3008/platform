@@ -5,6 +5,7 @@ from api.backend_client import BackendAPIClient
 from registration.registration_factory import RegistrationFactory
 from registration.gift_registration import GiftRegistration
 from registration.referral_registration import ReferralRegistration
+from registration.landing_registration import LandingRegistration
 from services.container.protocol import ContainerProtocol
 
 
@@ -18,6 +19,9 @@ class RegistrationRegistrar(ContainerProtocol):
         def build_referral_registration():
             return ReferralRegistration(backend=container.resolve(BackendAPIClient))
 
+        def build_landing_registration():
+            return LandingRegistration()
+
         def build_registration_factory():
             return RegistrationFactory()
 
@@ -29,6 +33,11 @@ class RegistrationRegistrar(ContainerProtocol):
         container.register(
             ReferralRegistration,
             factory=build_referral_registration,
+            scope=punq.Scope.singleton,
+        )
+        container.register(
+            LandingRegistration,
+            factory=build_landing_registration,
             scope=punq.Scope.singleton,
         )
         container.register(

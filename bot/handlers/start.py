@@ -180,6 +180,10 @@ async def send_massage_registration(
             await dialog_manager.start(MainMenu.welcome, mode=StartMode.RESET_STACK)
         else:
             await dialog_manager.start(MainMenu.main, mode=StartMode.RESET_STACK)
+    elif type_registration == "landing":
+        from handlers.start_from_landing import handle_landing_start
+
+        await handle_landing_start(message, dialog_manager, result_registration)
     else:
         raise AttributeError("Неизвестный тип регистрации")
 

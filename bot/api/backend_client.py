@@ -720,3 +720,68 @@ class BackendAPIClient:
                 error=str(e),
             )
             raise
+
+    # =============================================================================
+    # Landing endpoints (конвертация анонимного 24ч ключа в подписку)
+    # =============================================================================
+
+    async def claim_landing_key(self, landing_uid: str, tg_id: int) -> Optional[dict]:
+        """Привязать 24ч лендинг-ключ к новому юзеру и продлить по trial-тарифу.
+
+        Вызывается ботом для НОВОГО юзера (/start landing_<uid> после
+        авто-регистрации). Возвращает dict со статусом:
+          - {"status": "claimed", "email", "key_value", "expires_at_ms"}
+          - {"status": "already_claimed", ...}  (идемпотентно, тот же юзер)
+          - {"status": "already_claimed_other", ...}  (ключ занят другим аккаунтом)
+        None — при сетевой ошибке/open circuit.
+        """
+        try:
+            r = await self._request_with_circuit_breaker(
+                "POST",
+                f"/api/v1/landing/claim/{landing_uid}",
+                json={"tg_id": tg_id},
+            )
+            r.raise_for_status()
+            return r.json()
+        except pybreaker.CircuitBreakerError:
+            logger.error(
+                "BackendAPIClient.claim_landing_key: circuit breaker open",
+                landing_uid=landing_uid, tg_id=tg_id,
+            )
+            return None
+        except Exception as e:
+            logger.error(
+                "BackendAPIClient.claim_landing_key failed",
+                landing_uid=landing_uid, tg_id=tg_id, error=str(e),
+            )
+            return None
+
+    async def mark_landing_converted(self, landing_uid: str, tg_id: int) -> Optional[dict]:
+        """Отметить 24ч лендинг-ключ как конвертированный (для СУЩЕСТВУЮЩЕГО юзера).
+
+        Ключ НЕ отключается и НЕ переносится — продолжает жить до 24ч.
+        Возвращает dict:
+          - {"ok": true, "email"} / {"ok": true, "already": true, "email"}
+          - {"ok": false, "status": "already_claimed_other", "email"}
+        None — при сетевой ошибке/open circuit.
+        """
+        try:
+            r = await self._request_with_circuit_breaker(
+                "POST",
+                f"/api/v1/landing/mark-converted/{landing_uid}",
+                json={"tg_id": tg_id},
+            )
+            r.raise_for_status()
+            return r.json()
+        except pybreaker.CircuitBreakerError:
+            logger.error(
+                "BackendAPIClient.mark_landing_converted: circuit breaker open",
+                landing_uid=landing_uid, tg_id=tg_id,
+            )
+            return None
+        except Exception as e:
+            logger.error(
+                "BackendAPIClient.mark_landing_converted failed",
+                landing_uid=landing_uid, tg_id=tg_id, error=str(e),
+            )
+            return None

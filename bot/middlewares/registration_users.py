@@ -5,8 +5,11 @@ from aiogram.types import Update
 from logger import logger
 from registration.gift_registration import GiftRegistration
 from registration.referral_registration import ReferralRegistration
+from registration.landing_registration import LandingRegistration
 from registration.registration_factory import RegistrationFactory
 from services.metrics.registry import user_registered_total
+
+LANDING_PREFIX = "landing_"
 
 
 class RegistrationUsersMiddleware(BaseMiddleware):
@@ -46,11 +49,30 @@ class RegistrationUsersMiddleware(BaseMiddleware):
                     trial = backend_user.get("trial", 0)
                 else:
                     trial = getattr(backend_user, "trial", 0)
-                data["registration_result"] = {
-                    "success": True,
-                    "type": "registered_user",
-                    "trial": trial,
-                }
+
+                # Существующий юзер пришёл по лендинг-ссылке /start landing_<uid> —
+                # помечаем как landing (is_registered=True), чтобы handler вызвал
+                # mark-converted (24ч ключ не отключается, юзеру — предложение
+                # оплатить подписку). Иначе — обычный зарегистрированный юзер.
+                token = (
+                    await self.get_start_message(event)
+                    if self.check_event_message(event)
+                    else None
+                )
+                if token and token.startswith(LANDING_PREFIX):
+                    data["registration_result"] = {
+                        "success": True,
+                        "type": "landing",
+                        "landing_uid": token.removeprefix(LANDING_PREFIX),
+                        "is_registered": True,
+                        "trial": trial,
+                    }
+                else:
+                    data["registration_result"] = {
+                        "success": True,
+                        "type": "registered_user",
+                        "trial": trial,
+                    }
                 return await handler(event, data)
         except Exception as e:
             logger.warning(
@@ -77,12 +99,15 @@ class RegistrationUsersMiddleware(BaseMiddleware):
 
         # Резолвим зависимости из контейнера
         factory: RegistrationFactory = container.resolve(RegistrationFactory)
+        landing_registration: LandingRegistration = container.resolve(LandingRegistration)
         gift_registration: GiftRegistration = container.resolve(GiftRegistration)
         referral_registration: ReferralRegistration = container.resolve(
             ReferralRegistration
         )
 
-        # Используем синглтоны из контейнера
+        # Используем синглтоны из контейнера. Landing — первым: чистая проверка
+        # префикса без сетевых запросов, short-circuit'ит landing-токены до gift/referral.
+        factory.register_handler(landing_registration)
         factory.register_handler(gift_registration)
         factory.register_handler(referral_registration)
         result = await factory.handle_registration(token)

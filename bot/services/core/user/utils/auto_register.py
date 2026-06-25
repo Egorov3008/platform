@@ -12,18 +12,19 @@ from api.backend_client import BackendAPIClient
 from config import ADMIN_ID
 from logger import logger
 from states.main import MainMenu
+from typing import Optional
 
 
-async def auto_register_user(
+async def register_user_only(
     message: Message, dialog_manager: DialogManager
-) -> None:
-    """Авто-регистрация пользователя через backend API.
+) -> Optional[dict]:
+    """Регистрирует юзера в backend (server_id=2) и уведомляет админов.
 
     1. Создаёт пользователя через BackendAPIClient.admin_register_user (server_id=2).
     2. Уведомляет админов.
-    3. Переходит на MainMenu.welcome (RESET_STACK).
+    НЕ стартует диалог — вызывающий сам решает, куда перейти.
 
-    При любой ошибке логирует и отправляет сообщение пользователю.
+    Возвращает dict нового юзера или None при ошибке.
     """
     tg_id = message.from_user.id
     try:
@@ -50,7 +51,7 @@ async def auto_register_user(
         )
 
         await _notify_admins(message)
-        await dialog_manager.start(MainMenu.welcome, mode=StartMode.RESET_STACK)
+        return new_user
 
     except Exception as e:
         logger.error(
@@ -63,6 +64,19 @@ async def auto_register_user(
         await message.answer(
             "❌ Произошла ошибка при регистрации. Попробуйте позже или напишите /start"
         )
+        return None
+
+
+async def auto_register_user(
+    message: Message, dialog_manager: DialogManager
+) -> None:
+    """Авто-регистрация пользователя через backend API + переход на MainMenu.welcome.
+
+    Эквивалент register_user_only() + dialog_manager.start(MainMenu.welcome).
+    """
+    new_user = await register_user_only(message, dialog_manager)
+    if new_user:
+        await dialog_manager.start(MainMenu.welcome, mode=StartMode.RESET_STACK)
 
 
 async def _notify_admins(message: Message) -> None:
