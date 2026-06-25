@@ -71,7 +71,20 @@ function renderState(state) {
             showScreen('active');
             document.getElementById('key-text').textContent = state.key_value || '';
             document.getElementById('open-happ').href = state.deep_link_happ || '#';
-            document.getElementById('open-bot').href = state.deep_link_bot || '#';
+
+            const openBot = document.getElementById('open-bot');
+            const banner = document.getElementById('already-registered-banner');
+            alreadyRegistered = state.already_registered === true;
+            if (alreadyRegistered) {
+                banner.hidden = false;
+                openBot.textContent = '💬 Открыть бота';
+                openBot.href = state.bot_url || '#';
+            } else {
+                banner.hidden = true;
+                openBot.innerHTML = '<span>⏳</span> Продлить на неделю бесплатно';
+                openBot.href = state.deep_link_bot || '#';
+            }
+
             startCountdown(state.expires_at_ms);
             break;
 
@@ -92,6 +105,7 @@ function renderState(state) {
 // ----- Countdown -----
 
 let countdownTimer = null;
+let alreadyRegistered = false;  // управляет скрытием expiring-cta для уже-зарегистрированных
 
 function startCountdown(expiresAtMs) {
     if (countdownTimer) clearInterval(countdownTimer);
@@ -104,7 +118,8 @@ function startCountdown(expiresAtMs) {
         el.textContent = formatCountdown(remaining);
 
         const isExpiring = remaining > 0 && remaining < EXPIRING_THRESHOLD_HOURS * 3600 * 1000;
-        expiringCta.hidden = !isExpiring;
+        // Уже-зарегистрированным не показываем CTA «продлите бесплатно»
+        expiringCta.hidden = alreadyRegistered ? true : !isExpiring;
 
         if (remaining <= 0) {
             clearInterval(countdownTimer);
