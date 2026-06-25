@@ -93,6 +93,10 @@ services:
     ports:
       # Публичный 8443: YooKassa шлёт webhook напрямую (443 занят 3x-UI).
       - "0.0.0.0:8443:8443"
+    environment:
+      # Подставляется в default.conf.template через envsubst ($BOT_SECRET_KEY в map),
+      # чтобы nginx инжектил X-Bot-Secret в /api/v1/landing/* при проксировании на backend.
+      - BOT_SECRET_KEY=${BOT_SECRET_KEY}
     volumes:
       - ./nginx:/etc/nginx/conf.d:ro
       - ./nginx_certs:/etc/nginx/certs:ro

@@ -11,6 +11,11 @@ map $uri $bot_secret_value {
     default "$BOT_SECRET_KEY";
 }
 
+# Anti-abuse для лендинга: лимит генерации анонимных ключей по IP клиента.
+# $remote_addr = реальный клиент, т.к. TLS-терминируется здесь же на 8443
+# (если перед nginx появится CDN/прокси — переключить ключ на X-Forwarded-For).
+limit_req_zone $binary_remote_addr zone=landing_quickkey:10m rate=5r/m;
+
 server {
     listen 80;
     server_name tolko-dlya-svoih.ru;
@@ -83,6 +88,30 @@ server {
 
     # Landing API — proxy directly to backend with X-Bot-Secret injected.
     # MUST be before the generic /api/v1/ (which proxies to web).
+
+    # mark-converted вызывает ТОЛЬКО бот (по внутренней сети, напрямую в backend
+    # с X-Bot-Secret). Публично этот роут недоступен — 403, чтобы нельзя было
+    # чужими landing_uid привязывать ключи.
+    location ~ ^/api/v1/landing/mark-converted/ {
+        return 403;
+    }
+
+    # quick-key — публично дёргается кнопкой «Получить ключ». Лимит 5 запросов/мин
+    # на IP (burst=3), иначе публичный эндпоинт можно флудить и плодить ключи в 3x-UI.
+    # Exact-match (=) бьёт раньше общего префикса /api/v1/landing/.
+    location = /api/v1/landing/quick-key {
+        limit_req zone=landing_quickkey burst=3 nodelay;
+        proxy_pass $backend$request_uri;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Bot-Secret $bot_secret_value;
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+
     location /api/v1/landing/ {
         proxy_pass $backend$request_uri;
         proxy_set_header Host $host;
