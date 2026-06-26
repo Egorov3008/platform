@@ -145,3 +145,4 @@ Each component requires its own `.env`. Critical cross-cutting variables:
 - `TELEGRAM_BOT_TOKEN` — for sending user notifications from backend (`backend/bot_project.py`)
 - `WEBHOOK_BASE_URL` — public URL for YooKassa callbacks
 - `ADMIN_TG_IDS` — JSON array of admin Telegram IDs
+- `GRACE_PERIOD_DAYS` — telegram-only grace window (days) after paid subscription expiry (default 7); backend grace-model (`Key.grace_expiry`, `GraceManager`, hourly `grace_transitions` job)
