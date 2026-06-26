@@ -71,3 +71,6 @@ backend/debug_sync.py
 
 # Database dumps / manual backups
 /backups/
+
+# Visual brainstorming companion
+.superpowers/
