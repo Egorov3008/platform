@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /landing/
+Disallow: /
+
+Sitemap: https://tolko-dlya-svoih.ru/landing/sitemap.xml

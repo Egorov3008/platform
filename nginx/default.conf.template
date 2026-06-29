@@ -12,8 +12,8 @@ map $uri $bot_secret_value {
 }
 
 # Anti-abuse для лендинга: лимит генерации анонимных ключей по IP клиента.
-# $remote_addr = реальный клиент, т.к. TLS-терминируется здесь же на 8443
-# (если перед nginx появится CDN/прокси — переключить ключ на X-Forwarded-For).
+# $remote_addr = реальный клиент, т.к. TLS-терминируется здесь же на 443/8443
+# (прямое подключение, без CDN/прокси перед nginx — иначе переключить на X-Forwarded-For).
 limit_req_zone $binary_remote_addr zone=landing_quickkey:10m rate=5r/m;
 
 server {
@@ -30,9 +30,11 @@ server {
 }
 
 server {
-    # YooKassa подключается напрямую (без PROXY-протокола): 443 занят 3x-UI,
-    # поэтому webhook публикуется на публичном 8443 (один из разрешённых YooKassa портов).
-    # $remote_addr = реальный IP YooKassa -> X-Forwarded-For -> backend IP-allowlist.
+    # Публичный HTTPS: 443 — лендинг/кабинет/API, 8443 — webhook YooKassa
+    # (8443 оставляем, чтобы не перерегистрировать webhook в ЮKassa).
+    # 443 освободился после отключения 3x-ui (legacy VPN на локальном xray больше не нужен).
+    # $remote_addr = реальный IP клиента на обоих портах (TLS терминируется здесь же).
+    listen 443 ssl;
     listen 8443 ssl;
     server_name tolko-dlya-svoih.ru;
 
@@ -49,6 +51,22 @@ server {
     # at startup and cached forever, which breaks on backend/web IP changes.
     set $backend http://backend:8000;
     set $web http://web:8000;
+
+    # SEO discovery: поисковики ищут robots.txt и sitemap.xml в корне домена.
+    # Корень / проксируется в cabinet-SPA (web), который их не отдаёт (404),
+    # поэтому отдаём явно из смонтированного лендинга. Корневой robots запрещает
+    # индексацию кабинета (Allow: /landing/, Disallow: /) — см. robots-root.txt.
+    # exact-match (=) бьёт раньше префиксного /api/v1/ и catch-all location /.
+    location = /robots.txt {
+        alias /usr/share/nginx/landing/robots-root.txt;
+        default_type text/plain;
+        access_log off;
+    }
+    location = /sitemap.xml {
+        alias /usr/share/nginx/landing/sitemap.xml;
+        default_type application/xml;
+        access_log off;
+    }
 
     # Webhook YooKassa -> backend directly
     location /api/v1/payments/webhook {
