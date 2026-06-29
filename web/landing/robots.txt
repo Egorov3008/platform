@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /api/
 
-Sitemap: https://example.com/sitemap.xml
+Sitemap: https://tolko-dlya-svoih.ru/landing/sitemap.xml
