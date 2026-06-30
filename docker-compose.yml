@@ -91,8 +91,9 @@ services:
     image: nginx:alpine
     restart: unless-stopped
     ports:
-      # Публичный 8443: YooKassa шлёт webhook напрямую (443 занят 3x-UI).
-      - "0.0.0.0:8443:8443"
+      # Внутренний 8444 (plain HTTP): публичный TLS терминируется на хостовом nginx
+      # на 8445 (.host_nginx/tg-bot-webhook.conf) и проксируется сюда на 127.0.0.1:8444.
+      - "127.0.0.1:8444:8444"
     environment:
       # Подставляется в default.conf.template через envsubst ($BOT_SECRET_KEY в map),
       # чтобы nginx инжектил X-Bot-Secret в /api/v1/landing/* при проксировании на backend.
