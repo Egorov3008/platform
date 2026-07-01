@@ -65,7 +65,7 @@ cd bot && make formatting
 
 - **Single root `.env`** — all services read from the root `.env` via `env_file`. Do **not** create per-component `.env` files (see `.env.example`).
 - **DB schema init** — Postgres is seeded on first boot from `bot/assets/schema_fixed.sql` (mounted as `/docker-entrypoint-initdb.d/01_schema.sql`). Despite the backend being the source of truth at runtime, the canonical schema DDL lives under `bot/assets/`. The init script intentionally has **no foreign keys** to match the working DB; migration/import scripts in `scripts/` handle FK cleanup post-restore.
-- **Host port mappings** — Postgres exposed on `127.0.0.1:5433` (not 5432, to avoid host conflicts); bot webhook on `127.0.0.1:5001`; container nginx on `127.0.0.1:8444` (internal plain HTTP, off host 80/443). Public TLS terminates on the **host** nginx on `:8445` (`.host_nginx/`, Let's Encrypt), which proxies to `127.0.0.1:8444`. `backend` and `web` are `expose`-only (no host port) — reach them via nginx or the docker network.
+- **Host port mappings** — Postgres exposed on `127.0.0.1:5433` (not 5432, to avoid host conflicts); bot webhook on `127.0.0.1:5001`; container nginx on `127.0.0.1:8444` (internal plain HTTP, off host 80/443). Public TLS terminates on the **host** nginx on `:8443` (`.host_nginx/`, Let's Encrypt), which proxies to `127.0.0.1:8444`. `backend` and `web` are `expose`-only (no host port) — reach them via nginx or the docker network.
 - **`shared/` package** — mounted into `backend` and `bot` at `/app/shared`; holds cross-service config (`shared/config/core.py`). Not mounted into `web`.
 - **Source mounted for dev** — `./backend`, `./web`, `./shared` are bind-mounted into containers for hot reload; rebuild images only when dependencies change.
 

@@ -92,7 +92,7 @@ services:
     restart: unless-stopped
     ports:
       # Внутренний 8444 (plain HTTP): публичный TLS терминируется на хостовом nginx
-      # на 8445 (.host_nginx/tg-bot-webhook.conf) и проксируется сюда на 127.0.0.1:8444.
+      # на 8443 (.host_nginx/tg-bot-webhook.conf) и проксируется сюда на 127.0.0.1:8444.
       - "127.0.0.1:8444:8444"
     environment:
       # Подставляется в default.conf.template через envsubst ($BOT_SECRET_KEY в map),

@@ -5,7 +5,7 @@
 # YooKassa webhook returns 502 (Connection refused) — see incident 2026-06-24.
 resolver 127.0.0.11 valid=30s ipv6=off;
 
-# Публичный TLS терминируется на ХОСТОВОМ nginx (:8445, Let's Encrypt) —
+# Публичный TLS терминируется на ХОСТОВОМ nginx (:8443, Let's Encrypt) —
 # см. .host_nginx/tg-bot-webhook.conf. Этот контейнер — внутренний plain-HTTP,
 # слушает только 127.0.0.1:8444 и доступен исключительно через хостовый фронт.
 # Хостовый nginx передаёт реальный IP клиента в X-Forwarded-For; восстанавливаем
@@ -26,10 +26,10 @@ map $uri $bot_secret_value {
 limit_req_zone $binary_remote_addr zone=landing_quickkey:10m rate=5r/m;
 
 server {
-    # Внутренний plain-HTTP на 8444 (хостовый nginx делает TLS на 8445).
+    # Внутренний plain-HTTP на 8444 (хостовый nginx делает TLS на 8443).
     # $remote_addr = реальный IP клиента (см. realip наверху).
     listen 8444;
-    server_name tolko-dlya-svoih.ru;
+    server_name tg-bot.tds-pro.space;
 
     # Upstream hosts resolved dynamically via the `resolver` above.
     # Using a variable in proxy_pass is what forces dynamic re-resolution;
