@@ -1,6 +1,6 @@
 """Getter для статистики платежей через backend API."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List
 
 from aiogram_dialog import DialogManager
@@ -54,8 +54,9 @@ class PaymentStatsGetter(DataGetter):
         year_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
         month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         # Week starts on Monday
-        week_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        week_start = week_start.replace(day=week_start.day - week_start.weekday())
+        week_start = (now - timedelta(days=now.weekday())).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
         day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
         succeeded = [p for p in payments if p.get("status") == "succeeded"]
